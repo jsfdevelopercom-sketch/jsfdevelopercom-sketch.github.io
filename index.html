@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>APACHE II Bedside Entry</title>
+<style>
+  :root {
+    --bg:#0b0f14; --panel:#10161d; --muted:#8fa6bd; --text:#e9f1f7; --acc:#3fa8ff; --warn:#ffcc00; --err:#ff5c5c; --ok:#52d273;
+  }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto}
+  .wrap{max-width:860px;margin:0 auto;padding:16px 14px 80px}
+  h1{font-size:20px;margin:12px 0 12px}
+  h2{font-size:16px;margin:18px 0 8px;color:var(--muted);font-weight:600}
+  .card{background:var(--panel);border:1px solid #1f2b3a;border-radius:12px;padding:14px;margin:10px 0}
+  label{display:block;margin:10px 0 6px}
+  input[type=text],input[type=number],select{
+    width:100%;padding:10px;border:1px solid #243344;background:#0c1218;color:var(--text);border-radius:8px;outline:none
+  }
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{appearance:none;margin:0}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .help{color:var(--muted);font-size:12px;margin-top:4px}
+  .radio-group{display:flex;gap:10px;flex-wrap:wrap}
+  .radio{border:1px solid #243344;padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;gap:8px;align-items:center}
+  .radio input{accent-color:var(--acc)}
+  .actions{position:sticky;bottom:0;left:0;right:0;background:linear-gradient(180deg, transparent, var(--bg) 25%);padding:12px 0 16px}
+  .btn{background:var(--acc);border:0;color:#00233f;font-weight:700;padding:12px 14px;border-radius:10px;cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.sec{background:#1b2633;color:var(--text);border:1px solid #2d3a4d}
+  .status{margin-top:10px;font-size:14px}
+  .status.ok{color:var(--ok)}
+  .status.err{color:var(--err)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hr{height:1px;background:#1d2a39;margin:10px 0}
+  .pill{display:inline-block;padding:3px 8px;border:1px solid #314055;border-radius:999px;font-size:12px;color:var(--muted);margin-left:8px}
+  .tiny{font-size:12px;color:var(--muted)}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;background:#091018;border:1px solid #203049;border-radius:6px;padding:2px 6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>APACHE II Bedside Entry <span class="pill">Mobile</span></h1>
+
+  <div class="card">
+    <h2>Config</h2>
+    <div class="grid2">
+      <div>
+        <label>Client ID</label>
+        <input id="clientId" type="text" value="NURSING-STATION-01">
+      </div>
+      <div>
+        <label>Auth Token</label>
+        <input id="authToken" type="text" value="CHANGE_ME_STRONG_TOKEN">
+      </div>
+    </div>
+    <div class="grid2">
+      <div>
+        <label>Server HTTP URL <span class="help">e.g., https://your-host/api/submit</span></label>
+        <input id="serverHttp" type="text" value="https://YOUR-SERVER-HOST/api/submit">
+      </div>
+      <div>
+        <label>Server WS URL <span class="help">e.g., wss://your-host/ws/mobile</span></label>
+        <input id="serverWs" type="text" value="wss://YOUR-SERVER-HOST/ws/mobile">
+      </div>
+    </div>
+    <label><input id="dryRun" type="checkbox"> Dry run (don’t send; just show payload)</label>
+  </div>
+
+  <div class="card">
+    <h2>Patient</h2>
+    <div class="row">
+      <div><label>Patient Name*</label><input id="patientName" type="text" required></div>
+      <div><label>UHID*</label><input id="uhid" type="text" required></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Chronic Health</h2>
+    <div class="radio-group" id="chronicGrp">
+      <label class="radio"><input type="radio" name="chronic" value="No" checked> <span>No</span></label>
+      <label class="radio"><input type="radio" name="chronic" value="Yes"> <span>Yes (severe organ failure/immunocompromise)</span></label>
+    </div>
+    <div id="surgTypeWrap" style="display:none;margin-top:8px;">
+      <label>Type of surgery (if chronic Yes)</label>
+      <div class="radio-group">
+        <label class="radio"><input type="radio" name="surgtype" value="Emergency" checked> <span>Emergency</span></label>
+        <label class="radio"><input type="radio" name="surgtype" value="Elective"> <span>Elective</span></label>
+        <label class="radio"><input type="radio" name="surgtype" value="Nonoperative"> <span>Nonoperative</span></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Demographics</h2>
+    <div class="row">
+      <div><label>Age (years)*</label><input id="age" type="number" min="0" max="120" step="1" required></div>
+      <div><label>GCS (3–15)</label><input id="gcs" type="number" min="3" max="15" step="1"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Vitals</h2>
+    <div class="row3">
+      <div><label>Temperature (°F)</label><input id="tempF" type="number" step="0.1"></div>
+      <div><label>Mean Arterial Pressure (mmHg)</label><input id="map" type="number" step="1"></div>
+      <div><label>Heart Rate (bpm)</label><input id="hr" type="number" step="1"></div>
+    </div>
+    <div class="row">
+      <div><label>Respiratory Rate (breaths/min)</label><input id="rr" type="number" step="1"></div>
+      <div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Oxygenation</h2>
+    <label>FiO₂ category*</label>
+    <div class="radio-group" id="fio2Grp">
+      <label class="radio"><input type="radio" name="fio2" value="<50%" checked> <span>&lt; 50% (or non-intubated)</span></label>
+      <label class="radio"><input type="radio" name="fio2" value="≥50%"> <span>≥ 50%</span></label>
+    </div>
+
+    <div id="po2Wrap" style="margin-top:8px;">
+      <label>PaO₂ (mmHg)</label>
+      <input id="pao2" type="number" step="1" placeholder="e.g., 80">
+      <div class="help">If FiO₂ &lt; 50% → provide PaO₂.</div>
+    </div>
+
+    <div id="aagradWrap" style="display:none;margin-top:8px;">
+      <label>A-a gradient (mmHg)</label>
+      <input id="aagrad" type="number" step="1" placeholder="e.g., 220">
+      <div class="help">If FiO₂ ≥ 50% → provide A-a gradient.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Labs</h2>
+    <div class="row3">
+      <div><label>pH (arterial)</label><input id="ph" type="number" step="0.01" min="6.8" max="7.8"></div>
+      <div><label>HCO₃⁻ (mEq/L)</label><input id="hco3" type="number" step="0.1"></div>
+      <div><label>Na⁺ (mEq/L)</label><input id="na" type="number" step="1"></div>
+    </div>
+    <div class="row3">
+      <div><label>K⁺ (mEq/L)</label><input id="k" type="number" step="0.1"></div>
+      <div><label>Creatinine (mg/dL)</label><input id="cr" type="number" step="0.1"></div>
+      <div><label>Acute Renal Failure</label>
+        <div class="radio-group">
+          <label class="radio"><input type="radio" name="arf" value="No" checked> <span>No</span></label>
+          <label class="radio"><input type="radio" name="arf" value="Yes"> <span>Yes</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="row3">
+      <div><label>Hematocrit (%)</label><input id="hct" type="number" step="0.1"></div>
+      <div><label>WBC (×10³/μL)</label><input id="wbc" type="number" step="0.1"></div>
+      <div></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="grid2">
+      <button id="btnSubmit" class="btn">Submit to Server</button>
+      <button id="btnPreview" class="btn sec" type="button">Preview Payload</button>
+    </div>
+    <div id="status" class="status tiny"></div>
+  </div>
+
+  <div id="previewCard" class="card" style="display:none;">
+    <h2>Preview</h2>
+    <pre id="preview" class="kbd" style="white-space:pre-wrap;"></pre>
+  </div>
+
+</div>
+
+<script>
+/* ===========================
+   CONFIG (edit in UI or here)
+   =========================== */
+function readConfig() {
+  return {
+    CLIENT_ID:  document.getElementById('clientId').value.trim(),
+    AUTH_TOKEN: document.getElementById('authToken').value.trim(),
+    SERVER_HTTP_URL: document.getElementById('serverHttp').value.trim(),
+    SERVER_WS_URL:   document.getElementById('serverWs').value.trim(),
+    DRY_RUN: document.getElementById('dryRun').checked
+  };
+}
+
+/* ====== UI toggles ====== */
+const chronicGrp = document.getElementById('chronicGrp');
+const surgTypeWrap = document.getElementById('surgTypeWrap');
+chronicGrp.addEventListener('change', () => {
+  const val = document.querySelector('input[name="chronic"]:checked').value;
+  surgTypeWrap.style.display = (val === 'Yes') ? 'block' : 'none';
+});
+
+const fio2Grp = document.getElementById('fio2Grp');
+const po2Wrap = document.getElementById('po2Wrap');
+const aagradWrap = document.getElementById('aagradWrap');
+fio2Grp.addEventListener('change', () => {
+  const val = document.querySelector('input[name="fio2"]:checked').value;
+  if (val === '<50%') {
+    po2Wrap.style.display = 'block';
+    aagradWrap.style.display = 'none';
+  } else {
+    po2Wrap.style.display = 'none';
+    aagradWrap.style.display = 'block';
+  }
+});
+
+/* ====== Helpers ====== */
+function byId(id){return document.getElementById(id)}
+function valNum(id){ const v = byId(id).value.trim(); return v === '' ? null : Number(v); }
+function valStr(id){ const v = byId(id).value.trim(); return v === '' ? null : v; }
+function radioVal(name){ const el = document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null }
+function uuidv4(){
+  // RFC4122-ish random ID (for correlating server acks)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r = crypto.getRandomValues(new Uint8Array(1))[0]&15;
+    const v = c==='x'?r:(r&0x3|0x8); return v.toString(16);
+  });
+}
+function setStatus(msg, cls=''){const s=byId('status'); s.className='status '+cls; s.textContent=msg;}
+
+/* ====== Build payload ====== */
+function buildPayload(){
+  // Required checks
+  const patientName = valStr('patientName');
+  const uhid = valStr('uhid');
+  const age = valNum('age');
+  const fio2 = radioVal('fio2');
+  if(!patientName){throw new Error('Patient Name is required')}
+  if(!uhid){throw new Error('UHID is required')}
+  if(age===null){throw new Error('Age is required')}
+  if(!fio2){throw new Error('FiO₂ category is required')}
+
+  const chronic = radioVal('chronic');
+  const surgtype = chronic === 'Yes' ? radioVal('surgtype') : null;
+
+  // Validate oxygenation branch
+  const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
+  const aagrad = fio2 === '≥50%' ? valNum('aagrad') : null;
+  if (fio2 === '<50%' && (pao2===null)) throw new Error('PaO₂ is required when FiO₂ < 50%');
+  if (fio2 === '≥50%' && (aagrad===null)) throw new Error('A-a gradient is required when FiO₂ ≥ 50%');
+
+  const payload = {
+    clientId: readConfig().CLIENT_ID,
+    authToken: readConfig().AUTH_TOKEN,
+    patientName,
+    uhid,
+    timestamp: new Date().toISOString(),
+    submissionId: uuidv4(), // used to correlate WS acks (server should echo this)
+    apacheInputs: {
+      Age_years: age,
+      GCS: valNum('gcs'),
+      Temperature_F: valNum('tempF'),
+      MAP_mmHg: valNum('map'),
+      HeartRate_bpm: valNum('hr'),
+      RespRate_bpm: valNum('rr'),
+      FiO2_Category: fio2,
+      PaO2_mmHg: pao2,
+      AaGradient_mmHg: aagrad,
+      pH: valNum('ph'),
+      HCO3_mEqL: valNum('hco3'),
+      Na_mEqL: valNum('na'),
+      K_mEqL: valNum('k'),
+      Creatinine_mgdl: valNum('cr'),
+      AcuteRenalFailure: radioVal('arf') === 'Yes',
+      Hematocrit_pct: valNum('hct'),
+      WBC_10e3uL: valNum('wbc'),
+      ChronicHealth: chronic === 'Yes' ? 'Yes' : 'No',
+      SurgeryType: surgtype
+    }
+  };
+  return payload;
+}
+
+/* ====== Networking (POST + optional WS ack) ====== */
+async function postPayload(payload, cfg){
+  const res = await fetch(cfg.SERVER_HTTP_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok){
+    const t = await res.text().catch(()=> '');
+    throw new Error('Server HTTP error '+res.status+': '+t);
+  }
+  return res.json().catch(()=> ({}));
+}
+
+function waitForAckWS(cfg, submissionId, onAck, onError){
+  try {
+    const url = new URL(cfg.SERVER_WS_URL);
+    // attach query params for routing
+    url.searchParams.set('clientId', cfg.CLIENT_ID);
+    url.searchParams.set('submissionId', submissionId);
+    const ws = new WebSocket(url.toString());
+    ws.onopen = ()=> setStatus('Waiting for desktop ack via WebSocket…','');
+    ws.onmessage = (ev)=>{
+      try{
+        const msg = JSON.parse(ev.data);
+        // Expecting server to echo submissionId or at least patient/uhid
+        if (msg.status === 'SUCCESS' || msg.status === 'ERROR' || msg.clientId){
+          onAck(msg);
+          ws.close();
+        }
+      }catch(e){ /* ignore non-json */ }
+    };
+    ws.onerror = (e)=>{ onError(new Error('WS error')); };
+    ws.onclose = ()=>{};
+    return ws;
+  } catch(e){
+    onError(e);
+    return null;
+  }
+}
+
+/* ====== Wire buttons ====== */
+byId('btnPreview').addEventListener('click', ()=>{
+  try{
+    const p = buildPayload();
+    byId('preview').textContent = JSON.stringify(p, null, 2);
+    byId('previewCard').style.display = 'block';
+    setStatus('Payload preview generated.','');
+  }catch(e){
+    setStatus(e.message, 'err');
+  }
+});
+
+byId('btnSubmit').addEventListener('click', async (ev)=>{
+  ev.preventDefault();
+  const btn = byId('btnSubmit');
+  btn.disabled = true;
+  try{
+    const cfg = readConfig();
+    const payload = buildPayload();
+
+    byId('preview').textContent = JSON.stringify(payload, null, 2);
+    byId('previewCard').style.display = 'block';
+
+    if (cfg.DRY_RUN){
+      setStatus('Dry run: not sent. Payload shown below.', 'ok');
+      btn.disabled = false;
+      return;
+    }
+
+    setStatus('Sending to server…','');
+    const httpResp = await postPayload(payload, cfg);
+    setStatus('Submitted. Awaiting desktop ack…','');
+
+    // Optional WS ack (best effort). If not available, at least we posted.
+    let acked = false;
+    const timeout = setTimeout(()=>{
+      if (!acked) setStatus('No WS ack yet (may still succeed).','');
+    }, 12000);
+
+    waitForAckWS(cfg, payload.submissionId, (ack)=>{
+      acked = true;
+      clearTimeout(timeout);
+      if (ack.status === 'SUCCESS'){
+        setStatus('Desktop saved to Excel ✅', 'ok');
+      } else if (ack.status === 'ERROR'){
+        setStatus('Desktop error: '+(ack.message||'unknown'), 'err');
+      } else {
+        setStatus('Received WS message from server.', '');
+      }
+    }, (err)=>{
+      // WS optional; network environments may block it—don’t fail the flow
+      setStatus('WS not available (HTTP submission was OK).', '');
+    });
+
+  }catch(e){
+    console.error(e);
+    setStatus('Submit failed: '+e.message, 'err');
+  }finally{
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
