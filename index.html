@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>APACHE II Bedside Entry</title>
 <style>
-  :root {
-    --bg:#0b0f14; --panel:#10161d; --muted:#8fa6bd; --text:#e9f1f7; --acc:#3fa8ff; --warn:#ffcc00; --err:#ff5c5c; --ok:#52d273;
-  }
+  :root { --bg:#0b0f14; --panel:#10161d; --muted:#8fa6bd; --text:#e9f1f7; --acc:#3fa8ff; --warn:#ffcc00; --err:#ff5c5c; --ok:#52d273; }
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto}
   .wrap{max-width:860px;margin:0 auto;padding:16px 14px 80px}
   h1{font-size:20px;margin:12px 0 12px}
@@ -36,6 +34,8 @@
   .pill{display:inline-block;padding:3px 8px;border:1px solid #314055;border-radius:999px;font-size:12px;color:var(--muted);margin-left:8px}
   .tiny{font-size:12px;color:var(--muted)}
   .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;background:#091018;border:1px solid #203049;border-radius:6px;padding:2px 6px}
+  .hidden{display:none}
+  .link{color:var(--acc);cursor:pointer;text-decoration:underline;font-size:12px}
 </style>
 </head>
 <body>
@@ -43,8 +43,11 @@
   <h1>APACHE II Bedside Entry <span class="pill">Mobile</span></h1>
 
   <div class="card">
-    <h2>Config</h2>
-    <div class="grid2">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="margin:0">Config</h2>
+      <span id="toggleCfg" class="link">Show config</span>
+    </div>
+    <div id="cfgBlock" class="grid2 hidden">
       <div>
         <label>Client ID</label>
         <input id="clientId" type="text" value="NURSING-STATION-01">
@@ -53,18 +56,13 @@
         <label>Auth Token</label>
         <input id="authToken" type="text" value="CHANGE_ME_STRONG_TOKEN">
       </div>
-    </div>
-    <div class="grid2">
-      <div>
-        <label>Server HTTP URL <span class="help">e.g., https://your-host/api/submit</span></label>
-        <input id="serverHttp" type="text" value="https://YOUR-SERVER-HOST/api/submit">
-      </div>
-      <div>
-        <label>Server WS URL <span class="help">e.g., wss://your-host/ws/mobile</span></label>
-        <input id="serverWs" type="text" value="wss://YOUR-SERVER-HOST/ws/mobile">
+      <div style="grid-column:1/-1">
+        <label><input id="dryRun" type="checkbox"> Dry run (don’t send; just show payload)</label>
       </div>
     </div>
-    <label><input id="dryRun" type="checkbox"> Dry run (don’t send; just show payload)</label>
+    <div class="tiny" style="margin-top:6px">
+      API fixed to <code>https://apache-bridge-server-production.up.railway.app</code> • WS fixed to <code>wss://…/ws/mobile</code>
+    </div>
   </div>
 
   <div class="card">
@@ -174,17 +172,18 @@
 
 <script>
 /* ===========================
-   CONFIG (edit in UI or here)
+   FIXED ENDPOINTS (hard-coded)
    =========================== */
-function readConfig() {
-  return {
-    CLIENT_ID:  document.getElementById('clientId').value.trim(),
-    AUTH_TOKEN: document.getElementById('authToken').value.trim(),
-    SERVER_HTTP_URL: document.getElementById('serverHttp').value.trim(),
-    SERVER_WS_URL:   document.getElementById('serverWs').value.trim(),
-    DRY_RUN: document.getElementById('dryRun').checked
-  };
-}
+const API_BASE = "https://apache-bridge-server-production.up.railway.app";
+const SERVER_HTTP_URL = API_BASE + "/api/submit";
+const SERVER_WS_URL   = "wss://apache-bridge-server-production.up.railway.app/ws/mobile";
+
+/* Toggle hidden config (Client ID / Token) */
+document.getElementById('toggleCfg').addEventListener('click', ()=>{
+  const b = document.getElementById('cfgBlock');
+  b.classList.toggle('hidden');
+  document.getElementById('toggleCfg').textContent = b.classList.contains('hidden') ? 'Show config' : 'Hide config';
+});
 
 /* ====== UI toggles ====== */
 const chronicGrp = document.getElementById('chronicGrp');
@@ -199,13 +198,8 @@ const po2Wrap = document.getElementById('po2Wrap');
 const aagradWrap = document.getElementById('aagradWrap');
 fio2Grp.addEventListener('change', () => {
   const val = document.querySelector('input[name="fio2"]:checked').value;
-  if (val === '<50%') {
-    po2Wrap.style.display = 'block';
-    aagradWrap.style.display = 'none';
-  } else {
-    po2Wrap.style.display = 'none';
-    aagradWrap.style.display = 'block';
-  }
+  if (val === '<50%') { po2Wrap.style.display = 'block'; aagradWrap.style.display = 'none'; }
+  else { po2Wrap.style.display = 'none'; aagradWrap.style.display = 'block'; }
 });
 
 /* ====== Helpers ====== */
@@ -214,7 +208,6 @@ function valNum(id){ const v = byId(id).value.trim(); return v === '' ? null : N
 function valStr(id){ const v = byId(id).value.trim(); return v === '' ? null : v; }
 function radioVal(name){ const el = document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null }
 function uuidv4(){
-  // RFC4122-ish random ID (for correlating server acks)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
     const r = crypto.getRandomValues(new Uint8Array(1))[0]&15;
     const v = c==='x'?r:(r&0x3|0x8); return v.toString(16);
@@ -224,32 +217,30 @@ function setStatus(msg, cls=''){const s=byId('status'); s.className='status '+cl
 
 /* ====== Build payload ====== */
 function buildPayload(){
-  // Required checks
   const patientName = valStr('patientName');
   const uhid = valStr('uhid');
   const age = valNum('age');
   const fio2 = radioVal('fio2');
-  if(!patientName){throw new Error('Patient Name is required')}
-  if(!uhid){throw new Error('UHID is required')}
-  if(age===null){throw new Error('Age is required')}
-  if(!fio2){throw new Error('FiO₂ category is required')}
+  if(!patientName) throw new Error('Patient Name is required');
+  if(!uhid) throw new Error('UHID is required');
+  if(age===null) throw new Error('Age is required');
+  if(!fio2) throw new Error('FiO₂ category is required');
 
   const chronic = radioVal('chronic');
   const surgtype = chronic === 'Yes' ? radioVal('surgtype') : null;
 
-  // Validate oxygenation branch
   const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
   const aagrad = fio2 === '≥50%' ? valNum('aagrad') : null;
   if (fio2 === '<50%' && (pao2===null)) throw new Error('PaO₂ is required when FiO₂ < 50%');
   if (fio2 === '≥50%' && (aagrad===null)) throw new Error('A-a gradient is required when FiO₂ ≥ 50%');
 
   const payload = {
-    clientId: readConfig().CLIENT_ID,
-    authToken: readConfig().AUTH_TOKEN,
+    clientId: byId('clientId').value.trim(),
+    authToken: byId('authToken').value.trim(),
     patientName,
     uhid,
     timestamp: new Date().toISOString(),
-    submissionId: uuidv4(), // used to correlate WS acks (server should echo this)
+    submissionId: uuidv4(),
     apacheInputs: {
       Age_years: age,
       GCS: valNum('gcs'),
@@ -276,8 +267,8 @@ function buildPayload(){
 }
 
 /* ====== Networking (POST + optional WS ack) ====== */
-async function postPayload(payload, cfg){
-  const res = await fetch(cfg.SERVER_HTTP_URL, {
+async function postPayload(payload){
+  const res = await fetch(SERVER_HTTP_URL, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify(payload)
@@ -289,86 +280,63 @@ async function postPayload(payload, cfg){
   return res.json().catch(()=> ({}));
 }
 
-function waitForAckWS(cfg, submissionId, onAck, onError){
+function waitForAckWS(submissionId, onAck, onError){
   try {
-    const url = new URL(cfg.SERVER_WS_URL);
-    // attach query params for routing
-    url.searchParams.set('clientId', cfg.CLIENT_ID);
+    const url = new URL(SERVER_WS_URL);
+    url.searchParams.set('clientId', byId('clientId').value.trim());
     url.searchParams.set('submissionId', submissionId);
     const ws = new WebSocket(url.toString());
     ws.onopen = ()=> setStatus('Waiting for desktop ack via WebSocket…','');
     ws.onmessage = (ev)=>{
       try{
         const msg = JSON.parse(ev.data);
-        // Expecting server to echo submissionId or at least patient/uhid
         if (msg.status === 'SUCCESS' || msg.status === 'ERROR' || msg.clientId){
-          onAck(msg);
-          ws.close();
+          onAck(msg); ws.close();
         }
-      }catch(e){ /* ignore non-json */ }
+      }catch(e){}
     };
-    ws.onerror = (e)=>{ onError(new Error('WS error')); };
-    ws.onclose = ()=>{};
+    ws.onerror = ()=> onError(new Error('WS error'));
     return ws;
-  } catch(e){
-    onError(e);
-    return null;
-  }
+  } catch(e){ onError(e); return null; }
 }
 
-/* ====== Wire buttons ====== */
-byId('btnPreview').addEventListener('click', ()=>{
+/* ====== Buttons ====== */
+document.getElementById('btnPreview').addEventListener('click', ()=>{
   try{
     const p = buildPayload();
-    byId('preview').textContent = JSON.stringify(p, null, 2);
-    byId('previewCard').style.display = 'block';
+    document.getElementById('preview').textContent = JSON.stringify(p, null, 2);
+    document.getElementById('previewCard').style.display = 'block';
     setStatus('Payload preview generated.','');
-  }catch(e){
-    setStatus(e.message, 'err');
-  }
+  }catch(e){ setStatus(e.message, 'err'); }
 });
 
-byId('btnSubmit').addEventListener('click', async (ev)=>{
+document.getElementById('btnSubmit').addEventListener('click', async (ev)=>{
   ev.preventDefault();
-  const btn = byId('btnSubmit');
+  const btn = document.getElementById('btnSubmit');
   btn.disabled = true;
   try{
-    const cfg = readConfig();
     const payload = buildPayload();
+    document.getElementById('preview').textContent = JSON.stringify(payload, null, 2);
+    document.getElementById('previewCard').style.display = 'block';
 
-    byId('preview').textContent = JSON.stringify(payload, null, 2);
-    byId('previewCard').style.display = 'block';
-
-    if (cfg.DRY_RUN){
+    if (document.getElementById('dryRun').checked){
       setStatus('Dry run: not sent. Payload shown below.', 'ok');
-      btn.disabled = false;
-      return;
+      btn.disabled = false; return;
     }
 
     setStatus('Sending to server…','');
-    const httpResp = await postPayload(payload, cfg);
+    const httpResp = await postPayload(payload);
     setStatus('Submitted. Awaiting desktop ack…','');
 
-    // Optional WS ack (best effort). If not available, at least we posted.
     let acked = false;
-    const timeout = setTimeout(()=>{
-      if (!acked) setStatus('No WS ack yet (may still succeed).','');
-    }, 12000);
+    const timeout = setTimeout(()=>{ if (!acked) setStatus('No WS ack yet (may still succeed).',''); }, 12000);
 
-    waitForAckWS(cfg, payload.submissionId, (ack)=>{
-      acked = true;
-      clearTimeout(timeout);
-      if (ack.status === 'SUCCESS'){
-        setStatus('Desktop saved to Excel ✅', 'ok');
-      } else if (ack.status === 'ERROR'){
-        setStatus('Desktop error: '+(ack.message||'unknown'), 'err');
-      } else {
-        setStatus('Received WS message from server.', '');
-      }
-    }, (err)=>{
-      // WS optional; network environments may block it—don’t fail the flow
-      setStatus('WS not available (HTTP submission was OK).', '');
-    });
+    waitForAckWS(payload.submissionId, (ack)=>{
+      acked = true; clearTimeout(timeout);
+      if (ack.status === 'SUCCESS') setStatus('Desktop saved to Excel ✅','ok');
+      else if (ack.status === 'ERROR') setStatus('Desktop error: '+(ack.message||'unknown'), 'err');
+      else setStatus('Received WS message from server.','');
+    }, ()=> setStatus('WS not available (HTTP submission was OK).',''));
 
   }catch(e){
     console.error(e);
