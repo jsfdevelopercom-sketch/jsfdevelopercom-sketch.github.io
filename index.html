@@ -2,220 +2,441 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>APACHE II Bedside Entry</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>APACHE II Bedside Entry · Mobile</title>
 <style>
-  :root { --bg:#0b0f14; --panel:#10161d; --muted:#8fa6bd; --text:#e9f1f7; --acc:#3fa8ff; --warn:#ffcc00; --err:#ff5c5c; --ok:#52d273; }
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto}
-  .wrap{max-width:860px;margin:0 auto;padding:16px 14px 80px}
-  h1{font-size:20px;margin:12px 0 12px}
-  h2{font-size:16px;margin:18px 0 8px;color:var(--muted);font-weight:600}
-  .card{background:var(--panel);border:1px solid #1f2b3a;border-radius:12px;padding:14px;margin:10px 0}
-  label{display:block;margin:10px 0 6px}
-  input[type=text],input[type=number],select{
-    width:100%;padding:10px;border:1px solid #243344;background:#0c1218;color:var(--text);border-radius:8px;outline:none
+  /* ==========================
+     THEME & RESET
+     ========================== */
+  :root{
+    --bg:#0a0f14;            /* page background */
+    --panel:#0f151c;         /* card background */
+    --elev:#121b24;          /* elevated surface */
+    --line:#213040;          /* borders */
+    --line-soft:#1a2936;     /* light borders */
+    --text:#eaf2f8;          /* primary text */
+    --muted:#95a7bb;         /* secondary text */
+    --acc:#3fb2ff;           /* accent / primary */
+    --acc-strong:#1fa2ff;    /* accent hover */
+    --ok:#52d273;            /* success */
+    --warn:#ffc64d;          /* warning */
+    --err:#ff5e6e;           /* error */
+    --chip:#122234;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --radius-lg:16px;
+    --radius:12px;
+    --radius-sm:10px;
   }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:linear-gradient(180deg, #0a0f14 0%, #0b1117 100%); color:var(--text);
+    font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+  }
+  a{color:var(--acc); text-decoration:none}
+  a:hover{color:var(--acc-strong)}
+  .wrap{max-width:920px; margin:0 auto; padding:14px 14px 110px}
+
+  /* ==========================
+     HEADER
+     ========================== */
+  .topbar{
+    position:sticky; top:0; z-index:20; backdrop-filter: blur(12px);
+    background:linear-gradient(180deg, rgba(13,18,24,.86) 0%, rgba(13,18,24,.66) 100%);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar-inner{display:flex; gap:10px; align-items:center; padding:10px 14px}
+  .logo{
+    display:flex; align-items:center; gap:10px;
+    padding:8px 10px; border-radius:12px; background:var(--chip); border:1px solid var(--line);
+  }
+  .logo svg{width:22px; height:22px}
+  .title h1{font-size:18px; margin:0 0 2px 0}
+  .title .sub{color:var(--muted); font-size:12px}
+  .patient-mini{margin-left:auto; display:flex; gap:8px; align-items:center}
+  .mini-field{display:flex; gap:6px; align-items:center; padding:8px 10px; border:1px solid var(--line); background:#0b1218; border-radius:999px}
+  .mini-field input{background:transparent; border:0; outline:none; color:var(--text); width:130px}
+  .mini-field input::placeholder{color:#7990a7}
+
+  /* ==========================
+     CARD / SECTIONS
+     ========================== */
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-lg); padding:14px; margin:12px 0; box-shadow:var(--shadow)}
+  .card h2{font-size:16px; margin:0 0 8px 0; color:#cfe6ff; letter-spacing:.2px}
+  .card .hint{color:var(--muted); font-size:12px}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+  @media (max-width:720px){ .grid2, .grid3{ grid-template-columns:1fr; } }
+
+  label{display:block; font-size:13px; color:#9fb3c9; margin:8px 0 6px}
+  .ipt, select{
+    width:100%; padding:12px 12px; border:1px solid var(--line); background:#0c131a; color:var(--text);
+    border-radius:12px; outline:none; transition: border .15s ease, box-shadow .15s ease;
+  }
+  .ipt:focus, select:focus{ border-color:#2f4d69; box-shadow:0 0 0 4px rgba(63,178,255,.12) }
   input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{appearance:none;margin:0}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .help{color:var(--muted);font-size:12px;margin-top:4px}
-  .radio-group{display:flex;gap:10px;flex-wrap:wrap}
-  .radio{border:1px solid #243344;padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;gap:8px;align-items:center}
-  .radio input{accent-color:var(--acc)}
-  .actions{position:sticky;bottom:0;left:0;right:0;background:linear-gradient(180deg, transparent, var(--bg) 25%);padding:12px 0 16px}
-  .btn{background:var(--acc);border:0;color:#00233f;font-weight:700;padding:12px 14px;border-radius:10px;cursor:pointer}
-  .btn:disabled{opacity:.5;cursor:not-allowed}
-  .btn.sec{background:#1b2633;color:var(--text);border:1px solid #2d3a4d}
-  .status{margin-top:10px;font-size:14px}
-  .status.ok{color:var(--ok)}
-  .status.err{color:var(--err)}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .hr{height:1px;background:#1d2a39;margin:10px 0}
-  .pill{display:inline-block;padding:3px 8px;border:1px solid #314055;border-radius:999px;font-size:12px;color:var(--muted);margin-left:8px}
-  .tiny{font-size:12px;color:var(--muted)}
-  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;background:#091018;border:1px solid #203049;border-radius:6px;padding:2px 6px}
-  .hidden{display:none}
-  .link{color:var(--acc);cursor:pointer;text-decoration:underline;font-size:12px}
+
+  .radio-row{display:flex; flex-wrap:wrap; gap:8px}
+  .chip-radio{display:flex; align-items:center; gap:8px; padding:9px 12px; border:1px solid var(--line); background:var(--chip); border-radius:12px; cursor:pointer}
+  .chip-radio input{accent-color:var(--acc)}
+
+  .hr{height:1px; background:linear-gradient(90deg, transparent, var(--line), transparent); margin:12px 0}
+
+  /* ==========================
+     ACTION DOCK (bottom)
+     ========================== */
+  .dock{
+    position:fixed; left:0; right:0; bottom:0; z-index:30; padding:10px 14px 14px; border-top:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(10,16,22,.0) 0%, rgba(10,16,22,.55) 10%, rgba(10,16,22,.95) 55%, rgba(10,16,22,.98) 100%);
+    backdrop-filter: blur(10px);
+  }
+  .dock-inner{max-width:920px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .btn{display:inline-flex; justify-content:center; align-items:center; gap:10px; font-weight:700; border:0; cursor:pointer; border-radius:14px; padding:14px}
+  .btn.primary{background:linear-gradient(180deg, var(--acc) 0%, #2387de 100%); color:#001b31}
+  .btn.primary:active{transform:translateY(1px)}
+  .btn.ghost{background:#10202f; color:var(--text); border:1px solid var(--line)}
+  .btn:disabled{opacity:.5; cursor:not-allowed}
+
+  /* ==========================
+     TOASTS
+     ========================== */
+  .toast{position:fixed; right:14px; bottom:94px; z-index:40; max-width:360px; padding:14px 14px; border-radius:14px; box-shadow:var(--shadow); display:none}
+  .toast.ok{background:linear-gradient(180deg, #0f2618, #0c1f14); border:1px solid #1d6e3b}
+  .toast.err{background:linear-gradient(180deg, #2a0f14, #1a0d0f); border:1px solid #7a2a33}
+  .toast .row{display:flex; gap:12px; align-items:flex-start}
+  .toast .txt{font-size:14px}
+  .toast .mini{font-size:12px; color:#a9c5b3}
+  .toast svg{width:26px; height:26px; flex:0 0 auto}
+
+  /* ==========================
+     COLLAPSIBLES (Dev & Preview)
+     ========================== */
+  .collapser{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border:1px dashed var(--line); border-radius:12px; background:#0b141c}
+  .collapser .link{color:#7fc7ff; font-weight:600; text-decoration:underline; cursor:pointer}
+  .devwrap{display:none; margin-top:10px}
+  .preview{white-space:pre-wrap; background:#091018; border:1px solid var(--line); border-radius:12px; padding:12px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px}
+
+  /* ==========================
+     SECTION TABS (Vitals/Labs etc.)
+     ========================== */
+  .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px}
+  .tab{padding:10px 12px; border-radius:12px; background:#0c1a26; border:1px solid var(--line); color:#a6c4df; cursor:pointer; user-select:none}
+  .tab.active{background:#112131; color:#e7f5ff; border-color:#2a4966}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  /* Accessibility helpers */
+  .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>APACHE II Bedside Entry <span class="pill">Mobile</span></h1>
-
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <h2 style="margin:0">Config</h2>
-      <span id="toggleCfg" class="link">Show config</span>
+<div class="topbar" role="banner">
+  <div class="topbar-inner">
+    <div class="logo" aria-label="App logo">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 12a8 8 0 1 1 16 0" stroke="#9ed7ff" stroke-width="1.5"/>
+        <path d="M12 4v6l4 2" stroke="#3fb2ff" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <strong>APACHE&nbsp;II</strong>
     </div>
-    <div id="cfgBlock" class="grid2 hidden">
-      <div>
-        <label>Client ID</label>
-        <input id="clientId" type="text" value="NURSING-STATION-01">
+    <div class="title">
+      <h1>Bedside Entry <span class="sub">Mobile</span></h1>
+      <div class="sub">Fast, friendly data capture for ICU</div>
+    </div>
+    <div class="patient-mini" aria-label="Quick patient entry">
+      <div class="mini-field" title="Patient name">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5Z" stroke="#7fb0d3"/></svg>
+        <input id="patientNameMini" type="text" placeholder="Patient name" aria-label="Patient name">
       </div>
-      <div>
-        <label>Auth Token</label>
-        <input id="authToken" type="text" value="SUPER_STRONG_SHARED_TOKEN">
-      </div>
-      <div style="grid-column:1/-1">
-        <label><input id="dryRun" type="checkbox"> Dry run (don’t send; just show payload)</label>
-      </div>
-    </div>
-    <div class="tiny" style="margin-top:6px">
-      API fixed to <code>https://apache-bridge-server-production.up.railway.app</code> • WS fixed to <code>wss://…/ws/mobile</code>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Patient</h2>
-    <div class="row">
-      <div><label>Patient Name*</label><input id="patientName" type="text" required></div>
-      <div><label>UHID*</label><input id="uhid" type="text" required></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Chronic Health</h2>
-    <div class="radio-group" id="chronicGrp">
-      <label class="radio"><input type="radio" name="chronic" value="No" checked> <span>No</span></label>
-      <label class="radio"><input type="radio" name="chronic" value="Yes"> <span>Yes (severe organ failure/immunocompromise)</span></label>
-    </div>
-    <div id="surgTypeWrap" style="display:none;margin-top:8px;">
-      <label>Type of surgery (if chronic Yes)</label>
-      <div class="radio-group">
-        <label class="radio"><input type="radio" name="surgtype" value="Emergency" checked> <span>Emergency</span></label>
-        <label class="radio"><input type="radio" name="surgtype" value="Elective"> <span>Elective</span></label>
-        <label class="radio"><input type="radio" name="surgtype" value="Nonoperative"> <span>Nonoperative</span></label>
+      <div class="mini-field" title="UHID">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm0 3h18" stroke="#7fb0d3"/></svg>
+        <input id="uhidMini" type="text" placeholder="UHID" aria-label="UHID">
       </div>
     </div>
   </div>
-
-  <div class="card">
-    <h2>Demographics</h2>
-    <div class="row">
-      <div><label>Age (years)*</label><input id="age" type="number" min="0" max="120" step="1" required></div>
-      <div><label>GCS (3–15)</label><input id="gcs" type="number" min="3" max="15" step="1"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Vitals</h2>
-    <div class="row3">
-      <div><label>Temperature (°F)</label><input id="tempF" type="number" step="0.1"></div>
-      <div><label>Mean Arterial Pressure (mmHg)</label><input id="map" type="number" step="1"></div>
-      <div><label>Heart Rate (bpm)</label><input id="hr" type="number" step="1"></div>
-    </div>
-    <div class="row">
-      <div><label>Respiratory Rate (breaths/min)</label><input id="rr" type="number" step="1"></div>
-      <div></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Oxygenation</h2>
-    <label>FiO₂ category*</label>
-    <div class="radio-group" id="fio2Grp">
-      <label class="radio"><input type="radio" name="fio2" value="<50%" checked> <span>&lt; 50% (or non-intubated)</span></label>
-      <label class="radio"><input type="radio" name="fio2" value="≥50%"> <span>≥ 50%</span></label>
-    </div>
-
-    <div id="po2Wrap" style="margin-top:8px;">
-      <label>PaO₂ (mmHg)</label>
-      <input id="pao2" type="number" step="1" placeholder="e.g., 80">
-      <div class="help">If FiO₂ &lt; 50% → provide PaO₂.</div>
-    </div>
-
-    <div id="aagradWrap" style="display:none;margin-top:8px;">
-      <label>A-a gradient (mmHg)</label>
-      <input id="aagrad" type="number" step="1" placeholder="e.g., 220">
-      <div class="help">If FiO₂ ≥ 50% → provide A-a gradient.</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Labs</h2>
-    <div class="row3">
-      <div><label>pH (arterial)</label><input id="ph" type="number" step="0.01" min="6.8" max="7.8"></div>
-      <div><label>HCO₃⁻ (mEq/L)</label><input id="hco3" type="number" step="0.1"></div>
-      <div><label>Na⁺ (mEq/L)</label><input id="na" type="number" step="1"></div>
-    </div>
-    <div class="row3">
-      <div><label>K⁺ (mEq/L)</label><input id="k" type="number" step="0.1"></div>
-      <div><label>Creatinine (mg/dL)</label><input id="cr" type="number" step="0.1"></div>
-      <div><label>Acute Renal Failure</label>
-        <div class="radio-group">
-          <label class="radio"><input type="radio" name="arf" value="No" checked> <span>No</span></label>
-          <label class="radio"><input type="radio" name="arf" value="Yes"> <span>Yes</span></label>
-        </div>
-      </div>
-    </div>
-    <div class="row3">
-      <div><label>Hematocrit (%)</label><input id="hct" type="number" step="0.1"></div>
-      <div><label>WBC (×10³/μL)</label><input id="wbc" type="number" step="0.1"></div>
-      <div></div>
-    </div>
-  </div>
-
-  <div class="actions">
-    <div class="grid2">
-      <button id="btnSubmit" class="btn">Submit to Server</button>
-      <button id="btnPreview" class="btn sec" type="button">Preview Payload</button>
-    </div>
-    <div id="status" class="status tiny"></div>
-  </div>
-
-  <div id="previewCard" class="card" style="display:none;">
-    <h2>Preview</h2>
-    <pre id="preview" class="kbd" style="white-space:pre-wrap;"></pre>
-  </div>
-
 </div>
 
+<div class="wrap">
+  <!-- PATIENT -->
+  <section class="card" aria-labelledby="patient-h">
+    <h2 id="patient-h">Patient</h2>
+    <div class="grid2">
+      <div>
+        <label for="patientName">Patient Name*</label>
+        <input id="patientName" class="ipt" type="text" required>
+      </div>
+      <div>
+        <label for="uhid">UHID*</label>
+        <input id="uhid" class="ipt" type="text" required>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHRONIC HEALTH -->
+  <section class="card" aria-labelledby="chronic-h">
+    <h2 id="chronic-h">Chronic Health</h2>
+    <div class="radio-row" id="chronicGrp" role="radiogroup" aria-label="Chronic health">
+      <label class="chip-radio"><input type="radio" name="chronic" value="No" checked> <span>No</span></label>
+      <label class="chip-radio"><input type="radio" name="chronic" value="Yes"> <span>Yes – severe organ failure / immunocompromised</span></label>
+    </div>
+    <div id="surgTypeWrap" style="display:none; margin-top:8px;">
+      <label>Type of surgery (if chronic = Yes)</label>
+      <div class="radio-row">
+        <label class="chip-radio"><input type="radio" name="surgtype" value="Emergency" checked> <span>Emergency</span></label>
+        <label class="chip-radio"><input type="radio" name="surgtype" value="Elective"> <span>Elective</span></label>
+        <label class="chip-radio"><input type="radio" name="surgtype" value="Nonoperative"> <span>Non‑operative</span></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEMOGRAPHICS -->
+  <section class="card" aria-labelledby="demo-h">
+    <h2 id="demo-h">Demographics</h2>
+    <div class="grid2">
+      <div>
+        <label for="age">Age (years)*</label>
+        <input id="age" class="ipt" type="number" min="0" max="120" step="1" required>
+      </div>
+      <div>
+        <label for="gcs">GCS (3–15)</label>
+        <input id="gcs" class="ipt" type="number" min="3" max="15" step="1" placeholder="e.g., 12">
+      </div>
+    </div>
+  </section>
+
+  <!-- VITALS + OXYGEN + LABS as tabs -->
+  <section class="card" aria-labelledby="inputs-h">
+    <h2 id="inputs-h">Clinical Inputs</h2>
+    <div class="tabs" role="tablist" aria-label="Input sections">
+      <button class="tab active" data-tab="vitals" role="tab" aria-selected="true">Vitals</button>
+      <button class="tab" data-tab="oxygen" role="tab" aria-selected="false">Oxygenation</button>
+      <button class="tab" data-tab="labs" role="tab" aria-selected="false">Labs</button>
+    </div>
+
+    <div id="tab-vitals" class="tab-panel active" role="tabpanel" aria-labelledby="Vitals">
+      <div class="grid3" style="margin-top:10px">
+        <div><label for="tempF">Temperature (°F)</label><input id="tempF" class="ipt" type="number" step="0.1"></div>
+        <div><label for="map">Mean Arterial Pressure (mmHg)</label><input id="map" class="ipt" type="number" step="1"></div>
+        <div><label for="hr">Heart Rate (bpm)</label><input id="hr" class="ipt" type="number" step="1"></div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div><label for="rr">Respiratory Rate (breaths/min)</label><input id="rr" class="ipt" type="number" step="1"></div>
+        <div></div>
+      </div>
+    </div>
+
+    <div id="tab-oxygen" class="tab-panel" role="tabpanel">
+      <label>FiO₂ category*</label>
+      <div class="radio-row" id="fio2Grp" role="radiogroup" aria-label="FiO2">
+        <label class="chip-radio"><input type="radio" name="fio2" value="<50%" checked> <span>&lt; 50% (or non‑intubated)</span></label>
+        <label class="chip-radio"><input type="radio" name="fio2" value="≥50%"> <span>≥ 50%</span></label>
+      </div>
+      <div id="po2Wrap" style="margin-top:10px">
+        <label for="pao2">PaO₂ (mmHg)</label>
+        <input id="pao2" class="ipt" type="number" step="1" placeholder="e.g., 80">
+        <div class="hint">If FiO₂ &lt; 50% → provide PaO₂.</div>
+      </div>
+      <div id="aagradWrap" style="display:none; margin-top:10px">
+        <label for="aagrad">A–a gradient (mmHg)</label>
+        <input id="aagrad" class="ipt" type="number" step="1" placeholder="e.g., 220">
+        <div class="hint">If FiO₂ ≥ 50% → provide A–a gradient.</div>
+      </div>
+    </div>
+
+    <div id="tab-labs" class="tab-panel" role="tabpanel">
+      <div class="grid3" style="margin-top:10px">
+        <div><label for="ph">pH (arterial)</label><input id="ph" class="ipt" type="number" step="0.01" min="6.8" max="7.8"></div>
+        <div><label for="hco3">HCO₃⁻ (mEq/L)</label><input id="hco3" class="ipt" type="number" step="0.1"></div>
+        <div><label for="na">Na⁺ (mEq/L)</label><input id="na" class="ipt" type="number" step="1"></div>
+      </div>
+      <div class="grid3" style="margin-top:10px">
+        <div><label for="k">K⁺ (mEq/L)</label><input id="k" class="ipt" type="number" step="0.1"></div>
+        <div><label for="cr">Creatinine (mg/dL)</label><input id="cr" class="ipt" type="number" step="0.1"></div>
+        <div>
+          <label>Acute Renal Failure</label>
+          <div class="radio-row">
+            <label class="chip-radio"><input type="radio" name="arf" value="No" checked> <span>No</span></label>
+            <label class="chip-radio"><input type="radio" name="arf" value="Yes"> <span>Yes</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="grid3" style="margin-top:10px">
+        <div><label for="hct">Hematocrit (%)</label><input id="hct" class="ipt" type="number" step="0.1"></div>
+        <div><label for="wbc">WBC (×10³/μL)</label><input id="wbc" class="ipt" type="number" step="0.1"></div>
+        <div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEVELOPER OPTIONS (hidden by default) -->
+  <section class="card" aria-labelledby="dev-h">
+    <div class="collapser">
+      <h2 id="dev-h" style="margin:0">Developer</h2>
+      <span id="toggleDev" class="link" role="button" aria-expanded="false" aria-controls="devwrap">Show developer options</span>
+    </div>
+    <div id="devwrap" class="devwrap" aria-hidden="true">
+      <div class="hint" style="margin:6px 0 12px">Endpoints are fixed for safety. You can override credentials below for testing.</div>
+      <div class="grid2">
+        <div>
+          <label for="clientId">Client ID</label>
+          <input id="clientId" class="ipt" type="text" value="NURSING-STATION-01">
+        </div>
+        <div>
+          <label for="authToken">Auth Token</label>
+          <input id="authToken" class="ipt" type="text" value="SUPER_STRONG_SHARED_TOKEN">
+        </div>
+      </div>
+      <div class="hr"></div>
+      <div style="display:flex; align-items:center; gap:10px">
+        <label for="dryRun" style="margin:0"> <input id="dryRun" type="checkbox" style="transform:translateY(2px)"> Dry run (don’t send; just show payload)</label>
+      </div>
+      <div class="hint" style="margin-top:10px">
+        API: <code>https://apache-bridge-server-production.up.railway.app</code> · WS: <code>wss://apache-bridge-server-production.up.railway.app/ws/mobile</code>
+      </div>
+    </div>
+  </section>
+
+  <!-- PREVIEW -->
+  <section class="card" aria-labelledby="preview-h">
+    <div class="collapser">
+      <h2 id="preview-h" style="margin:0">Preview</h2>
+      <span id="togglePreview" class="link" role="button" aria-expanded="false" aria-controls="previewwrap">Show payload</span>
+    </div>
+    <div id="previewwrap" class="devwrap" aria-hidden="true">
+      <pre id="preview" class="preview" aria-live="polite">(No payload yet)</pre>
+    </div>
+  </section>
+</div>
+
+<!-- ACTION DOCK -->
+<div class="dock" role="contentinfo">
+  <div class="dock-inner">
+    <button id="btnSubmit" class="btn primary" type="button" aria-label="Submit to server">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 12l16-8-8 16-2-6-6-2Z" stroke="#00233f" stroke-width="1.5"/></svg>
+      Submit
+    </button>
+    <button id="btnPreview" class="btn ghost" type="button" aria-label="Preview payload">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 5c5 0 9 7 9 7s-4 7-9 7-9-7-9-7 4-7 9-7Zm0 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" stroke="#98b6cf"/></svg>
+      Preview
+    </button>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <script>
-/* ===========================
-   FIXED ENDPOINTS (hard-coded)
-   =========================== */
+/******************************
+ * FIXED ENDPOINTS (hard-coded)
+ ******************************/
 const API_BASE = "https://apache-bridge-server-production.up.railway.app";
 const SERVER_HTTP_URL = API_BASE + "/api/submit";
 const SERVER_WS_URL   = "wss://apache-bridge-server-production.up.railway.app/ws/mobile";
 
-/* Toggle hidden config (Client ID / Token) */
-document.getElementById('toggleCfg').addEventListener('click', ()=>{
-  const b = document.getElementById('cfgBlock');
-  b.classList.toggle('hidden');
-  document.getElementById('toggleCfg').textContent = b.classList.contains('hidden') ? 'Show config' : 'Hide config';
-});
-
-/* ====== UI toggles ====== */
-const chronicGrp = document.getElementById('chronicGrp');
-const surgTypeWrap = document.getElementById('surgTypeWrap');
-chronicGrp.addEventListener('change', () => {
-  const val = document.querySelector('input[name="chronic"]:checked').value;
-  surgTypeWrap.style.display = (val === 'Yes') ? 'block' : 'none';
-});
-
-const fio2Grp = document.getElementById('fio2Grp');
-const po2Wrap = document.getElementById('po2Wrap');
-const aagradWrap = document.getElementById('aagradWrap');
-fio2Grp.addEventListener('change', () => {
-  const val = document.querySelector('input[name="fio2"]:checked').value;
-  if (val === '<50%') { po2Wrap.style.display = 'block'; aagradWrap.style.display = 'none'; }
-  else { po2Wrap.style.display = 'none'; aagradWrap.style.display = 'block'; }
-});
-
-/* ====== Helpers ====== */
-function byId(id){return document.getElementById(id)}
+/******************************
+ * Helpers
+ ******************************/
+const $ = (id)=>document.getElementById(id);
+const q = (sel)=>document.querySelector(sel);
+function byId(id){return $(id)}
 function valNum(id){ const v = byId(id).value.trim(); return v === '' ? null : Number(v); }
 function valStr(id){ const v = byId(id).value.trim(); return v === '' ? null : v; }
 function radioVal(name){ const el = document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null }
 function uuidv4(){
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
-    const r = crypto.getRandomValues(new Uint8Array(1))[0]&15;
-    const v = c==='x'?r:(r&0x3|0x8); return v.toString(16);
+    const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
+    const v = c==='x'? r : (r & 0x3 | 0x8); return v.toString(16);
   });
 }
-function setStatus(msg, cls=''){const s=byId('status'); s.className='status '+cls; s.textContent=msg;}
 
-/* ====== Build payload ====== */
+function showToast(kind, title, detail){
+  const t = $('toast');
+  t.className = 'toast ' + (kind==='ok'?'ok':'err');
+  t.innerHTML = `
+    <div class="row">
+      ${kind==='ok' ? `<svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='10' stroke='#64e48f'/><path d='M7 12.5l3.2 3L17 8.5' stroke='#64e48f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>` : `<svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='10' stroke='#ff7a86'/><path d='M8 8l8 8M16 8l-8 8' stroke='#ff7a86' stroke-width='1.8' stroke-linecap='round'/></svg>`}
+      <div class="txt">
+        <div style="font-weight:700; margin-bottom:2px">${title}</div>
+        ${detail ? `<div class="mini">${detail}</div>` : ''}
+      </div>
+    </div>`;
+  t.style.display = 'block';
+  clearTimeout(showToast._tmr);
+  showToast._tmr = setTimeout(()=>{ t.style.display='none'; }, 5200);
+}
+
+function setDevVisible(show){
+  $('devwrap').style.display = show ? 'block' : 'none';
+  $('toggleDev').textContent = show ? 'Hide developer options' : 'Show developer options';
+  $('toggleDev').setAttribute('aria-expanded', show ? 'true' : 'false');
+  $('devwrap').setAttribute('aria-hidden', show ? 'false' : 'true');
+}
+function setPreviewVisible(show){
+  $('previewwrap').style.display = show ? 'block' : 'none';
+  $('togglePreview').textContent = show ? 'Hide payload' : 'Show payload';
+  $('togglePreview').setAttribute('aria-expanded', show ? 'true' : 'false');
+  $('previewwrap').setAttribute('aria-hidden', show ? 'false' : 'true');
+}
+
+/******************************
+ * UI toggles & sync
+ ******************************/
+// Tabs
+const tabs = Array.from(document.querySelectorAll('.tab'));
+const panels = {
+  vitals: $('tab-vitals'),
+  oxygen: $('tab-oxygen'),
+  labs: $('tab-labs')
+};
+
+tabs.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tabs.forEach(b=>b.classList.remove('active'));
+    Object.values(panels).forEach(p=>p.classList.remove('active'));
+    const key = btn.getAttribute('data-tab');
+    btn.classList.add('active');
+    panels[key].classList.add('active');
+  })
+});
+
+// Chronic → surgery type
+const chronicGrp = $('chronicGrp');
+const surgTypeWrap = $('surgTypeWrap');
+chronicGrp.addEventListener('change', ()=>{
+  const val = radioVal('chronic');
+  surgTypeWrap.style.display = (val === 'Yes') ? 'block' : 'none';
+});
+
+// FiO2 switch
+const fio2Grp = $('fio2Grp');
+const po2Wrap = $('po2Wrap');
+const aagradWrap = $('aagradWrap');
+fio2Grp.addEventListener('change', ()=>{
+  const val = radioVal('fio2');
+  if (val === '<50%') { po2Wrap.style.display = 'block'; aagradWrap.style.display = 'none'; }
+  else { po2Wrap.style.display = 'none'; aagradWrap.style.display = 'block'; }
+});
+
+// Mini → main inputs sync (for quick typing from header)
+$('patientNameMini').addEventListener('input', e=> $('patientName').value = e.target.value);
+$('uhidMini').addEventListener('input', e=> $('uhid').value = e.target.value);
+$('patientName').addEventListener('input', e=> $('patientNameMini').value = e.target.value);
+$('uhid').addEventListener('input', e=> $('uhidMini').value = e.target.value);
+
+// Collapsers
+$('toggleDev').addEventListener('click', ()=>{
+  const open = $('devwrap').style.display !== 'block';
+  setDevVisible(open);
+});
+$('togglePreview').addEventListener('click', ()=>{
+  const open = $('previewwrap').style.display !== 'block';
+  setPreviewVisible(open);
+});
+
+/******************************
+ * Payload builder & networking
+ ******************************/
 function buildPayload(){
   const patientName = valStr('patientName');
   const uhid = valStr('uhid');
@@ -232,11 +453,11 @@ function buildPayload(){
   const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
   const aagrad = fio2 === '≥50%' ? valNum('aagrad') : null;
   if (fio2 === '<50%' && (pao2===null)) throw new Error('PaO₂ is required when FiO₂ < 50%');
-  if (fio2 === '≥50%' && (aagrad===null)) throw new Error('A-a gradient is required when FiO₂ ≥ 50%');
+  if (fio2 === '≥50%' && (aagrad===null)) throw new Error('A‑a gradient is required when FiO₂ ≥ 50%');
 
   const payload = {
-    clientId: byId('clientId').value.trim(),
-    authToken: byId('authToken').value.trim(),
+    clientId: byId('clientId') ? byId('clientId').value.trim() : 'NURSING-STATION-01',
+    authToken: byId('authToken') ? byId('authToken').value.trim() : '',
     patientName,
     uhid,
     timestamp: new Date().toISOString(),
@@ -266,7 +487,6 @@ function buildPayload(){
   return payload;
 }
 
-/* ====== Networking (POST + optional WS ack) ====== */
 async function postPayload(payload){
   const res = await fetch(SERVER_HTTP_URL, {
     method:'POST',
@@ -283,64 +503,71 @@ async function postPayload(payload){
 function waitForAckWS(submissionId, onAck, onError){
   try {
     const url = new URL(SERVER_WS_URL);
-    url.searchParams.set('clientId', byId('clientId').value.trim());
+    url.searchParams.set('clientId', byId('clientId') ? byId('clientId').value.trim() : '');
     url.searchParams.set('submissionId', submissionId);
     const ws = new WebSocket(url.toString());
-    ws.onopen = ()=> setStatus('Waiting for desktop ack via WebSocket…','');
+    ws.onopen = ()=> {/* no-op; toast happens after ack */};
     ws.onmessage = (ev)=>{
       try{
         const msg = JSON.parse(ev.data);
         if (msg.status === 'SUCCESS' || msg.status === 'ERROR' || msg.clientId){
           onAck(msg); ws.close();
         }
-      }catch(e){}
+      }catch(e){/* ignore parse error */}
     };
     ws.onerror = ()=> onError(new Error('WS error'));
     return ws;
   } catch(e){ onError(e); return null; }
 }
 
-/* ====== Buttons ====== */
-document.getElementById('btnPreview').addEventListener('click', ()=>{
+/******************************
+ * Buttons
+ ******************************/
+$('btnPreview').addEventListener('click', ()=>{
   try{
     const p = buildPayload();
-    document.getElementById('preview').textContent = JSON.stringify(p, null, 2);
-    document.getElementById('previewCard').style.display = 'block';
-    setStatus('Payload preview generated.','');
-  }catch(e){ setStatus(e.message, 'err'); }
+    $('preview').textContent = JSON.stringify(p, null, 2);
+    setPreviewVisible(true);
+    showToast('ok', 'Preview ready', 'Scroll to the Preview section to review the JSON payload.');
+  }catch(e){ showToast('err', 'Can’t preview', e.message); }
 });
 
-document.getElementById('btnSubmit').addEventListener('click', async (ev)=>{
+$('btnSubmit').addEventListener('click', async (ev)=>{
   ev.preventDefault();
-  const btn = document.getElementById('btnSubmit');
+  const btn = $('btnSubmit');
   btn.disabled = true;
   try{
     const payload = buildPayload();
-    document.getElementById('preview').textContent = JSON.stringify(payload, null, 2);
-    document.getElementById('previewCard').style.display = 'block';
+    $('preview').textContent = JSON.stringify(payload, null, 2);
 
-    if (document.getElementById('dryRun').checked){
-      setStatus('Dry run: not sent. Payload shown below.', 'ok');
+    if ($('dryRun') && $('dryRun').checked){
+      setPreviewVisible(true);
+      showToast('ok', 'Dry run only', 'Payload generated below. Not sent to server.');
       btn.disabled = false; return;
     }
 
-    setStatus('Sending to server…','');
-    const httpResp = await postPayload(payload);
-    setStatus('Submitted. Awaiting desktop ack…','');
+    showToast('ok', 'Sending…', 'Submitting data securely to the desktop.');
+    await postPayload(payload);
 
     let acked = false;
-    const timeout = setTimeout(()=>{ if (!acked) setStatus('No WS ack yet (may still succeed).',''); }, 12000);
+    const tmr = setTimeout(()=>{ if(!acked) showToast('ok', 'Submitted', 'Waiting for desktop to confirm. This usually takes a moment.'); }, 1200);
 
     waitForAckWS(payload.submissionId, (ack)=>{
-      acked = true; clearTimeout(timeout);
-      if (ack.status === 'SUCCESS') setStatus('Desktop saved to Excel ✅','ok');
-      else if (ack.status === 'ERROR') setStatus('Desktop error: '+(ack.message||'unknown'), 'err');
-      else setStatus('Received WS message from server.','');
-    }, ()=> setStatus('WS not available (HTTP submission was OK).',''));
+      acked = true; clearTimeout(tmr);
+      if (ack.status === 'SUCCESS'){
+        showToast('ok', 'Saved to desktop ✅', 'Your entry was recorded. Nice work.');
+      } else if (ack.status === 'ERROR'){
+        showToast('err', 'Desktop reported an error', ack.message || 'Unknown error');
+      } else {
+        showToast('ok', 'Submitted', 'Server responded. See desktop for details.');
+      }
+    }, (err)=>{
+      showToast('ok', 'Submitted', 'No live desktop confirmation yet. It may still complete.');
+    });
 
   }catch(e){
     console.error(e);
-    setStatus('Submit failed: '+e.message, 'err');
+    showToast('err', 'Submit failed', e.message);
   }finally{
     btn.disabled = false;
   }
