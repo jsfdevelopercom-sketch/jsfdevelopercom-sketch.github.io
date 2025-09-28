@@ -24,7 +24,7 @@
   .title h1{margin:0; font-size:20px; font-weight:800}
   .title .sub{color:var(--muted); font-size:12px}
 
-  /* Quick chips hidden by default; shown only on Z Fold 6 (via .fold6 body class) */
+  /* Quick chips (Fold6 only) */
   .patient-mini{display:none}
   body.fold6 .patient-mini{display:flex !important; gap:8px}
   .mini-field{display:flex; gap:6px; align-items:center; padding:8px 10px; border:1px solid var(--line); border-radius:999px; background:#f1f5f9}
@@ -55,6 +55,11 @@
   .tab-panel{display:none}
   .tab-panel.active{display:block}
 
+  /* Mode toggle */
+  .modewrap{display:flex; gap:8px; margin-top:6px}
+  .mode{flex:1; text-align:center; padding:10px; border:1px solid var(--line); border-radius:12px; background:#eef2ff; cursor:pointer; font-weight:700; color:#334155}
+  .mode.active{background:var(--acc); color:#fff; border-color:var(--acc)}
+
   /* Action dock */
   .dock{position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:10px 14px; box-shadow:0 -6px 16px rgba(15,23,42,.06)}
   .dock-inner{max-width:720px; margin:0 auto; display:grid; grid-template-columns:1fr; gap:10px}
@@ -62,6 +67,7 @@
   .btn{padding:14px; border-radius:12px; font-weight:700; border:1px solid var(--line); background:#f1f5f9; cursor:pointer}
   .btn.primary{background:var(--acc); color:#fff; border-color:var(--acc)}
   .btn.primary:hover{background:var(--acc-hover)}
+  .btn.ghost{background:#fff}
 
   /* Toast */
   .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:88px; background:#fff; border:1px solid var(--line); border-left:4px solid var(--ok); padding:12px 14px; border-radius:12px; box-shadow:var(--shadow); display:none; max-width:90%}
@@ -71,6 +77,7 @@
   .collapser{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border:1px dashed var(--line); border-radius:12px; background:#f8fafc}
   .devwrap{display:none; margin-top:10px}
   .preview{white-space:pre-wrap; background:#f1f5f9; border:1px solid var(--line); border-radius:12px; padding:12px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px}
+  .link{color:var(--acc); text-decoration:underline; cursor:pointer}
 </style>
 </head>
 <body>
@@ -89,6 +96,18 @@
   </div>
 
   <div class="wrap">
+    <!-- Mode -->
+    <section class="card" aria-labelledby="mode-h">
+      <h2 id="mode-h">Mode</h2>
+      <div class="modewrap">
+        <button id="modeOnline"  class="mode active" type="button">Online (Google Sheets)</button>
+        <button id="modeDesktop" class="mode"          type="button">Desktop (Hospital PC)</button>
+      </div>
+      <div class="hint" id="modeHint" style="margin-top:6px">
+        Data goes straight to secure Google Sheets. You can download the current month anytime.
+      </div>
+    </section>
+
     <!-- Patient -->
     <section class="card" aria-labelledby="patient-h">
       <h2 id="patient-h">Patient</h2>
@@ -193,13 +212,26 @@
         <span id="toggleDev" class="link" role="button" aria-expanded="false" aria-controls="devwrap">Show developer options</span>
       </div>
       <div id="devwrap" class="devwrap" aria-hidden="true" style="display:none">
-        <div class="hint" style="margin:6px 0 12px">Endpoints are fixed for safety. You can override credentials below for testing.</div>
+        <div class="hint" style="margin:6px 0 12px">
+          Online endpoints are fixed for safety. You can override credentials here for testing.
+        </div>
+        <div class="grid2">
+          <div><label for="onlineUrl">Online Webhook URL</label>
+            <input id="onlineUrl" class="ipt" type="text" value="">
+          </div>
+          <div><label for="onlineSecret">Online Secret</label>
+            <input id="onlineSecret" class="ipt" type="text" value="">
+          </div>
+        </div>
+
+        <div class="hint" style="margin:12px 0 6px">Desktop overrides (optional)</div>
         <div class="grid2">
           <div><label for="clientId">Client ID</label><input id="clientId" class="ipt" type="text" value="NURSING-STATION-01"></div>
           <div><label for="authToken">Auth Token</label><input id="authToken" class="ipt" type="text" value="SUPER_STRONG_SHARED_TOKEN"></div>
         </div>
-        <div style="margin-top:8px"><label for="dryRun"><input id="dryRun" type="checkbox" style="transform:translateY(2px)"> Dry run (don’t send; just show payload)</label></div>
-        <div class="hint" style="margin-top:10px">API: <code>https://apache-bridge-server-production.up.railway.app</code> · WS: <code>wss://apache-bridge-server-production.up.railway.app/ws/mobile</code></div>
+        <div class="hint" style="margin-top:10px">
+          Desktop API: <code>https://apache-bridge-server-production.up.railway.app</code> · WS: <code>wss://.../ws/mobile</code>
+        </div>
       </div>
     </section>
 
@@ -217,9 +249,10 @@
 
   <!-- Action dock -->
   <div class="dock" role="contentinfo">
-    <div class="dock-inner">
+    <div class="dock-inner" id="dockBtns">
       <button id="btnSubmit" class="btn primary" type="button">Submit</button>
       <button id="btnPreview" class="btn" type="button">Preview</button>
+      <button id="btnDownload" class="btn ghost" type="button" style="display:none">Download current month</button>
     </div>
   </div>
 
@@ -227,18 +260,22 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
-/* Explicit Z Fold 6 detect → enable wide layout only there */
+/* Explicit Z Fold 6 detect → wide layout */
 (function(){
   const ua=(navigator.userAgent||"").toUpperCase();
-  const byModel = ua.includes("SM-F956");           // Galaxy Z Fold 6 model family
+  const byModel = ua.includes("SM-F956");
   const byName  = ua.includes("Z FOLD 6") || ua.includes("Z FOLD6");
   if (byModel || byName) document.body.classList.add('fold6');
 })();
 
-/* Fixed endpoints */
+/* Fixed desktop endpoints */
 const API_BASE = "https://apache-bridge-server-production.up.railway.app";
 const SERVER_HTTP_URL = API_BASE + "/api/submit";
 const SERVER_WS_URL   = "wss://apache-bridge-server-production.up.railway.app/ws/mobile";
+
+/* Online defaults (can be overridden in Dev panel) */
+let ONLINE_WEBHOOK_URL = "";   // set this once (Apps Script Web App URL)
+let ONLINE_SECRET      = "";   // set the same secret you put in Script Properties
 
 /* Utilities */
 const $ = id => document.getElementById(id);
@@ -249,7 +286,33 @@ function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]
 function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:(r&0x3|0x8); return v.toString(16);});}
 function toast(msg, ok=true){ const t=$('toast'); t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block'; clearTimeout(toast._tmr); toast._tmr=setTimeout(()=>t.style.display='none',4200); }
 
-/* Tabs: dynamic mapping from data-tab → #tab-{name} */
+/* Persist Dev overrides locally (no server storage) */
+function saveDevOverrides(){
+  const o = {
+    onlineUrl:   $('onlineUrl')?.value.trim() || "",
+    onlineSecret:$('onlineSecret')?.value.trim() || "",
+    clientId:    $('clientId')?.value.trim() || "NURSING-STATION-01",
+    authToken:   $('authToken')?.value.trim() || ""
+  };
+  localStorage.setItem('apacheMobileDev', JSON.stringify(o));
+  ONLINE_WEBHOOK_URL = o.onlineUrl || ONLINE_WEBHOOK_URL;
+  ONLINE_SECRET      = o.onlineSecret || ONLINE_SECRET;
+}
+function loadDevOverrides(){
+  try{
+    const raw = localStorage.getItem('apacheMobileDev');
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    if ($('onlineUrl'))    $('onlineUrl').value    = o.onlineUrl    || "";
+    if ($('onlineSecret')) $('onlineSecret').value = o.onlineSecret || "";
+    if ($('clientId'))     $('clientId').value     = o.clientId     || "NURSING-STATION-01";
+    if ($('authToken'))    $('authToken').value    = o.authToken    || "";
+    ONLINE_WEBHOOK_URL = o.onlineUrl    || ONLINE_WEBHOOK_URL;
+    ONLINE_SECRET      = o.onlineSecret || ONLINE_SECRET;
+  }catch(_){}
+}
+
+/* Tabs */
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
@@ -270,11 +333,11 @@ $('fio2Grp').addEventListener('change', ()=>{
   $('aagradWrap').style.display= (v !== '<50%');
 });
 
-/* Sync mini chips (only visible on Fold 6) */
+/* Sync mini chips (Fold 6) */
 ['patientName','uhid'].forEach(id => $(id).addEventListener('input', e => { const m=$(id+'Mini'); if(m) m.value=e.target.value; }));
 ['patientNameMini','uhidMini'].forEach(id => { const m=$(id); if(m) m.addEventListener('input', e => { const main=$(id.replace('Mini','')); if(main) main.value=e.target.value; }); });
 
-/* Developer collapse: forced collapsed on load (handles cached styles) */
+/* Developer collapsers */
 function setDevVisible(show){
   const w=$('devwrap'), t=$('toggleDev');
   w.style.display = show ? 'block' : 'none';
@@ -282,9 +345,24 @@ function setDevVisible(show){
   t.textContent = show ? 'Hide developer options' : 'Show developer options';
   t.setAttribute('aria-expanded', show ? 'true' : 'false');
 }
-document.addEventListener('DOMContentLoaded', ()=> { setDevVisible(false); setTimeout(()=>setDevVisible(false), 250); });
+document.addEventListener('DOMContentLoaded', ()=> { setDevVisible(false); setTimeout(()=>setDevVisible(false), 250); loadDevOverrides(); });
 window.addEventListener('load', ()=> { setTimeout(()=>setDevVisible(false), 0); setTimeout(()=>setDevVisible(false), 800); });
-$('toggleDev').addEventListener('click', ()=>{ const show = $('devwrap').style.display !== 'block'; setDevVisible(show); });
+$('toggleDev').addEventListener('click', ()=>{ const show = $('devwrap').style.display !== 'block'; setDevVisible(show); if(!show) saveDevOverrides(); });
+
+/* Mode toggle */
+let MODE = 'online'; // default
+function setMode(m){
+  MODE = m;
+  $('modeOnline').classList.toggle('active', m==='online');
+  $('modeDesktop').classList.toggle('active', m!=='online');
+  $('btnDownload').style.display = (m==='online') ? 'block' : 'none';
+  $('modeHint').textContent = m==='online'
+    ? 'Data goes straight to secure Google Sheets. You can download the current month anytime.'
+    : 'Data is sent to the hospital desktop app. Requires the desktop client to be connected.';
+}
+$('modeOnline').addEventListener('click', ()=> setMode('online'));
+$('modeDesktop').addEventListener('click', ()=> setMode('desktop'));
+setMode('online');
 
 /* Preview collapse */
 $('togglePreview').addEventListener('click', ()=>{
@@ -314,7 +392,9 @@ function buildPayload(){
 
   return {
     clientId: $('clientId') ? $('clientId').value.trim() : 'NURSING-STATION-01',
-    authToken: $('authToken') ? $('authToken').value.trim() : '',
+    authToken: (MODE==='online')
+      ? (($('onlineSecret') && $('onlineSecret').value.trim()) || ONLINE_SECRET || '')
+      : (($('authToken') && $('authToken').value.trim()) || ''),
     patientName, uhid, timestamp:new Date().toISOString(), submissionId:uuidv4(),
     apacheInputs:{
       Age_years: age, GCS: valNum('gcs'),
@@ -331,11 +411,22 @@ function buildPayload(){
 }
 
 /* Networking */
-async function postPayload(payload){
+async function postOnline(payload){
+  const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || "");
+  if (!url) throw new Error("Online Webhook URL not set (Developer → Online Webhook URL).");
+  if (!payload.authToken) throw new Error("Online Secret not set (Developer → Online Secret).");
+
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error('Online webhook error '+res.status+': '+t); }
+  return res.json().catch(()=> ({}));
+}
+
+async function postDesktop(payload){
   const res = await fetch(SERVER_HTTP_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
   if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error('Server HTTP error '+res.status+': '+t); }
   return res.json().catch(()=> ({}));
 }
+
 function waitForAckWS(submissionId, onAck, onError){
   try{
     const url=new URL(SERVER_WS_URL);
@@ -348,30 +439,48 @@ function waitForAckWS(submissionId, onAck, onError){
   }catch(e){ onError(e); return null; }
 }
 
+/* Download current month (Online) */
+$('btnDownload').addEventListener('click', ()=>{
+  try{
+    const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || "");
+    const secret = ($('onlineSecret')?.value.trim() || ONLINE_SECRET || "");
+    if (!url || !secret) { toast("Set Online URL and Secret in Developer panel.", false); return; }
+    const ym = new Date().toISOString().slice(0,7);
+    const link = url + "?action=download&month=" + encodeURIComponent(ym) + "&auth=" + encodeURIComponent(secret);
+    window.open(link, "_blank");
+  }catch(e){ toast(e.message, false); }
+});
+
 /* Buttons */
 $('btnPreview').addEventListener('click', ()=>{
   try{ const p=buildPayload(); $('preview').textContent=JSON.stringify(p,null,2); $('previewwrap').style.display='block'; toast('Preview ready'); }
   catch(e){ toast(e.message,false); }
 });
+
 $('btnSubmit').addEventListener('click', async (ev)=>{
   ev.preventDefault(); const b=$('btnSubmit'); b.disabled=true;
   try{
+    saveDevOverrides(); // persist dev fields
     const payload=buildPayload();
-    if ($('dryRun') && $('dryRun').checked){
-      $('preview').textContent=JSON.stringify(payload,null,2);
-      $('previewwrap').style.display='block';
-      toast('Dry run. Payload shown.'); b.disabled=false; return;
+    $('preview').textContent=JSON.stringify(payload,null,2); $('previewwrap').style.display='block';
+
+    if (MODE==='online'){
+      toast('Sending to Google Sheets…');
+      await postOnline(payload);
+      toast('Saved to Google Sheets ✅');
+    } else {
+      toast('Sending to desktop…');
+      await postDesktop(payload);
+      let acked=false; const t=setTimeout(()=>{ if(!acked) toast('Submitted. Waiting for desktop…'); }, 1200);
+      waitForAckWS(payload.submissionId,
+        ack=>{ acked=true; clearTimeout(t);
+          if(ack.status==='SUCCESS') toast('Saved on desktop ✅');
+          else if(ack.status==='ERROR') toast('Desktop error: '+(ack.message||'unknown'), false);
+          else toast('Submitted. Check desktop.');
+        },
+        ()=> toast('Submitted. No live ack yet.')
+      );
     }
-    toast('Sending…'); await postPayload(payload);
-    let acked=false; const t=setTimeout(()=>{ if(!acked) toast('Submitted. Waiting for desktop…'); }, 1200);
-    waitForAckWS(payload.submissionId,
-      ack=>{ acked=true; clearTimeout(t);
-        if(ack.status==='SUCCESS') toast('Saved. You’re done ✅');
-        else if(ack.status==='ERROR') toast('Desktop error: '+(ack.message||'unknown'), false);
-        else toast('Submitted. Check desktop.');
-      },
-      ()=> toast('Submitted. No live ack yet.')
-    );
   }catch(e){ toast('Submit failed: '+e.message, false); }
   finally{ b.disabled=false; }
 });
