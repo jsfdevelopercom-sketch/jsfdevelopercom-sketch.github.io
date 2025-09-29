@@ -18,16 +18,19 @@
 
   .wrap{max-width:720px; margin:0 auto; padding:14px 14px 120px}
 
+  /* Header */
   .topbar{position:sticky; top:0; z-index:10; background:#ffffffcc; backdrop-filter:blur(8px); border-bottom:1px solid var(--line)}
   .topbar-inner{display:grid; grid-template-columns:1fr; gap:4px; padding:10px 14px}
   .title h1{margin:0; font-size:20px; font-weight:800}
   .title .sub{color:var(--muted); font-size:12px}
 
+  /* Quick chips (Fold6 only) */
   .patient-mini{display:none}
   body.fold6 .patient-mini{display:flex !important; gap:8px}
   .mini-field{display:flex; gap:6px; align-items:center; padding:8px 10px; border:1px solid var(--line); border-radius:999px; background:#f1f5f9}
   .mini-field input{border:0; outline:none; background:transparent; width:180px}
 
+  /* Cards / inputs */
   .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin:12px 0; box-shadow:var(--shadow)}
   .card h2{font-size:16px; margin:0 0 8px 0}
   .hint{color:var(--muted); font-size:12px}
@@ -45,16 +48,19 @@
   .chip-radio{padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#f1f5f9; display:flex; align-items:center; gap:8px; cursor:pointer}
   .chip-radio input{accent-color:var(--acc)}
 
+  /* Tabs */
   .tabs{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px}
   .tab{padding:10px; text-align:center; border:1px solid var(--line); border-radius:12px; background:#f1f5f9; cursor:pointer}
   .tab.active{background:var(--acc); color:#fff; border-color:var(--acc)}
   .tab-panel{display:none}
   .tab-panel.active{display:block}
 
+  /* Mode toggle */
   .modewrap{display:flex; gap:8px; margin-top:6px}
   .mode{flex:1; text-align:center; padding:10px; border:1px solid var(--line); border-radius:12px; background:#eef2ff; cursor:pointer; font-weight:700; color:#334155}
   .mode.active{background:var(--acc); color:#fff; border-color:var(--acc)}
 
+  /* Action dock */
   .dock{position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:10px 14px; box-shadow:0 -6px 16px rgba(15,23,42,.06)}
   .dock-inner{max-width:720px; margin:0 auto; display:grid; grid-template-columns:1fr; gap:10px}
   body.fold6 .dock-inner{grid-template-columns:1fr 1fr}
@@ -63,9 +69,11 @@
   .btn.primary:hover{background:var(--acc-hover)}
   .btn.ghost{background:#fff}
 
+  /* Toast */
   .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:88px; background:#fff; border:1px solid var(--line); border-left:4px solid var(--ok); padding:12px 14px; border-radius:12px; box-shadow:var(--shadow); display:none; max-width:90%}
   .toast.err{border-left-color:var(--err)}
 
+  /* Collapsers */
   .collapser{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border:1px dashed var(--line); border-radius:12px; background:#f8fafc}
   .devwrap{display:none; margin-top:10px}
   .preview{white-space:pre-wrap; background:#f1f5f9; border:1px solid var(--line); border-radius:12px; padding:12px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px}
@@ -73,80 +81,409 @@
 </style>
 </head>
 <body>
-  <div class="topbar"><div class="topbar-inner"><div class="title">
-    <h1>APACHE II · Bedside Entry</h1>
-    <div class="sub">Mobile-friendly ICU data capture</div>
-  </div></div></div>
-
-  <div class="wrap">
-    <section class="card"><h2>Mode</h2>
-      <div class="modewrap">
-        <button id="modeOnline"  class="mode active" type="button">Online (Google Sheets)</button>
-        <button id="modeDesktop" class="mode" type="button">Desktop (Hospital PC)</button>
+  <div class="topbar" role="banner">
+    <div class="topbar-inner">
+      <div class="title">
+        <h1>APACHE II · Bedside Entry</h1>
+        <div class="sub">Mobile-friendly ICU data capture</div>
       </div>
-      <div class="hint" id="modeHint" style="margin-top:6px">Data goes straight to secure Google Sheets.</div>
-    </section>
-
-    <!-- Patient fields etc… (kept same as before) -->
-    <!-- ... -->
+      <!-- Quick chips (Fold 6 only) -->
+      <div class="patient-mini" aria-label="Quick patient entry">
+        <div class="mini-field"><span>👤</span><input id="patientNameMini" type="text" placeholder="Patient name"></div>
+        <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID"></div>
+      </div>
+    </div>
   </div>
 
-  <div class="dock"><div class="dock-inner" id="dockBtns">
-    <button id="btnSubmit" class="btn primary" type="button">Submit</button>
-    <button id="btnPreview" class="btn" type="button">Preview</button>
-    <button id="btnDownload" class="btn ghost" type="button" style="display:none">Download current month</button>
-  </div></div>
+  <div class="wrap">
+    <!-- Mode -->
+    <section class="card" aria-labelledby="mode-h">
+      <h2 id="mode-h">Mode</h2>
+      <div class="modewrap">
+        <button id="modeOnline"  class="mode active" type="button">Online (Google Sheets)</button>
+        <button id="modeDesktop" class="mode"          type="button">Desktop (Hospital PC)</button>
+      </div>
+      <div class="hint" id="modeHint" style="margin-top:6px">
+        Data goes straight to secure Google Sheets. You can download the current month anytime.
+      </div>
+    </section>
 
-  <div id="toast" class="toast"></div>
+    <!-- Patient -->
+    <section class="card" aria-labelledby="patient-h">
+      <h2 id="patient-h">Patient</h2>
+      <div class="grid2">
+        <div><label for="patientName">Patient Name*</label><input id="patientName" class="ipt" type="text" required></div>
+        <div><label for="uhid">UHID*</label><input id="uhid" class="ipt" type="text" required></div>
+      </div>
+    </section>
+
+    <!-- Chronic Health -->
+    <section class="card" aria-labelledby="chronic-h">
+      <h2 id="chronic-h">Chronic Health</h2>
+      <div class="radio-row" id="chronicGrp">
+        <label class="chip-radio"><input type="radio" name="chronic" value="No" checked> No</label>
+        <label class="chip-radio"><input type="radio" name="chronic" value="Yes"> Yes – severe organ failure / immunocompromise</label>
+      </div>
+      <div id="surgTypeWrap" style="display:none; margin-top:8px;">
+        <label>Type of surgery (if chronic = Yes)</label>
+        <div class="radio-row">
+          <label class="chip-radio"><input type="radio" name="surgtype" value="Emergency" checked> Emergency</label>
+          <label class="chip-radio"><input type="radio" name="surgtype" value="Elective"> Elective</label>
+          <label class="chip-radio"><input type="radio" name="surgtype" value="Nonoperative"> Non-operative</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Demographics -->
+    <section class="card" aria-labelledby="demo-h">
+      <h2 id="demo-h">Demographics</h2>
+      <div class="grid2">
+        <div><label for="age">Age (years)*</label><input id="age" class="ipt" type="number" min="0" max="120" step="1" required></div>
+        <div><label for="gcs">GCS (3–15)</label><input id="gcs" class="ipt" type="number" min="3" max="15" step="1" placeholder="e.g., 12"></div>
+      </div>
+    </section>
+
+    <!-- Clinical Inputs -->
+    <section class="card" aria-labelledby="inputs-h">
+      <h2 id="inputs-h">Clinical Inputs</h2>
+      <div class="tabs" role="tablist" aria-label="Sections">
+        <button class="tab active" data-tab="vitals"   type="button">Vitals</button>
+        <button class="tab"         data-tab="oxygen"   type="button">Oxygenation</button>
+        <button class="tab"         data-tab="labs"     type="button">Labs</button>
+      </div>
+
+      <div id="tab-vitals" class="tab-panel active" role="tabpanel">
+        <div class="grid3">
+          <div><label for="tempF">Temperature (°F)</label><input id="tempF" class="ipt" type="number" step="0.1"></div>
+          <div><label for="map">Mean Arterial Pressure (mmHg)</label><input id="map" class="ipt" type="number" step="1"></div>
+          <div><label for="hr">Heart Rate (bpm)</label><input id="hr" class="ipt" type="number" step="1"></div>
+        </div>
+        <div class="grid2">
+          <div><label for="rr">Respiratory Rate (breaths/min)</label><input id="rr" class="ipt" type="number" step="1"></div>
+        </div>
+      </div>
+
+      <div id="tab-oxygen" class="tab-panel" role="tabpanel">
+        <label>FiO₂ category*</label>
+        <div class="radio-row" id="fio2Grp">
+          <label class="chip-radio"><input type="radio" name="fio2" value="<50%" checked> < 50% (or non-intubated)</label>
+          <label class="chip-radio"><input type="radio" name="fio2" value=">=50%"> ≥ 50%</label>
+        </div>
+        <div id="po2Wrap" style="margin-top:10px">
+          <label for="pao2">PaO₂ (mmHg)</label>
+          <input id="pao2" class="ipt" type="number" step="1" placeholder="e.g., 80">
+          <div class="hint">If FiO₂ &lt; 50% → provide PaO₂.</div>
+        </div>
+        <div id="aagradWrap" style="display:none; margin-top:10px">
+          <label for="aagrad">A–a gradient (mmHg)</label>
+          <input id="aagrad" class="ipt" type="number" step="1" placeholder="e.g., 220">
+          <div class="hint">If FiO₂ ≥ 50% → provide A–a gradient.</div>
+        </div>
+      </div>
+
+      <div id="tab-labs" class="tab-panel" role="tabpanel">
+        <div class="grid3">
+          <div><label for="ph">pH (arterial)</label><input id="ph" class="ipt" type="number" step="0.01" min="6.8" max="7.8"></div>
+          <div><label for="hco3">HCO₃⁻ (mEq/L)</label><input id="hco3" class="ipt" type="number" step="0.1"></div>
+          <div><label for="na">Na⁺ (mEq/L)</label><input id="na" class="ipt" type="number" step="1"></div>
+        </div>
+        <div class="grid3">
+          <div><label for="k">K⁺ (mEq/L)</label><input id="k" class="ipt" type="number" step="0.1"></div>
+          <div><label for="cr">Creatinine (mg/dL)</label><input id="cr" class="ipt" type="number" step="0.1"></div>
+          <div>
+            <label>Acute Renal Failure</label>
+            <div class="radio-row">
+              <label class="chip-radio"><input type="radio" name="arf" value="No" checked> No</label>
+              <label class="chip-radio"><input type="radio" name="arf" value="Yes"> Yes</label>
+            </div>
+          </div>
+        </div>
+        <div class="grid3">
+          <div><label for="hct">Hematocrit (%)</label><input id="hct" class="ipt" type="number" step="0.1"></div>
+          <div><label for="wbc">WBC (×10³/μL)</label><input id="wbc" class="ipt" type="number" step="0.1"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Developer (collapsed by default) -->
+    <section class="card" aria-labelledby="dev-h">
+      <div class="collapser">
+        <h2 id="dev-h" style="margin:0">Developer</h2>
+        <span id="toggleDev" class="link" role="button" aria-expanded="false" aria-controls="devwrap">Show developer options</span>
+      </div>
+      <div id="devwrap" class="devwrap" aria-hidden="true" style="display:none">
+        <div class="hint" style="margin:6px 0 12px">
+          Online endpoints are fixed for safety. You can override credentials here for testing.
+        </div>
+        <div class="grid2">
+          <div><label for="onlineUrl">Online Webhook URL</label>
+            <input id="onlineUrl" class="ipt" type="text" value="">
+          </div>
+          <div><label for="onlineSecret">Online Secret</label>
+            <input id="onlineSecret" class="ipt" type="text" value="">
+          </div>
+        </div>
+
+        <div class="hint" style="margin:12px 0 6px">Desktop overrides (optional)</div>
+        <div class="grid2">
+          <div><label for="clientId">Client ID</label><input id="clientId" class="ipt" type="text" value="NURSING-STATION-01"></div>
+          <div><label for="authToken">Auth Token</label><input id="authToken" class="ipt" type="text" value="SUPER_STRONG_SHARED_TOKEN"></div>
+        </div>
+        <div class="hint" style="margin-top:10px">
+          Desktop API: <code>https://apache-bridge-server-production.up.railway.app</code> · WS: <code>wss://.../ws/mobile</code>
+        </div>
+      </div>
+    </section>
+
+    <!-- Preview (collapsed) -->
+    <section class="card" aria-labelledby="preview-h">
+      <div class="collapser">
+        <h2 id="preview-h" style="margin:0">Preview</h2>
+        <span id="togglePreview" class="link" role="button" aria-expanded="false" aria-controls="previewwrap">Show payload</span>
+      </div>
+      <div id="previewwrap" class="devwrap" aria-hidden="true" style="display:none">
+        <pre id="preview" class="preview" aria-live="polite">(No payload yet)</pre>
+      </div>
+    </section>
+  </div>
+
+  <!-- Action dock -->
+  <div class="dock" role="contentinfo">
+    <div class="dock-inner" id="dockBtns">
+      <button id="btnSubmit" class="btn primary" type="button">Submit</button>
+      <button id="btnPreview" class="btn" type="button">Preview</button>
+      <button id="btnDownload" class="btn ghost" type="button" style="display:none">Download current month</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
+/* Explicit Z Fold 6 detect → wide layout */
 (function(){
   const ua=(navigator.userAgent||"").toUpperCase();
-  if (ua.includes("SM-F956") || ua.includes("Z FOLD 6") || ua.includes("Z FOLD6"))
-    document.body.classList.add('fold6');
+  const byModel = ua.includes("SM-F956");
+  const byName  = ua.includes("Z FOLD 6") || ua.includes("Z FOLD6");
+  if (byModel || byName) document.body.classList.add('fold6');
 })();
 
+/* Fixed desktop endpoints */
 const API_BASE = "https://apache-bridge-server-production.up.railway.app";
 const SERVER_HTTP_URL = API_BASE + "/api/submit";
-const SERVER_WS_URL   = API_BASE + "/ws/mobile";
+const SERVER_WS_URL   = "wss://apache-bridge-server-production.up.railway.app/ws/mobile";
 
-/* Hardcoded Google Sheets Webhook + Secret */
+/* Online defaults (hardcoded) */
 let ONLINE_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwnmv8Qgt38LeeMgYQfh9Or83i-woNkz-gFIgIFjNJoKw_YF2rpVxh9V6syRoHEEw8/exec";
 let ONLINE_SECRET      = "SUPER_STRONG_SHARED_TOKEN";
 
-/* Utility functions omitted for brevity, same as before… */
+/* Utilities */
+const $ = id => document.getElementById(id);
+const q = sel => document.querySelector(sel);
+function valNum(id){ const v=$(id).value.trim(); return v===''?null:Number(v); }
+function valStr(id){ const v=$(id).value.trim(); return v===''?null:v; }
+function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
+function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:(r&0x3|0x8); return v.toString(16);});}
+function toast(msg, ok=true){ const t=$('toast'); t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block'; clearTimeout(toast._tmr); toast._tmr=setTimeout(()=>t.style.display='none',4200); }
+
+/* Persist Dev overrides locally (no server storage) */
+function saveDevOverrides(){
+  const o = {
+    onlineUrl:   $('onlineUrl')?.value.trim() || "",
+    onlineSecret:$('onlineSecret')?.value.trim() || "",
+    clientId:    $('clientId')?.value.trim() || "NURSING-STATION-01",
+    authToken:   $('authToken')?.value.trim() || ""
+  };
+  localStorage.setItem('apacheMobileDev', JSON.stringify(o));
+  ONLINE_WEBHOOK_URL = o.onlineUrl || ONLINE_WEBHOOK_URL;
+  ONLINE_SECRET      = o.onlineSecret || ONLINE_SECRET;
+}
+function loadDevOverrides(){
+  try{
+    const raw = localStorage.getItem('apacheMobileDev');
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    if ($('onlineUrl'))    $('onlineUrl').value    = o.onlineUrl    || "";
+    if ($('onlineSecret')) $('onlineSecret').value = o.onlineSecret || "";
+    if ($('clientId'))     $('clientId').value     = o.clientId     || "NURSING-STATION-01";
+    if ($('authToken'))    $('authToken').value    = o.authToken    || "";
+    ONLINE_WEBHOOK_URL = o.onlineUrl    || ONLINE_WEBHOOK_URL;
+    ONLINE_SECRET      = o.onlineSecret || ONLINE_SECRET;
+  }catch(_){}
+}
+
+/* Tabs */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    const target = document.getElementById('tab-' + btn.dataset.tab);
+    if (target) target.classList.add('active');
+  });
+});
+
+/* Field logic */
+$('chronicGrp').addEventListener('change', ()=>{
+  $('surgTypeWrap').style.display = (radioVal('chronic')==='Yes') ? 'block' : 'none';
+});
+$('fio2Grp').addEventListener('change', ()=>{
+  const v = radioVal('fio2');
+  $('po2Wrap').style.display   = (v === '<50%');
+  $('aagradWrap').style.display= (v !== '<50%');
+});
+
+/* Sync mini chips (Fold 6) */
+['patientName','uhid'].forEach(id => $(id).addEventListener('input', e => { const m=$(id+'Mini'); if(m) m.value=e.target.value; }));
+['patientNameMini','uhidMini'].forEach(id => { const m=$(id); if(m) m.addEventListener('input', e => { const main=$(id.replace('Mini','')); if(main) main.value=e.target.value; }); });
+
+/* Developer collapsers */
+function setDevVisible(show){
+  const w=$('devwrap'), t=$('toggleDev');
+  w.style.display = show ? 'block' : 'none';
+  w.setAttribute('aria-hidden', show ? 'false' : 'true');
+  t.textContent = show ? 'Hide developer options' : 'Show developer options';
+  t.setAttribute('aria-expanded', show ? 'true' : 'false');
+}
+document.addEventListener('DOMContentLoaded', ()=> { setDevVisible(false); setTimeout(()=>setDevVisible(false), 250); loadDevOverrides(); });
+window.addEventListener('load', ()=> { setTimeout(()=>setDevVisible(false), 0); setTimeout(()=>setDevVisible(false), 800); });
+$('toggleDev').addEventListener('click', ()=>{ const show = $('devwrap').style.display !== 'block'; setDevVisible(show); if(!show) saveDevOverrides(); });
 
 /* Mode toggle */
-let MODE = 'online';
+let MODE = 'online'; // default
 function setMode(m){
-  MODE=m;
-  document.getElementById('modeOnline').classList.toggle('active', m==='online');
-  document.getElementById('modeDesktop').classList.toggle('active', m==='desktop');
-  document.getElementById('btnDownload').style.display=(m==='online')?'block':'none';
+  MODE = m;
+  $('modeOnline').classList.toggle('active', m==='online');
+  $('modeDesktop').classList.toggle('active', m!=='online');
+  $('btnDownload').style.display = (m==='online') ? 'block' : 'none';
+  $('modeHint').textContent = m==='online'
+    ? 'Data goes straight to secure Google Sheets. You can download the current month anytime.'
+    : 'Data is sent to the hospital desktop app. Requires the desktop client to be connected.';
 }
+$('modeOnline').addEventListener('click', ()=> setMode('online'));
+$('modeDesktop').addEventListener('click', ()=> setMode('desktop'));
 setMode('online');
 
-/* Post Online */
+/* Preview collapse */
+$('togglePreview').addEventListener('click', ()=>{
+  const w=$('previewwrap'); const show=w.style.display!=='block';
+  w.style.display = show ? 'block' : 'none';
+  $('togglePreview').textContent = show ? 'Hide payload' : 'Show payload';
+});
+
+/* Build payload */
+function buildPayload(){
+  const patientName = valStr('patientName');
+  const uhid = valStr('uhid');
+  const age = valNum('age');
+  const fio2 = radioVal('fio2');
+  if(!patientName) throw new Error('Patient Name is required');
+  if(!uhid) throw new Error('UHID is required');
+  if(age===null) throw new Error('Age is required');
+  if(!fio2) throw new Error('FiO₂ category is required');
+
+  const chronic = radioVal('chronic');
+  const surgtype = chronic === 'Yes' ? radioVal('surgtype') : null;
+
+  const pao2   = fio2 === '<50%' ? valNum('pao2')   : null;
+  const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
+  if (fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
+  if (fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
+
+  return {
+    clientId: $('clientId') ? $('clientId').value.trim() : 'NURSING-STATION-01',
+    authToken: (MODE==='online')
+      ? (($('onlineSecret') && $('onlineSecret').value.trim()) || ONLINE_SECRET || '')
+      : (($('authToken') && $('authToken').value.trim()) || ''),
+    patientName, uhid, timestamp:new Date().toISOString(), submissionId:uuidv4(),
+    apacheInputs:{
+      Age_years: age, GCS: valNum('gcs'),
+      Temperature_F: valNum('tempF'), MAP_mmHg: valNum('map'),
+      HeartRate_bpm: valNum('hr'), RespRate_bpm: valNum('rr'),
+      FiO2_Category: fio2, PaO2_mmHg: pao2, AaGradient_mmHg: aagrad,
+      pH: valNum('ph'), HCO3_mEqL: valNum('hco3'), Na_mEqL: valNum('na'),
+      K_mEqL: valNum('k'), Creatinine_mgdl: valNum('cr'),
+      AcuteRenalFailure: radioVal('arf')==='Yes',
+      Hematocrit_pct: valNum('hct'), WBC_10e3uL: valNum('wbc'),
+      ChronicHealth: chronic==='Yes'?'Yes':'No', SurgeryType: surgtype
+    }
+  };
+}
+
+/* Networking */
 async function postOnline(payload){
-  payload.authToken = ONLINE_SECRET;
-  const res = await fetch(ONLINE_WEBHOOK_URL, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(payload)
-  });
-  if(!res.ok){throw new Error("Google Sheets webhook error "+res.status);}
+  const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || "");
+  if (!url) throw new Error("Online Webhook URL not set (Developer → Online Webhook URL).");
+  if (!payload.authToken) throw new Error("Online Secret not set (Developer → Online Secret).");
+
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error('Online webhook error '+res.status+': '+t); }
   return res.json().catch(()=> ({}));
 }
 
-/* Post Desktop (unchanged) */
 async function postDesktop(payload){
-  const res = await fetch(SERVER_HTTP_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  if(!res.ok){throw new Error("Server error "+res.status);}
+  const res = await fetch(SERVER_HTTP_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error('Server HTTP error '+res.status+': '+t); }
   return res.json().catch(()=> ({}));
 }
 
-/* Button handlers (same as before, but uses MODE to pick online/desktop) */
-/* ... */
+function waitForAckWS(submissionId, onAck, onError){
+  try{
+    const url=new URL(SERVER_WS_URL);
+    url.searchParams.set('clientId', $('clientId')?$('clientId').value.trim():'');
+    url.searchParams.set('submissionId', submissionId);
+    const ws=new WebSocket(url.toString());
+    ws.onmessage = ev => { try{ const m=JSON.parse(ev.data); if(m.status==='SUCCESS'||m.status==='ERROR'||m.clientId){ onAck(m); ws.close(); } }catch(e){} };
+    ws.onerror = ()=> onError(new Error('WS error'));
+    return ws;
+  }catch(e){ onError(e); return null; }
+}
+
+/* Download current month (Online) */
+$('btnDownload').addEventListener('click', ()=>{
+  try{
+    const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || "");
+    const secret = ($('onlineSecret')?.value.trim() || ONLINE_SECRET || "");
+    if (!url || !secret) { toast("Set Online URL and Secret in Developer panel.", false); return; }
+    const ym = new Date().toISOString().slice(0,7);
+    const link = url + "?action=download&month=" + encodeURIComponent(ym) + "&auth=" + encodeURIComponent(secret);
+    window.open(link, "_blank");
+  }catch(e){ toast(e.message, false); }
+});
+
+/* Buttons */
+$('btnPreview').addEventListener('click', ()=>{
+  try{ const p=buildPayload(); $('preview').textContent=JSON.stringify(p,null,2); $('previewwrap').style.display='block'; toast('Preview ready'); }
+  catch(e){ toast(e.message,false); }
+});
+
+$('btnSubmit').addEventListener('click', async (ev)=>{
+  ev.preventDefault(); const b=$('btnSubmit'); b.disabled=true;
+  try{
+    saveDevOverrides(); // persist dev fields
+    const payload=buildPayload();
+    $('preview').textContent=JSON.stringify(payload,null,2); $('previewwrap').style.display='block';
+
+    if (MODE==='online'){
+      toast('Sending to Google Sheets…');
+      await postOnline(payload);
+      toast('Saved to Google Sheets ✅');
+    } else {
+      toast('Sending to desktop…');
+      await postDesktop(payload);
+      let acked=false; const t=setTimeout(()=>{ if(!acked) toast('Submitted. Waiting for desktop…'); }, 1200);
+      waitForAckWS(payload.submissionId,
+        ack=>{ acked=true; clearTimeout(t);
+          if(ack.status==='SUCCESS') toast('Saved on desktop ✅');
+          else if(ack.status==='ERROR') toast('Desktop error: '+(ack.message||'unknown'), false);
+          else toast('Submitted. Check desktop.');
+        },
+        ()=> toast('Submitted. No live ack yet.')
+      );
+    }
+  }catch(e){ toast('Submit failed: '+e.message, false); }
+  finally{ b.disabled=false; }
+});
 </script>
 </body>
 </html>
