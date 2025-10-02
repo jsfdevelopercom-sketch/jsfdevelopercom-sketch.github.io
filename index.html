@@ -6,129 +6,211 @@
 <title>APACHE II Bedside Entry</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     color-scheme: light;
-    --bg: #eef2f8;
-    --bg-alt: #f8fafc;
-    --panel: rgba(255, 255, 255, 0.86);
-    --panel-strong: rgba(255, 255, 255, 0.95);
-    --border: rgba(148, 163, 184, 0.35);
-    --divider: rgba(148, 163, 184, 0.5);
-    --text: #0f172a;
+    --surface: rgba(255, 255, 255, 0.9);
+    --surface-strong: rgba(255, 255, 255, 0.98);
+    --outline: rgba(148, 163, 184, 0.4);
+    --outline-strong: rgba(37, 99, 235, 0.35);
     --muted: #475569;
+    --text: #0f172a;
     --accent: #2563eb;
-    --accent-dark: #1e3a8a;
+    --accent-dark: #1d4ed8;
     --accent-soft: rgba(37, 99, 235, 0.12);
-    --success: #16a34a;
-    --error: #dc2626;
-    --radius-lg: 24px;
+    --bg-gradient: radial-gradient(circle at 5% 0%, rgba(59, 130, 246, 0.22), transparent 45%),
+      radial-gradient(circle at 95% 0%, rgba(14, 165, 233, 0.18), transparent 40%),
+      linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 55%, #f8fafc 100%);
+    --shadow: 0 30px 60px -25px rgba(15, 23, 42, 0.35);
+    --shadow-soft: 0 20px 50px -30px rgba(15, 23, 42, 0.35);
+    --radius-lg: 26px;
     --radius-md: 18px;
     --radius-sm: 12px;
-    --shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
-    --shadow-soft: 0 16px 45px rgba(15, 23, 42, 0.12);
-    --layout-max: 1280px;
+    --max-width: 1260px;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
   }
 
-  * {
+  *, *::before, *::after {
     box-sizing: border-box;
   }
 
-  html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-
   body {
-    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 16px;
-    line-height: 1.55;
-    color: var(--text);
-    background:
-      radial-gradient(120% 90% at 10% 10%, rgba(37, 99, 235, 0.12), transparent 55%),
-      radial-gradient(120% 90% at 80% 10%, rgba(45, 212, 191, 0.12), transparent 55%),
-      linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .app-shell {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: clamp(16px, 2vw, 32px) clamp(18px, 5vw, 64px) 120px;
-    gap: clamp(18px, 3vw, 36px);
-    max-width: var(--layout-max);
-    margin: 0 auto;
-    width: 100%;
-  }
-
-  .hero {
-    display: grid;
-    gap: clamp(16px, 2vw, 28px);
-    background: var(--panel);
-    border-radius: var(--radius-lg);
-    padding: clamp(22px, 4vw, 38px);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(12px);
-  }
-
-  .hero-heading {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .hero-heading .badge {
-    width: fit-content;
-    border-radius: 999px;
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--accent-dark);
-    background: rgba(37, 99, 235, 0.12);
-  }
-
-  .hero-heading h1 {
     margin: 0;
-    font-size: clamp(28px, 5vw, 40px);
-    font-weight: 800;
+    min-height: 100vh;
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--text);
+    background: var(--bg-gradient);
+    display: flex;
+    flex-direction: column;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  .masthead {
+    position: relative;
+    padding: clamp(24px, 5vw, 42px) clamp(18px, 7vw, 64px) clamp(28px, 6vw, 52px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(18px, 4vw, 36px);
+    overflow: hidden;
+  }
+
+  .masthead::before {
+    content: "";
+    position: absolute;
+    inset: 12% auto -20% 50%;
+    width: clamp(240px, 40vw, 520px);
+    height: clamp(240px, 45vw, 560px);
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.45), transparent 70%);
+    transform: translateX(-50%) rotate(18deg);
+    filter: blur(42px);
+    opacity: 0.6;
+  }
+
+  .masthead__inner {
+    position: relative;
+    z-index: 1;
+    max-width: var(--max-width);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(18px, 4vw, 36px);
+  }
+
+  .topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .brand__mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.92), rgba(59, 130, 246, 0.7));
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.04em;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .brand__copy h1 {
+    margin: 0;
+    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-size: clamp(30px, 5vw, 44px);
+    font-weight: 700;
     letter-spacing: -0.02em;
   }
 
-  .hero-heading p {
-    margin: 0;
-    max-width: 540px;
+  .brand__copy p {
+    margin: 6px 0 0;
+    max-width: 520px;
     color: var(--muted);
-    font-size: clamp(15px, 2.5vw, 17px);
+    font-size: clamp(15px, 2.5vw, 18px);
+    line-height: 1.6;
   }
 
-  .hero-actions {
+  .dev-bubble {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    background: rgba(15, 23, 42, 0.75);
+    color: #e2e8f0;
     display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: 0 16px 40px -20px rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(12px);
+    transition: transform 0.2s ease;
+  }
+
+  .dev-bubble:hover {
+    transform: translateY(-2px);
+  }
+
+  .mode-switcher {
+    display: grid;
+    gap: 10px;
+    align-items: start;
+  }
+
+  .mode-pills {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
   }
 
+  .mode {
+    position: relative;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    padding: 14px 18px;
+    background: rgba(255, 255, 255, 0.65);
+    color: var(--muted);
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+
+  .mode::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid transparent;
+    pointer-events: none;
+    transition: inherit;
+  }
+
+  .mode.active {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(14, 165, 233, 0.8));
+    color: #fff;
+    box-shadow: 0 18px 42px -18px rgba(37, 99, 235, 0.6);
+  }
+
+  .mode.active::after {
+    border-color: rgba(255, 255, 255, 0.55);
+  }
+
+  .mode-hint {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
   .patient-mini {
-    display: none;
-    gap: 10px;
+    display: flex;
     flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    color: var(--muted);
   }
 
   .mini-field {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 14px;
+    padding: 10px 16px;
     border-radius: 999px;
-    border: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.72);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: rgba(255, 255, 255, 0.75);
+    box-shadow: 0 12px 28px -22px rgba(15, 23, 42, 0.45);
   }
 
   .mini-field span {
@@ -138,97 +220,83 @@
   .mini-field input {
     border: 0;
     background: transparent;
+    font-size: 14px;
     outline: none;
-    width: 150px;
-    font-size: 14px;
+    min-width: 110px;
   }
 
-  .mode-toggle {
+  .workspace-wrapper {
+    flex: 1;
+    padding: 0 clamp(18px, 7vw, 64px) clamp(140px, 12vw, 200px);
+  }
+
+  .workspace {
+    position: relative;
+    z-index: 1;
+    max-width: var(--max-width);
+    margin: 0 auto;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
+    gap: clamp(20px, 4vw, 36px);
   }
 
-  .mode {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 14px 18px;
-    background: rgba(37, 99, 235, 0.05);
-    color: var(--muted);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.25s ease;
-  }
-
-  .mode.active {
-    background: var(--accent);
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.35);
-  }
-
-  .mode-hint {
-    font-size: 14px;
-    color: var(--muted);
-  }
-
-  .layout {
+  .cards-flow {
     display: grid;
-    gap: clamp(18px, 3vw, 36px);
-  }
-
-  .main-column {
-    display: grid;
-    gap: clamp(18px, 2.5vw, 32px);
+    gap: clamp(18px, 3vw, 28px);
   }
 
   .panel {
-    background: var(--panel-strong);
+    background: var(--surface);
     border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--outline);
     padding: clamp(18px, 3vw, 28px);
-    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(14px);
     display: grid;
-    gap: clamp(16px, 2vw, 24px);
+    gap: clamp(16px, 2.5vw, 26px);
+  }
+
+  .panel header {
+    display: grid;
+    gap: 6px;
   }
 
   .panel h2 {
     margin: 0;
-    font-size: clamp(18px, 2.6vw, 22px);
+    font-size: clamp(18px, 2.7vw, 22px);
     font-weight: 700;
     letter-spacing: -0.01em;
   }
 
   .panel .hint {
-    font-size: 13px;
+    margin: 0;
     color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
   }
 
   label {
     font-weight: 600;
-    color: #1e293b;
     font-size: 14px;
+    color: #1e293b;
     display: block;
     margin-bottom: 6px;
   }
 
-  .input, select, .chip {
+  .input, select, textarea {
     width: 100%;
     padding: 12px 14px;
     border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--bg-alt);
-    color: var(--text);
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    background: rgba(248, 250, 252, 0.92);
     font-size: 15px;
     transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   }
 
-  .input:focus, select:focus {
+  .input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: rgba(37, 99, 235, 0.7);
+    border-color: rgba(37, 99, 235, 0.6);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
     background: #fff;
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
   }
 
   input[type=number]::-webkit-outer-spin-button,
@@ -237,25 +305,38 @@
     margin: 0;
   }
 
-  .grid-2, .grid-3 {
+  .grid-2,
+  .grid-3 {
     display: grid;
     gap: 18px;
   }
 
-  .radio-row {
+  .grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .chip-row {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
   }
 
   .chip {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 10px;
-    cursor: pointer;
-    border-radius: var(--radius-md);
     padding: 12px 16px;
-    background: rgba(148, 163, 184, 0.12);
+    border-radius: var(--radius-md);
+    background: rgba(148, 163, 184, 0.14);
+    border: 1px solid transparent;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.2s ease;
   }
 
   .chip input[type=radio] {
@@ -263,68 +344,85 @@
   }
 
   .chip:hover {
-    background: rgba(37, 99, 235, 0.08);
+    background: rgba(37, 99, 235, 0.1);
   }
 
   .tab-bar {
     display: flex;
-    gap: 12px;
     flex-wrap: wrap;
+    gap: 10px;
   }
 
   .tab {
-    flex: 1 1 120px;
+    flex: 1 1 150px;
     text-align: center;
     padding: 12px 16px;
     border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-    background: var(--bg-alt);
+    border: 1px solid transparent;
+    background: rgba(15, 23, 42, 0.08);
     font-weight: 600;
-    cursor: pointer;
     color: var(--muted);
+    cursor: pointer;
     transition: all 0.2s ease;
   }
 
   .tab.active {
-    background: var(--accent);
+    background: rgba(37, 99, 235, 0.9);
     color: #fff;
-    border-color: transparent;
-    box-shadow: 0 10px 28px rgba(37, 99, 235, 0.28);
+    box-shadow: 0 12px 28px -18px rgba(37, 99, 235, 0.6);
   }
 
   .tab-panel {
     display: none;
+    gap: 18px;
   }
 
   .tab-panel.active {
     display: grid;
-    gap: 18px;
   }
 
-  .preview-card {
+  .insight-card {
     position: relative;
+    background: var(--surface-strong);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    padding: clamp(18px, 3vw, 28px);
+    box-shadow: var(--shadow);
     display: grid;
-    gap: 14px;
+    gap: 16px;
+    backdrop-filter: blur(16px);
   }
 
-  .preview-title {
-    font-weight: 600;
+  .insight-title {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    font-weight: 600;
+  }
+
+  .insight-hint {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .preview-collapse {
+    display: none;
+    font-size: 14px;
+    color: var(--accent-dark);
+    cursor: pointer;
   }
 
   .preview-body {
-    max-height: 340px;
-    overflow: auto;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--divider);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(15, 23, 42, 0.4);
     background: #0f172a;
     color: #e2e8f0;
+    padding: 16px;
     font-family: "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 13px;
-    padding: 16px;
+    max-height: 360px;
+    overflow: auto;
     line-height: 1.6;
   }
 
@@ -334,29 +432,20 @@
     color: rgba(226, 232, 240, 0.6);
   }
 
-  .preview-collapse {
-    display: none;
-  }
-
-  .tips {
-    display: grid;
-    gap: 10px;
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  .dock {
+  .action-dock {
     position: fixed;
-    inset: auto 0 0 0;
-    padding: 16px clamp(18px, 5vw, 64px) max(env(safe-area-inset-bottom, 24px), 24px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 18px clamp(18px, 7vw, 64px) max(env(safe-area-inset-bottom, 24px), 28px);
     background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 -14px 32px rgba(15, 23, 42, 0.12);
-    border-top: 1px solid var(--border);
-    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 -18px 42px -24px rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(16px);
   }
 
-  .dock-inner {
-    max-width: var(--layout-max);
+  .action-dock__inner {
+    max-width: var(--max-width);
     margin: 0 auto;
     display: grid;
     gap: 12px;
@@ -375,10 +464,10 @@
   .btn.primary {
     background: linear-gradient(135deg, #2563eb, #1e40af);
     color: #fff;
-    box-shadow: 0 20px 40px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 20px 40px -18px rgba(37, 99, 235, 0.55);
   }
 
-  .btn.primary:hover {
+  .btn.primary:hover:not([disabled]) {
     transform: translateY(-1px);
   }
 
@@ -390,20 +479,25 @@
 
   .btn.ghost {
     background: transparent;
+    border: 1px solid rgba(148, 163, 184, 0.35);
     color: var(--muted);
-    border: 1px solid var(--border);
+  }
+
+  .btn[disabled] {
+    opacity: 0.6;
+    cursor: progress;
   }
 
   .toast {
     position: fixed;
-    inset: auto 50% 110px auto;
-    transform: translateX(50%);
+    right: clamp(18px, 5vw, 64px);
+    bottom: clamp(120px, 12vw, 180px);
     min-width: min(360px, calc(100vw - 48px));
     background: #fff;
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow);
-    border-left: 4px solid var(--success);
+    border-left: 4px solid #16a34a;
     padding: 16px 20px;
+    box-shadow: var(--shadow);
     font-weight: 600;
     color: var(--text);
     display: none;
@@ -411,178 +505,158 @@
   }
 
   .toast.err {
-    border-left-color: var(--error);
-    color: var(--error);
-  }
-
-  .dev-pill {
-    position: fixed;
-    right: clamp(18px, 5vw, 48px);
-    bottom: clamp(110px, 12vw, 140px);
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    border: 1px solid rgba(148, 163, 184, 0.5);
-    background: rgba(15, 23, 42, 0.7);
-    color: #e2e8f0;
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-    box-shadow: 0 20px 36px rgba(15, 23, 42, 0.35);
-    backdrop-filter: blur(10px);
-    z-index: 120;
-  }
-
-  .dev-pill span {
-    font-size: 20px;
+    border-left-color: #dc2626;
+    color: #dc2626;
   }
 
   .dev-panel,
   .dev-backdrop {
     position: fixed;
     inset: 0;
-    display: none;
-    z-index: 110;
+    z-index: 130;
   }
 
   .dev-backdrop {
-    background: rgba(15, 23, 42, 0.55);
-    backdrop-filter: blur(4px);
-  }
-
-  .dev-panel {
-    place-items: center;
-    padding: 32px clamp(16px, 8vw, 64px);
-  }
-
-  .dev-panel[aria-hidden="false"] {
-    display: grid;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
   }
 
   .dev-backdrop[data-visible="true"] {
-    display: block;
+    opacity: 1;
+    pointer-events: auto;
   }
 
-  .dev-dialog {
-    width: min(680px, 100%);
-    background: var(--panel-strong);
+  .dev-panel {
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  .dev-sheet {
+    width: min(420px, calc(100vw - 48px));
+    background: #0f172a;
+    color: #f8fafc;
     border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    padding: clamp(24px, 4vw, 36px);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 30px 80px -30px rgba(15, 23, 42, 0.8);
+    padding: 26px;
     display: grid;
-    gap: 22px;
-  }
-
-  .dev-dialog header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     gap: 18px;
+    pointer-events: auto;
   }
 
-  .dev-dialog header h3 {
+  .dev-sheet h3 {
     margin: 0;
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 600;
   }
 
-  .dev-dialog .close {
+  .dev-sheet .close {
+    justify-self: end;
     border: 0;
-    background: rgba(148, 163, 184, 0.18);
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
+    background: rgba(148, 163, 184, 0.15);
+    color: #e2e8f0;
+    border-radius: 999px;
+    padding: 8px 14px;
     cursor: pointer;
-    font-size: 18px;
+    font-weight: 600;
   }
 
-  .dev-fields {
-    display: grid;
-    gap: 18px;
+  .dev-sheet label {
+    color: #cbd5f5;
   }
 
-  .dev-grid {
-    display: grid;
-    gap: 18px;
+  .dev-sheet .input {
+    background: rgba(15, 23, 42, 0.75);
+    color: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.4);
   }
 
   .dev-tip {
     font-size: 13px;
-    color: var(--muted);
+    color: rgba(226, 232, 240, 0.7);
   }
 
-  @media (min-width: 600px) {
-    .grid-2 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .grid-3 {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .dock-inner {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+  code {
+    font-family: "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
 
-  @media (min-width: 900px) {
-    body.desktop .layout {
-      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-      align-items: start;
-    }
-
-    body.desktop .main-column {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: clamp(20px, 2vw, 32px);
-    }
-
-    body.desktop .panel.full-span {
-      grid-column: 1 / -1;
-    }
-
-    body.desktop .preview-collapse {
-      display: none !important;
-    }
-
-    body.desktop .preview-card {
-      position: sticky;
-      top: clamp(24px, 6vw, 48px);
-    }
-
-    body.desktop .dock-inner {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+  body.desktop .workspace {
+    grid-template-columns: minmax(0, 2.1fr) minmax(260px, 1fr);
+    align-items: start;
   }
 
-  @media (max-width: 599px) {
-    .dock-inner {
+  body.desktop .cards-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.desktop .panel[data-span="full"] {
+    grid-column: 1 / -1;
+  }
+
+  body.desktop .preview-collapse {
+    display: none !important;
+  }
+
+  body.desktop .insight-card {
+    position: sticky;
+    top: clamp(32px, 8vw, 64px);
+  }
+
+  body.desktop .action-dock__inner {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body.desktop .action-dock__inner .btn.secondary {
+    order: 1;
+  }
+
+  @media (max-width: 899px) {
+    body.desktop .workspace {
       grid-template-columns: 1fr;
     }
+  }
 
-    .btn.primary {
-      font-size: 15px;
+  @media (max-width: 720px) {
+    .topline {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .dev-bubble {
+      position: absolute;
+      top: 0;
+      right: 12px;
+      transform: translateY(-50%);
+    }
+
+    .workspace-wrapper {
+      padding-bottom: clamp(200px, 24vw, 260px);
     }
 
     .preview-collapse {
-      display: block;
-      font-size: 14px;
-      color: var(--accent-dark);
-      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .preview-card[data-collapsed="true"] .preview-body {
+    .insight-card[data-collapsed="true"] .preview-body {
       display: none;
     }
 
-    .preview-card[data-collapsed="true"] .preview-collapse::after {
+    .insight-card[data-collapsed="true"] .preview-collapse::after {
       content: "Show";
-      margin-left: 8px;
     }
 
-    .preview-card[data-collapsed="false"] .preview-collapse::after {
+    .insight-card[data-collapsed="false"] .preview-collapse::after {
       content: "Hide";
-      margin-left: 8px;
+    }
+
+    .action-dock__inner {
+      grid-template-columns: 1fr;
     }
   }
 
@@ -601,35 +675,41 @@
 </style>
 </head>
 <body>
-  <div class="app-shell">
-    <section class="hero" role="banner">
-      <div class="hero-heading">
-        <span class="badge">APACHE II</span>
-        <h1>Bedside data capture</h1>
-        <p>Structured ICU inputs for teams on the move. Optimised layouts adapt seamlessly to phones, tablets and desktops.</p>
+  <header class="masthead" role="banner">
+    <div class="masthead__inner">
+      <div class="topline">
+        <div class="brand">
+          <div class="brand__mark" aria-hidden="true">AI</div>
+          <div class="brand__copy">
+            <h1>APACHE II bedside console</h1>
+            <p>Faster ICU data capture with layouts that reshape themselves from small phones to expansive desktops.</p>
+          </div>
+        </div>
+        <button id="devToggle" class="dev-bubble" aria-label="Developer settings" aria-haspopup="dialog" aria-expanded="false">⚙️</button>
       </div>
-      <div class="hero-actions" aria-label="Submission mode selector">
-        <div class="mode-toggle" role="group">
+
+      <div class="mode-switcher" aria-label="Submission mode selector">
+        <div class="mode-pills" role="group">
           <button id="modeOnline" type="button" class="mode active">Online (Google Sheets)</button>
           <button id="modeDesktop" type="button" class="mode">Desktop (Hospital PC)</button>
         </div>
-        <div id="modeHint" class="mode-hint">
-          Data goes straight to secure Google Sheets. You can download the current month anytime.
-        </div>
+        <div id="modeHint" class="mode-hint">Data goes straight to secure Google Sheets. You can download the current month anytime.</div>
         <div class="patient-mini" aria-label="Quick patient entry">
           <div class="mini-field"><span>👤</span><input id="patientNameMini" type="text" placeholder="Patient name"></div>
           <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID"></div>
         </div>
       </div>
-    </section>
+    </div>
+  </header>
 
-    <div class="layout">
-      <main class="main-column" id="formContent">
-        <section class="panel full-span" aria-labelledby="patient-h">
-          <div>
+  <div class="workspace-wrapper">
+    <main class="workspace" id="formContent">
+      <div class="cards-flow">
+        <section class="panel" data-span="full" aria-labelledby="patient-h">
+          <header>
             <h2 id="patient-h">Patient</h2>
-            <p class="hint">Quick identifiers sync automatically between compact and detailed inputs.</p>
-          </div>
+            <p class="hint">Identifiers sync between compact and expanded entry areas automatically.</p>
+          </header>
           <div class="grid-2">
             <div>
               <label for="patientName">Patient Name*</label>
@@ -643,10 +723,10 @@
         </section>
 
         <section class="panel" aria-labelledby="demo-h">
-          <div>
+          <header>
             <h2 id="demo-h">Demographics</h2>
-            <p class="hint">Baseline metrics provide the anchor for score calculations.</p>
-          </div>
+            <p class="hint">Baseline metrics anchor APACHE II scoring models.</p>
+          </header>
           <div class="grid-2">
             <div>
               <label for="age">Age (years)*</label>
@@ -660,18 +740,18 @@
         </section>
 
         <section class="panel" aria-labelledby="chronic-h">
-          <div>
+          <header>
             <h2 id="chronic-h">Chronic health</h2>
             <p class="hint">Reveal surgical pathways when significant organ failure is present.</p>
-          </div>
-          <div class="radio-row" id="chronicGrp">
+          </header>
+          <div class="chip-row" id="chronicGrp">
             <label class="chip"><input type="radio" name="chronic" value="No" checked> No</label>
             <label class="chip"><input type="radio" name="chronic" value="Yes"> Yes – severe organ failure / immunocompromise</label>
           </div>
-          <div id="surgTypeWrap" style="display:none" class="grid-2">
+          <div id="surgTypeWrap" class="grid-2" style="display:none">
             <div>
               <label>Type of surgery (if chronic = Yes)</label>
-              <div class="radio-row">
+              <div class="chip-row">
                 <label class="chip"><input type="radio" name="surgtype" value="Emergency" checked> Emergency</label>
                 <label class="chip"><input type="radio" name="surgtype" value="Elective"> Elective</label>
                 <label class="chip"><input type="radio" name="surgtype" value="Nonoperative"> Non-operative</label>
@@ -680,11 +760,11 @@
           </div>
         </section>
 
-        <section class="panel full-span" aria-labelledby="inputs-h">
-          <div>
+        <section class="panel" data-span="full" aria-labelledby="inputs-h">
+          <header>
             <h2 id="inputs-h">Clinical inputs</h2>
             <p class="hint">Segment vitals, oxygenation and labs with quick swipe tabs.</p>
-          </div>
+          </header>
           <div class="tab-bar" role="tablist">
             <button class="tab active" type="button" data-tab="vitals">Vitals</button>
             <button class="tab" type="button" data-tab="oxygen">Oxygenation</button>
@@ -717,7 +797,7 @@
           <div id="tab-oxygen" class="tab-panel" role="tabpanel">
             <div>
               <label>FiO₂ category*</label>
-              <div class="radio-row" id="fio2Grp">
+              <div class="chip-row" id="fio2Grp">
                 <label class="chip"><input type="radio" name="fio2" value="<50%" checked> &lt; 50% (or non-intubated)</label>
                 <label class="chip"><input type="radio" name="fio2" value=">=50%"> ≥ 50%</label>
               </div>
@@ -759,490 +839,476 @@
                 <input id="cr" class="input" type="number" step="0.1">
               </div>
               <div>
-                <label>Acute Renal Failure</label>
-                <div class="radio-row">
-                  <label class="chip"><input type="radio" name="arf" value="No" checked> No</label>
-                  <label class="chip"><input type="radio" name="arf" value="Yes"> Yes</label>
-                </div>
+                <label for="bun">BUN (mg/dL)</label>
+                <input id="bun" class="input" type="number" step="0.1">
               </div>
             </div>
-            <div class="grid-3">
+            <div class="grid-2">
+              <div>
+                <label for="wbc">WBC (cells x10³/mm³)</label>
+                <input id="wbc" class="input" type="number" step="0.1">
+              </div>
               <div>
                 <label for="hct">Hematocrit (%)</label>
                 <input id="hct" class="input" type="number" step="0.1">
               </div>
+            </div>
+            <div class="grid-2">
               <div>
-                <label for="wbc">WBC (×10³/μL)</label>
-                <input id="wbc" class="input" type="number" step="0.1">
+                <label>Acute Renal Failure</label>
+                <div class="chip-row" id="arfGrp">
+                  <label class="chip"><input type="radio" name="arf" value="No" checked> No</label>
+                  <label class="chip"><input type="radio" name="arf" value="Yes"> Yes</label>
+                </div>
+              </div>
+              <div>
+                <label for="platelets">Platelets (10³/mm³)</label>
+                <input id="platelets" class="input" type="number" step="1">
               </div>
             </div>
           </div>
         </section>
-      </main>
-
-      <aside class="side-column">
-          <section class="panel preview-card" id="previewCard" data-collapsed="true">
-            <div class="preview-title">
-              <div>
-                <h2>Live payload preview</h2>
-                <p class="hint">Stay confident before you send. Desktop mode surfaces live bridge acknowledgements.</p>
-              </div>
-              <button class="preview-collapse" type="button" id="previewToggle">Details</button>
-            </div>
-          <pre id="preview" class="preview-body empty">(No payload yet)</pre>
-          <div class="tips">
-            <div>• Payload auto-refreshes whenever you tap “Preview” or submit.</div>
-            <div>• Desktop submissions wait for live confirmation from the hospital bridge.</div>
-          </div>
-        </section>
-      </aside>
-    </div>
-  </div>
-
-  <div class="dock" role="contentinfo">
-    <div class="dock-inner">
-      <button id="btnSubmit" class="btn primary" type="button">Submit</button>
-      <button id="btnPreview" class="btn secondary" type="button">Preview</button>
-      <button id="btnDownload" class="btn ghost" type="button" style="display:none">Download current month</button>
-    </div>
-  </div>
-
-  <button id="devToggle" class="dev-pill" type="button" aria-label="Developer controls" aria-expanded="false">
-    <span>⚙️</span>
-  </button>
-
-  <div id="devPanel" class="dev-panel" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="dev-dialog">
-      <header>
-        <h3>Developer controls</h3>
-        <button type="button" class="close" id="devClose" aria-label="Close">×</button>
-      </header>
-      <div class="dev-tip">Online endpoints are fixed for safety. Override them here for controlled testing. Settings remain on this device only.</div>
-      <div class="dev-fields">
-        <div class="dev-grid">
-          <div>
-            <label for="onlineUrl">Online Webhook URL</label>
-            <input id="onlineUrl" class="input" type="text" value="https://script.google.com/macros/s/AKfycbwnmv8Qgt38LeeMgYQfh9Or83i-woNkz-gFIgIFjNJoKw_YF2rpVxh9V6syRoHEEw8/exec">
-          </div>
-          <div>
-            <label for="onlineSecret">Online Secret</label>
-            <input id="onlineSecret" class="input" type="text" value="SUPER_STRONG_SHARED_TOKEN">
-          </div>
-        </div>
-        <div class="dev-tip">Desktop overrides (optional)</div>
-        <div class="dev-grid">
-          <div>
-            <label for="clientId">Client ID</label>
-            <input id="clientId" class="input" type="text" value="NURSING-STATION-01">
-          </div>
-          <div>
-            <label for="authToken">Auth Token</label>
-            <input id="authToken" class="input" type="text" value="SUPER_STRONG_SHARED_TOKEN">
-          </div>
-        </div>
-        <div class="dev-tip">Desktop API: <code>https://apache-bridge-server-production.up.railway.app</code> · WS: <code>wss://…/ws/mobile</code></div>
       </div>
+
+      <aside class="insight-card" id="previewCard" data-collapsed="false">
+        <div class="insight-title">
+          <span>Submission preview</span>
+          <button id="btnPreview" class="btn ghost" type="button">Refresh preview</button>
+        </div>
+        <div id="previewToggle" class="preview-collapse" role="button" aria-expanded="true">Preview</div>
+        <pre id="preview" class="preview-body empty">Nothing captured yet</pre>
+        <div class="insight-hint">Updated automatically on submit to mirror what leaves the device.</div>
+      </aside>
+    </main>
+  </div>
+
+  <div class="action-dock" role="contentinfo">
+    <div class="action-dock__inner">
+      <button id="btnDownload" class="btn ghost" type="button">Download current month</button>
+      <button id="btnPreviewDock" class="btn secondary" type="button">Preview only</button>
+      <button id="btnSubmit" class="btn primary" type="button">Submit to selected mode</button>
     </div>
   </div>
-  <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script>
-/* Desktop detection for expanded layout */
-function detectDesktop() {
-  const ua = (navigator.userAgent || "");
-  const looksDesktop = /(Macintosh|Windows|Linux)/i.test(ua) && !/(Mobile|Tablet|Android)/i.test(ua);
-  const pointerFine = window.matchMedia('(pointer: fine)').matches;
-  const wideEnough = window.matchMedia('(min-width: 1024px)').matches;
-  return looksDesktop || (pointerFine && wideEnough);
-}
+  <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
+  <div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
+    <div class="dev-sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
+        <h3 id="devTitle">Developer overrides</h3>
+        <button id="devClose" class="close" type="button">Close</button>
+      </div>
+      <p class="dev-tip">Values persist per device. Leave blank to fall back to defaults.</p>
+      <div>
+        <label for="onlineUrl">Online Webhook URL</label>
+        <input id="onlineUrl" class="input" type="url" placeholder="https://script.google.com/...">
+      </div>
+      <div>
+        <label for="onlineSecret">Online Secret</label>
+        <input id="onlineSecret" class="input" type="text" placeholder="Shared secret for Sheets webhook">
+      </div>
+      <div>
+        <label for="clientId">Client ID</label>
+        <input id="clientId" class="input" type="text" value="NURSING-STATION-01">
+      </div>
+      <div>
+        <label for="authToken">Auth Token</label>
+        <input id="authToken" class="input" type="text" value="SUPER_STRONG_SHARED_TOKEN">
+      </div>
+      <div class="dev-tip">Desktop API: <code>https://apache-bridge-server-production.up.railway.app</code> · WS: <code>wss://apache-bridge-server-production.up.railway.app/ws/mobile</code></div>
+    </div>
+  </div>
 
-function applyDesktopClass() {
-  document.body.classList.toggle('desktop', detectDesktop());
-}
+  <script>
+  function detectDesktop() {
+    const ua = navigator.userAgent || "";
+    const looksDesktop = /(Macintosh|Windows|Linux)/i.test(ua) && !/(Mobile|Tablet|Android)/i.test(ua);
+    const pointerFine = window.matchMedia('(pointer: fine)').matches;
+    const wideEnough = window.matchMedia('(min-width: 1024px)').matches;
+    return looksDesktop || (pointerFine && wideEnough);
+  }
 
-applyDesktopClass();
-window.addEventListener('resize', () => {
-  clearTimeout(applyDesktopClass._t);
-  applyDesktopClass._t = setTimeout(applyDesktopClass, 180);
-});
+  function applyDesktopClass() {
+    document.body.classList.toggle('desktop', detectDesktop());
+  }
 
-/* Utility helpers */
-const $ = (id) => document.getElementById(id);
-const q = (sel) => document.querySelector(sel);
-
-function valNum(id) {
-  const v = $(id).value.trim();
-  return v === '' ? null : Number(v);
-}
-
-function valStr(id) {
-  const v = $(id).value.trim();
-  return v === '' ? null : v;
-}
-
-function radioVal(name) {
-  const el = document.querySelector('input[name="' + name + '"]:checked');
-  return el ? el.value : null;
-}
-
-function uuidv4() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
-    const v = c === 'x' ? r : ((r & 0x3) | 0x8);
-    return v.toString(16);
+  applyDesktopClass();
+  window.addEventListener('resize', () => {
+    clearTimeout(applyDesktopClass._timer);
+    applyDesktopClass._timer = setTimeout(applyDesktopClass, 180);
   });
-}
 
-function toast(msg, ok = true) {
-  const t = $('toast');
-  t.textContent = msg;
-  t.className = 'toast' + (ok ? '' : ' err');
-  t.style.display = 'block';
-  clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => {
-    t.style.display = 'none';
-  }, 4800);
-}
+  const $ = (id) => document.getElementById(id);
+  const q = (sel) => document.querySelector(sel);
 
-/* Device-specific micro-sync for patient chips */
-['patientName', 'uhid'].forEach((id) => {
-  const main = $(id);
-  if (!main) return;
-  main.addEventListener('input', () => {
-    const mini = $(id + 'Mini');
-    if (mini && mini.value !== main.value) mini.value = main.value;
+  function valNum(id) {
+    const v = $(id).value.trim();
+    return v === '' ? null : Number(v);
+  }
+
+  function valStr(id) {
+    const v = $(id).value.trim();
+    return v === '' ? null : v;
+  }
+
+  function radioVal(name) {
+    const el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : null;
+  }
+
+  function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
+      const v = c === 'x' ? r : ((r & 0x3) | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  function toast(msg, ok = true) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast' + (ok ? '' : ' err');
+    t.style.display = 'block';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+      t.style.display = 'none';
+    }, 4800);
+  }
+
+  ['patientName', 'uhid'].forEach((id) => {
+    const main = $(id);
+    if (!main) return;
+    main.addEventListener('input', () => {
+      const mini = $(id + 'Mini');
+      if (mini && mini.value !== main.value) mini.value = main.value;
+    });
   });
-});
 
-['patientNameMini', 'uhidMini'].forEach((id) => {
-  const mini = $(id);
-  if (!mini) return;
-  mini.addEventListener('input', () => {
-    const main = $(id.replace('Mini', ''));
-    if (main && main.value !== mini.value) main.value = mini.value;
+  ['patientNameMini', 'uhidMini'].forEach((id) => {
+    const mini = $(id);
+    if (!mini) return;
+    mini.addEventListener('input', () => {
+      const main = $(id.replace('Mini', ''));
+      if (main && main.value !== mini.value) main.value = mini.value;
+    });
   });
-});
 
-/* Developer controls (hidden icon) */
-const devToggle = $('devToggle');
-const devPanel = $('devPanel');
-const devBackdrop = $('devBackdrop');
-const devClose = $('devClose');
+  const devToggle = $('devToggle');
+  const devPanel = $('devPanel');
+  const devBackdrop = $('devBackdrop');
+  const devClose = $('devClose');
 
-devPanel.setAttribute('aria-hidden', 'true');
-devBackdrop.setAttribute('data-visible', 'false');
+  devPanel.setAttribute('aria-hidden', 'true');
+  devBackdrop.setAttribute('data-visible', 'false');
 
-function setDevPanel(open) {
-  const wasOpen = devPanel.getAttribute('aria-hidden') === 'false';
-  devPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-  devBackdrop.setAttribute('data-visible', open ? 'true' : 'false');
-  devBackdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
-  devToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  if (wasOpen && !open) saveDevOverrides();
-}
+  function setDevPanel(open) {
+    const wasOpen = devPanel.getAttribute('aria-hidden') === 'false';
+    devPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    devBackdrop.setAttribute('data-visible', open ? 'true' : 'false');
+    devBackdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
+    devToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (wasOpen && !open) saveDevOverrides();
+  }
 
-devToggle.addEventListener('click', () => {
-  const open = devPanel.getAttribute('aria-hidden') !== 'false';
-  setDevPanel(open);
-});
+  devToggle.addEventListener('click', () => {
+    const open = devPanel.getAttribute('aria-hidden') !== 'false';
+    setDevPanel(open);
+  });
 
-devClose.addEventListener('click', () => setDevPanel(false));
-devBackdrop.addEventListener('click', () => setDevPanel(false));
+  devClose.addEventListener('click', () => setDevPanel(false));
+  devBackdrop.addEventListener('click', () => setDevPanel(false));
 
-/* Developer persistence */
-function saveDevOverrides() {
-  const overrides = {
-    onlineUrl: $('onlineUrl')?.value.trim() || '',
-    onlineSecret: $('onlineSecret')?.value.trim() || '',
-    clientId: $('clientId')?.value.trim() || 'NURSING-STATION-01',
-    authToken: $('authToken')?.value.trim() || ''
-  };
-  localStorage.setItem('apacheMobileDev', JSON.stringify(overrides));
-  if (overrides.onlineUrl) ONLINE_WEBHOOK_URL = overrides.onlineUrl;
-  if (overrides.onlineSecret) ONLINE_SECRET = overrides.onlineSecret;
-}
-
-function loadDevOverrides() {
-  try {
-    const raw = localStorage.getItem('apacheMobileDev');
-    if (!raw) return;
-    const overrides = JSON.parse(raw);
-    if ($('onlineUrl')) $('onlineUrl').value = overrides.onlineUrl || '';
-    if ($('onlineSecret')) $('onlineSecret').value = overrides.onlineSecret || '';
-    if ($('clientId')) $('clientId').value = overrides.clientId || 'NURSING-STATION-01';
-    if ($('authToken')) $('authToken').value = overrides.authToken || '';
+  function saveDevOverrides() {
+    const overrides = {
+      onlineUrl: $('onlineUrl')?.value.trim() || '',
+      onlineSecret: $('onlineSecret')?.value.trim() || '',
+      clientId: $('clientId')?.value.trim() || 'NURSING-STATION-01',
+      authToken: $('authToken')?.value.trim() || ''
+    };
+    localStorage.setItem('apacheMobileDev', JSON.stringify(overrides));
     if (overrides.onlineUrl) ONLINE_WEBHOOK_URL = overrides.onlineUrl;
     if (overrides.onlineSecret) ONLINE_SECRET = overrides.onlineSecret;
-  } catch (_) {}
-}
-
-document.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Escape' && devPanel.getAttribute('aria-hidden') === 'false') {
-    setDevPanel(false);
   }
-});
 
-/* Fold-6 mini chips (retained for backwards compatibility) */
-(function () {
-  const ua = (navigator.userAgent || '').toUpperCase();
-  const isFold6 = ua.includes('SM-F956') || ua.includes('Z FOLD 6') || ua.includes('Z FOLD6');
-  if (isFold6) document.body.classList.add('fold6');
-})();
+  function loadDevOverrides() {
+    try {
+      const raw = localStorage.getItem('apacheMobileDev');
+      if (!raw) return;
+      const overrides = JSON.parse(raw);
+      if ($('onlineUrl')) $('onlineUrl').value = overrides.onlineUrl || '';
+      if ($('onlineSecret')) $('onlineSecret').value = overrides.onlineSecret || '';
+      if ($('clientId')) $('clientId').value = overrides.clientId || 'NURSING-STATION-01';
+      if ($('authToken')) $('authToken').value = overrides.authToken || '';
+      if (overrides.onlineUrl) ONLINE_WEBHOOK_URL = overrides.onlineUrl;
+      if (overrides.onlineSecret) ONLINE_SECRET = overrides.onlineSecret;
+    } catch (_) {}
+  }
 
-/* Field logic */
-$('chronicGrp').addEventListener('change', () => {
-  $('surgTypeWrap').style.display = radioVal('chronic') === 'Yes' ? 'grid' : 'none';
-});
-
-$('fio2Grp').addEventListener('change', () => {
-  const v = radioVal('fio2');
-  $('po2Wrap').style.display = v === '<50%';
-  $('aagradWrap').style.display = v !== '<50%';
-});
-
-/* Tabs */
-document.querySelectorAll('.tab').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
-    btn.classList.add('active');
-    const target = $('tab-' + btn.dataset.tab);
-    if (target) target.classList.add('active');
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && devPanel.getAttribute('aria-hidden') === 'false') {
+      setDevPanel(false);
+    }
   });
-});
 
-/* Preview collapse (mobile) */
-const previewCard = $('previewCard');
-const previewToggle = $('previewToggle');
-if (previewToggle) {
-  previewToggle.addEventListener('click', () => {
-    const collapsed = previewCard.getAttribute('data-collapsed') !== 'false';
-    previewCard.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
+  (function () {
+    const ua = (navigator.userAgent || '').toUpperCase();
+    const isFold6 = ua.includes('SM-F956') || ua.includes('Z FOLD 6') || ua.includes('Z FOLD6');
+    if (isFold6) document.body.classList.add('fold6');
+  })();
+
+  $('chronicGrp').addEventListener('change', () => {
+    $('surgTypeWrap').style.display = radioVal('chronic') === 'Yes' ? 'grid' : 'none';
   });
-}
 
-/* API configuration */
-const API_BASE = 'https://apache-bridge-server-production.up.railway.app';
-const SERVER_HTTP_URL = API_BASE + '/api/submit';
-const SERVER_WS_URL = 'wss://apache-bridge-server-production.up.railway.app/ws/mobile';
+  $('fio2Grp').addEventListener('change', () => {
+    const v = radioVal('fio2');
+    $('po2Wrap').style.display = v === '<50%';
+    $('aagradWrap').style.display = v !== '<50%';
+  });
 
-let ONLINE_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwnmv8Qgt38LeeMgYQfh9Or83i-woNkz-gFIgIFjNJoKw_YF2rpVxh9V6syRoHEEw8/exec';
-let ONLINE_SECRET = 'SUPER_STRONG_SHARED_TOKEN';
+  document.querySelectorAll('.tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
+      btn.classList.add('active');
+      const target = $('tab-' + btn.dataset.tab);
+      if (target) target.classList.add('active');
+    });
+  });
 
-loadDevOverrides();
-
-/* Mode toggle */
-let MODE = 'online';
-
-function setMode(m) {
-  MODE = m;
-  $('modeOnline').classList.toggle('active', m === 'online');
-  $('modeDesktop').classList.toggle('active', m !== 'online');
-  $('btnDownload').style.display = m === 'online' ? 'block' : 'none';
-  $('modeHint').textContent = m === 'online'
-    ? 'Data goes straight to secure Google Sheets. You can download the current month anytime.'
-    : 'Data is sent to the hospital desktop app. Requires the desktop client to be connected.';
-}
-
-$('modeOnline').addEventListener('click', () => setMode('online'));
-$('modeDesktop').addEventListener('click', () => setMode('desktop'));
-setMode('online');
-
-/* Build payload */
-function buildPayload() {
-  const patientName = valStr('patientName');
-  const uhid = valStr('uhid');
-  const age = valNum('age');
-  const fio2 = radioVal('fio2');
-  if (!patientName) throw new Error('Patient Name is required');
-  if (!uhid) throw new Error('UHID is required');
-  if (age === null) throw new Error('Age is required');
-  if (!fio2) throw new Error('FiO₂ category is required');
-
-  const chronic = radioVal('chronic');
-  const surgtype = chronic === 'Yes' ? radioVal('surgtype') : null;
-
-  const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
-  const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
-  if (fio2 === '<50%' && pao2 === null) throw new Error('PaO₂ is required when FiO₂ < 50%');
-  if (fio2 !== '<50%' && aagrad === null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
-
-  return {
-    clientId: $('clientId') ? $('clientId').value.trim() : 'NURSING-STATION-01',
-    authToken: MODE === 'online'
-      ? (($('onlineSecret') && $('onlineSecret').value.trim()) || ONLINE_SECRET || '')
-      : (($('authToken') && $('authToken').value.trim()) || ''),
-    patientName,
-    uhid,
-    timestamp: new Date().toISOString(),
-    submissionId: uuidv4(),
-    apacheInputs: {
-      Age_years: age,
-      GCS: valNum('gcs'),
-      Temperature_F: valNum('tempF'),
-      MAP_mmHg: valNum('map'),
-      HeartRate_bpm: valNum('hr'),
-      RespRate_bpm: valNum('rr'),
-      FiO2_Category: fio2,
-      PaO2_mmHg: pao2,
-      AaGradient_mmHg: aagrad,
-      pH: valNum('ph'),
-      HCO3_mEqL: valNum('hco3'),
-      Na_mEqL: valNum('na'),
-      K_mEqL: valNum('k'),
-      Creatinine_mgdl: valNum('cr'),
-      AcuteRenalFailure: radioVal('arf') === 'Yes',
-      Hematocrit_pct: valNum('hct'),
-      WBC_10e3uL: valNum('wbc'),
-      ChronicHealth: chronic === 'Yes' ? 'Yes' : 'No',
-      SurgeryType: surgtype
-    }
-  };
-}
-
-/* Networking */
-async function sendJson(url, payload, label) {
-  const body = JSON.stringify(payload);
-  let res;
-  try {
-    res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-  } catch (err) {
-    if (err instanceof TypeError) {
-      const origin = window.location.origin === 'null' ? 'file://' : window.location.origin;
-      const advice = navigator.onLine === false
-        ? 'You appear to be offline. Check your internet connection.'
-        : (origin === 'file://'
-          ? 'Please open this tool through https:// (or a local web server) instead of double-clicking the HTML file.'
-          : 'The request was blocked before reaching the server. Check your firewall/VPN allow-list.');
-      throw new Error(label + ' request failed: ' + err.message + '. ' + advice);
-    }
-    throw err;
+  const previewCard = $('previewCard');
+  const previewToggle = $('previewToggle');
+  if (previewToggle) {
+    previewToggle.addEventListener('click', () => {
+      const collapsed = previewCard.getAttribute('data-collapsed') !== 'false';
+      previewCard.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
+      previewToggle.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
+    });
   }
 
-  const text = await res.text().catch(() => '');
-  if (!res.ok) {
-    const bodyHint = text ? ' ' + text : '';
-    throw new Error(label + ' responded with ' + res.status + '.' + bodyHint);
+  const API_BASE = 'https://apache-bridge-server-production.up.railway.app';
+  const SERVER_HTTP_URL = API_BASE + '/api/submit';
+  const SERVER_WS_URL = 'wss://apache-bridge-server-production.up.railway.app/ws/mobile';
+
+  let ONLINE_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwnmv8Qgt38LeeMgYQfh9Or83i-woNkz-gFIgIFjNJoKw_YF2rpVxh9V6syRoHEEw8/exec';
+  let ONLINE_SECRET = 'SUPER_STRONG_SHARED_TOKEN';
+
+  loadDevOverrides();
+
+  let MODE = 'online';
+
+  function syncModeButtons(m) {
+    $('modeOnline').classList.toggle('active', m === 'online');
+    $('modeDesktop').classList.toggle('active', m !== 'online');
   }
 
-  if (!text) return {};
-  try {
-    const data = JSON.parse(text);
-    if (data && typeof data === 'object' && data.error) {
-      throw new Error(label + ' error: ' + data.error);
-    }
-    return data;
-  } catch (_) {
-    return { message: text };
+  function setMode(m) {
+    MODE = m;
+    syncModeButtons(m);
+    $('btnDownload').style.display = m === 'online' ? 'block' : 'none';
+    $('modeHint').textContent = m === 'online'
+      ? 'Data goes straight to secure Google Sheets. You can download the current month anytime.'
+      : 'Data is sent to the hospital desktop app. Requires the desktop client to be connected.';
   }
-}
 
-async function postOnline(payload) {
-  const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
-  if (!url) throw new Error('Online Webhook URL not set (Developer → Online Webhook URL).');
-  if (!payload.authToken) throw new Error('Online Secret not set (Developer → Online Secret).');
+  $('modeOnline').addEventListener('click', () => setMode('online'));
+  $('modeDesktop').addEventListener('click', () => setMode('desktop'));
+  setMode('online');
 
-  return sendJson(url, payload, 'Google Sheets webhook');
-}
+  function buildPayload() {
+    const patientName = valStr('patientName');
+    const uhid = valStr('uhid');
+    const age = valNum('age');
+    const fio2 = radioVal('fio2');
+    if (!patientName) throw new Error('Patient Name is required');
+    if (!uhid) throw new Error('UHID is required');
+    if (age === null) throw new Error('Age is required');
+    if (!fio2) throw new Error('FiO₂ category is required');
 
-async function postDesktop(payload) {
-  return sendJson(SERVER_HTTP_URL, payload, 'Desktop bridge');
-}
+    const chronic = radioVal('chronic');
+    const surgtype = chronic === 'Yes' ? radioVal('surgtype') : null;
 
-function waitForAckWS(submissionId, onAck, onError) {
-  try {
-    const url = new URL(SERVER_WS_URL);
-    url.searchParams.set('clientId', $('clientId') ? $('clientId').value.trim() : '');
-    url.searchParams.set('submissionId', submissionId);
-    const ws = new WebSocket(url.toString());
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        if (msg.status === 'SUCCESS' || msg.status === 'ERROR' || msg.clientId) {
-          onAck(msg);
-          ws.close();
-        }
-      } catch (_) {}
+    const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
+    const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
+    if (fio2 === '<50%' && pao2 === null) throw new Error('PaO₂ is required when FiO₂ < 50%');
+    if (fio2 !== '<50%' && aagrad === null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
+
+    return {
+      clientId: $('clientId') ? $('clientId').value.trim() : 'NURSING-STATION-01',
+      authToken: MODE === 'online'
+        ? (($('onlineSecret') && $('onlineSecret').value.trim()) || ONLINE_SECRET || '')
+        : (($('authToken') && $('authToken').value.trim()) || ''),
+      patientName,
+      uhid,
+      timestamp: new Date().toISOString(),
+      submissionId: uuidv4(),
+      apacheInputs: {
+        Age_years: age,
+        GCS: valNum('gcs'),
+        Temperature_F: valNum('tempF'),
+        MAP_mmHg: valNum('map'),
+        HeartRate_bpm: valNum('hr'),
+        RespRate_bpm: valNum('rr'),
+        FiO2_Category: fio2,
+        PaO2_mmHg: pao2,
+        AaGradient_mmHg: aagrad,
+        pH: valNum('ph'),
+        HCO3_mEqL: valNum('hco3'),
+        Na_mEqL: valNum('na'),
+        K_mEqL: valNum('k'),
+        Creatinine_mgdl: valNum('cr'),
+        BUN_mgdl: valNum('bun'),
+        AcuteRenalFailure: radioVal('arf') === 'Yes',
+        Hematocrit_pct: valNum('hct'),
+        WBC_10e3uL: valNum('wbc'),
+        Platelets_10e3uL: valNum('platelets'),
+        ChronicHealth: chronic === 'Yes' ? 'Yes' : 'No',
+        SurgeryType: surgtype
+      }
     };
-    ws.onerror = () => onError(new Error('WS error'));
-    return ws;
-  } catch (e) {
-    onError(e);
-    return null;
   }
-}
 
-/* Download current month (Online) */
-$('btnDownload').addEventListener('click', () => {
-  try {
+  async function sendJson(url, payload, label) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const text = await res.text();
+    if (!res.ok) {
+      const bodyHint = text ? ' ' + text : '';
+      throw new Error(label + ' responded with ' + res.status + '.' + bodyHint);
+    }
+
+    if (!text) return {};
+    try {
+      const data = JSON.parse(text);
+      if (data && typeof data === 'object' && data.error) {
+        throw new Error(label + ' error: ' + data.error);
+      }
+      return data;
+    } catch (_) {
+      return { message: text };
+    }
+  }
+
+  async function postOnline(payload) {
     const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
-    const secret = ($('onlineSecret')?.value.trim() || ONLINE_SECRET || '');
-    if (!url || !secret) {
-      toast('Set Online URL and Secret in Developer panel.', false);
-      return;
+    if (!url) throw new Error('Online Webhook URL not set (Developer → Online Webhook URL).');
+    if (!payload.authToken) throw new Error('Online Secret not set (Developer → Online Secret).');
+    return sendJson(url, payload, 'Google Sheets webhook');
+  }
+
+  async function postDesktop(payload) {
+    return sendJson(SERVER_HTTP_URL, payload, 'Desktop bridge');
+  }
+
+  function waitForAckWS(submissionId, onAck, onError) {
+    try {
+      const url = new URL(SERVER_WS_URL);
+      url.searchParams.set('clientId', $('clientId') ? $('clientId').value.trim() : '');
+      url.searchParams.set('submissionId', submissionId);
+      const ws = new WebSocket(url.toString());
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.status === 'SUCCESS' || msg.status === 'ERROR' || msg.clientId) {
+            onAck(msg);
+            ws.close();
+          }
+        } catch (_) {}
+      };
+      ws.onerror = () => onError(new Error('WS error'));
+      return ws;
+    } catch (e) {
+      onError(e);
+      return null;
     }
-    const ym = new Date().toISOString().slice(0, 7);
-    const link = url + '?action=download&month=' + encodeURIComponent(ym) + '&auth=' + encodeURIComponent(secret);
-    window.open(link, '_blank');
-  } catch (e) {
-    toast(e.message, false);
   }
-});
 
-/* Buttons */
-$('btnPreview').addEventListener('click', () => {
-  try {
-    const payload = buildPayload();
-    $('preview').textContent = JSON.stringify(payload, null, 2);
-    $('preview').classList.remove('empty');
-    previewCard.setAttribute('data-collapsed', 'false');
-    toast('Preview updated');
-  } catch (e) {
-    toast(e.message, false);
-  }
-});
-
-$('btnSubmit').addEventListener('click', async (ev) => {
-  ev.preventDefault();
-  const button = $('btnSubmit');
-  button.disabled = true;
-  try {
-    saveDevOverrides();
-    const payload = buildPayload();
-    $('preview').textContent = JSON.stringify(payload, null, 2);
-    $('preview').classList.remove('empty');
-    previewCard.setAttribute('data-collapsed', 'false');
-
-    if (MODE === 'online') {
-      toast('Sending to Google Sheets…');
-      await postOnline(payload);
-      toast('Saved to Google Sheets ✅');
-    } else {
-      toast('Sending to desktop…');
-      await postDesktop(payload);
-      let acked = false;
-      const ackToast = setTimeout(() => {
-        if (!acked) toast('Submitted. Waiting for desktop…');
-      }, 1400);
-      waitForAckWS(payload.submissionId,
-        (ack) => {
-          acked = true;
-          clearTimeout(ackToast);
-          if (ack.status === 'SUCCESS') toast('Saved on desktop ✅');
-          else if (ack.status === 'ERROR') toast('Desktop error: ' + (ack.message || 'unknown'), false);
-          else toast('Submitted. Check desktop.');
-        },
-        () => toast('Submitted. No live ack yet.')
-      );
+  $('btnDownload').addEventListener('click', () => {
+    try {
+      const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
+      const secret = ($('onlineSecret')?.value.trim() || ONLINE_SECRET || '');
+      if (!url || !secret) {
+        toast('Set Online URL and Secret in Developer panel.', false);
+        return;
+      }
+      const ym = new Date().toISOString().slice(0, 7);
+      const link = url + '?action=download&month=' + encodeURIComponent(ym) + '&auth=' + encodeURIComponent(secret);
+      window.open(link, '_blank');
+    } catch (e) {
+      toast(e.message, false);
     }
-  } catch (e) {
-    toast('Submit failed: ' + e.message, false);
-  } finally {
-    button.disabled = false;
-  }
-});
-</script>
+  });
+
+  $('btnPreviewDock').addEventListener('click', () => {
+    try {
+      const payload = buildPayload();
+      $('preview').textContent = JSON.stringify(payload, null, 2);
+      $('preview').classList.remove('empty');
+      previewCard.setAttribute('data-collapsed', 'false');
+      toast('Preview updated');
+    } catch (e) {
+      toast(e.message, false);
+    }
+  });
+
+  $('btnPreview').addEventListener('click', () => {
+    try {
+      const payload = buildPayload();
+      $('preview').textContent = JSON.stringify(payload, null, 2);
+      $('preview').classList.remove('empty');
+      previewCard.setAttribute('data-collapsed', 'false');
+      toast('Preview updated');
+    } catch (e) {
+      toast(e.message, false);
+    }
+  });
+
+  $('btnSubmit').addEventListener('click', async (ev) => {
+    ev.preventDefault();
+    const button = $('btnSubmit');
+    button.disabled = true;
+    try {
+      saveDevOverrides();
+      const payload = buildPayload();
+      $('preview').textContent = JSON.stringify(payload, null, 2);
+      $('preview').classList.remove('empty');
+      previewCard.setAttribute('data-collapsed', 'false');
+
+      if (MODE === 'online') {
+        toast('Sending to Google Sheets…');
+        await postOnline(payload);
+        toast('Saved to Google Sheets ✅');
+      } else {
+        toast('Sending to desktop…');
+        await postDesktop(payload);
+        let acked = false;
+        const ackToast = setTimeout(() => {
+          if (!acked) toast('Submitted. Waiting for desktop…');
+        }, 1400);
+        waitForAckWS(payload.submissionId,
+          (ack) => {
+            acked = true;
+            clearTimeout(ackToast);
+            if (ack.status === 'SUCCESS') toast('Saved on desktop ✅');
+            else if (ack.status === 'ERROR') toast('Desktop error: ' + (ack.message || 'unknown'), false);
+            else toast('Submitted. Check desktop.');
+          },
+          () => toast('Submitted. No live ack yet.')
+        );
+      }
+    } catch (e) {
+      toast('Submit failed: ' + e.message, false);
+    } finally {
+      button.disabled = false;
+    }
+  });
+  </script>
 </body>
 </html>
