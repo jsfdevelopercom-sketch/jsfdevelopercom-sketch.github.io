@@ -411,20 +411,52 @@ function buildPayload(){
 }
 
 /* Networking */
+async function sendJson(url, payload, label){
+  const body = JSON.stringify(payload);
+  let res;
+  try{
+    res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body});
+  }catch(err){
+    if(err instanceof TypeError){
+      const origin = window.location.origin === 'null' ? 'file://' : window.location.origin;
+      const advice = navigator.onLine === false
+        ? 'You appear to be offline. Check your internet connection.'
+        : (origin === 'file://'
+            ? 'Please open this tool through https:// (or a local web server) instead of double-clicking the HTML file.'
+            : 'The request was blocked before reaching the server. Check your firewall/VPN allow-list.');
+      throw new Error(`${label} request failed: ${err.message}. ${advice}`);
+    }
+    throw err;
+  }
+
+  const text = await res.text().catch(()=> '');
+  if(!res.ok){
+    const bodyHint = text ? ` ${text}` : '';
+    throw new Error(`${label} responded with ${res.status}.${bodyHint}`);
+  }
+
+  if(!text) return {};
+  try{
+    const data = JSON.parse(text);
+    if(data && typeof data === 'object' && data.error){
+      throw new Error(`${label} error: ${data.error}`);
+    }
+    return data;
+  }catch(_){
+    return { message: text };
+  }
+}
+
 async function postOnline(payload){
   const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || "");
   if (!url) throw new Error("Online Webhook URL not set (Developer → Online Webhook URL).");
   if (!payload.authToken) throw new Error("Online Secret not set (Developer → Online Secret).");
 
-  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-  if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error('Online webhook error '+res.status+': '+t); }
-  return res.json().catch(()=> ({}));
+  return sendJson(url, payload, 'Google Sheets webhook');
 }
 
 async function postDesktop(payload){
-  const res = await fetch(SERVER_HTTP_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-  if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error('Server HTTP error '+res.status+': '+t); }
-  return res.json().catch(()=> ({}));
+  return sendJson(SERVER_HTTP_URL, payload, 'Desktop bridge');
 }
 
 function waitForAckWS(submissionId, onAck, onError){
