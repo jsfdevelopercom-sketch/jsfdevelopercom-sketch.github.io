@@ -75,7 +75,7 @@
   label { font-weight: 600; font-size: 14px; color: #1e293b; display: block; margin-bottom: 6px; }
   .input, select, textarea { width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid rgba(148, 163, 184, 0.5); background: rgba(248, 250, 252, 0.92); font-size: 15px; transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
   .input:focus, select:focus, textarea:focus { outline: none; border-color: rgba(37, 99, 235, 0.6); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); background: #fff; }
-  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-innerspin-button { -webkit-appearance: none; margin: 0; }
 
   .grid-2, .grid-3 { display: grid; gap: 18px; }
   .grid-2 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
@@ -125,7 +125,7 @@
   .dev-sheet .input { background: rgba(15, 23, 42, 0.75); color: #f8fafc; border: 1px solid rgba(148, 163, 184, 0.4); }
   .dev-tip { font-size: 13px; color: rgba(226, 232, 240, 0.7); }
 
-  body.desktop .workspace { grid-template-columns: minmax(0, 2.1fr) minmax(260px, 1fr); align-items: start; }
+  body.desktop .workspace { grid-template-columns: 1fr 360px; align-items: start; }
   body.desktop .cards-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body.desktop .panel[data-span="full"] { grid-column: 1 / -1; }
   body.desktop .preview-collapse { display: none !important; }
@@ -296,14 +296,16 @@
                 <label class="chip"><input type="radio" name="fio2" value=">=50%"> ≥ 50%</label>
               </div>
             </div>
+
             <div id="po2Wrap">
               <label for="pao2">PaO₂ (mmHg)</label>
-              <input id="pao2" class="input" type="number" step="1" placeholder="e.g., 80">
+              <input id="pao2" class="input" type="number" step="1" placeholder="e.g., 80" autocomplete="off">
               <p class="hint">If FiO₂ &lt; 50% → provide PaO₂.</p>
             </div>
+
             <div id="aagradWrap" style="display:none">
               <label for="aagrad">A–a gradient (mmHg)</label>
-              <input id="aagrad" class="input" type="number" step="1" placeholder="e.g., 220">
+              <input id="aagrad" class="input" type="number" step="1" placeholder="e.g., 220" autocomplete="off">
               <p class="hint">If FiO₂ ≥ 50% → provide A–a gradient.</p>
             </div>
           </div>
@@ -315,7 +317,7 @@
                 <input id="ph" class="input" type="number" step="0.01" min="6.8" max="7.8">
               </div>
               <div>
-                <label for="hco3">HCO₃⁻ (mEq/L)</label>
+                <label for="hco3">HCO₃⁻ (mEq/L) <span class="hint">(use if pH unavailable)</span></label>
                 <input id="hco3" class="input" type="number" step="0.1">
               </div>
               <div>
@@ -333,21 +335,15 @@
                 <input id="cr" class="input" type="number" step="0.1">
               </div>
               <div>
-                <label for="bun">BUN (mg/dL)</label>
-                <input id="bun" class="input" type="number" step="0.1">
+                <label for="wbc">WBC (×10³/mm³)</label>
+                <input id="wbc" class="input" type="number" step="0.1">
               </div>
             </div>
             <div class="grid-2">
-              <div>
-                <label for="wbc">WBC (cells x10³/mm³)</label>
-                <input id="wbc" class="input" type="number" step="0.1">
-              </div>
               <div>
                 <label for="hct">Hematocrit (%)</label>
                 <input id="hct" class="input" type="number" step="0.1">
               </div>
-            </div>
-            <div class="grid-2">
               <div>
                 <label>Acute Renal Failure</label>
                 <div class="chip-row" id="arfGrp">
@@ -355,15 +351,11 @@
                   <label class="chip"><input type="radio" name="arf" value="Yes"> Yes</label>
                 </div>
               </div>
-              <div>
-                <label for="platelets">Platelets (10³/mm³)</label>
-                <input id="platelets" class="input" type="number" step="1">
-              </div>
             </div>
           </div>
         </section>
 
-        <!-- NEW: Outcome panel -->
+        <!-- Outcome -->
         <section class="panel" aria-labelledby="outcome-h">
           <header>
             <h2 id="outcome-h">Outcome</h2>
@@ -426,65 +418,54 @@
   </div>
 
   <script>
-  function detectDesktop() {
+  // --- helpers
+  const $ = (id) => document.getElementById(id);
+  const q = (sel) => document.querySelector(sel);
+  function valNum(id){ const el = $(id); if (!el) return null; const v = el.value.trim(); return v === '' ? null : Number(v); }
+  function valStr(id){ const el = $(id); if (!el) return null; const v = el.value.trim(); return v === '' ? null : v; }
+  function radioVal(name){ const el = document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : null; }
+  function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c)=>{ const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15; const v = c === 'x' ? r : ((r & 0x3) | 0x8); return v.toString(16); }); }
+  function toast(msg, ok=true){ const t=$('toast'); t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block'; clearTimeout(toast._timer); toast._timer=setTimeout(()=>{ t.style.display='none'; }, 4800); }
+
+  // desktop class detection
+  function detectDesktop(){
     const ua = navigator.userAgent || "";
     const looksDesktop = /(Macintosh|Windows|Linux)/i.test(ua) && !/(Mobile|Tablet|Android)/i.test(ua);
     const pointerFine = window.matchMedia('(pointer: fine)').matches;
     const wideEnough = window.matchMedia('(min-width: 1024px)').matches;
     return looksDesktop || (pointerFine && wideEnough);
   }
-  function applyDesktopClass() {
-    document.body.classList.toggle('desktop', detectDesktop());
-  }
+  function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
   applyDesktopClass();
-  window.addEventListener('resize', () => {
-    clearTimeout(applyDesktopClass._timer);
-    applyDesktopClass._timer = setTimeout(applyDesktopClass, 180);
+  window.addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
+
+  // mini <-> main sync
+  ['patientName','uhid'].forEach((id)=>{
+    const main=$(id); if (!main) return;
+    main.addEventListener('input',()=>{ const mini=$(id+'Mini'); if (mini && mini.value!==main.value) mini.value=main.value; });
+  });
+  ['patientNameMini','uhidMini'].forEach((id)=>{
+    const mini=$(id); if (!mini) return;
+    mini.addEventListener('input',()=>{ const main=$(id.replace('Mini','')); if (main && main.value!==mini.value) main.value=mini.value; });
   });
 
-  const $ = (id) => document.getElementById(id);
-  const q = (sel) => document.querySelector(sel);
-  function valNum(id) { const el = $(id); if (!el) return null; const v = el.value.trim(); return v === '' ? null : Number(v); }
-  function valStr(id) { const el = $(id); if (!el) return null; const v = el.value.trim(); return v === '' ? null : v; }
-  function radioVal(name) { const el = document.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : null; }
-  function uuidv4() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
-      const v = c === 'x' ? r : ((r & 0x3) | 0x8);
-      return v.toString(16);
-    });
-  }
-  function toast(msg, ok = true) {
-    const t = $('toast'); t.textContent = msg; t.className = 'toast' + (ok ? '' : ' err'); t.style.display = 'block';
-    clearTimeout(toast._timer); toast._timer = setTimeout(() => { t.style.display = 'none'; }, 4800);
-  }
-
-  // Mini ↔ main sync
-  ['patientName', 'uhid'].forEach((id) => {
-    const main = $(id); if (!main) return;
-    main.addEventListener('input', () => { const mini = $(id + 'Mini'); if (mini && mini.value !== main.value) mini.value = main.value; });
-  });
-  ['patientNameMini', 'uhidMini'].forEach((id) => {
-    const mini = $(id); if (!mini) return;
-    mini.addEventListener('input', () => { const main = $(id.replace('Mini', '')); if (main && main.value !== mini.value) main.value = mini.value; });
-  });
-
-  // Dev panel
-  const devToggle = $('devToggle'), devPanel = $('devPanel'), devBackdrop = $('devBackdrop'), devClose = $('devClose');
-  devPanel.setAttribute('aria-hidden', 'true'); devBackdrop.setAttribute('data-visible', 'false');
-  function setDevPanel(open) {
+  // dev panel
+  const devToggle=$('devToggle'), devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
+  devPanel.setAttribute('aria-hidden','true'); devBackdrop.setAttribute('data-visible','false');
+  function setDevPanel(open){
     const wasOpen = devPanel.getAttribute('aria-hidden') === 'false';
-    devPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-    devBackdrop.setAttribute('data-visible', open ? 'true' : 'false');
-    devBackdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
-    devToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    devPanel.setAttribute('aria-hidden', open ? 'false':'true');
+    devBackdrop.setAttribute('data-visible', open ? 'true':'false');
+    devBackdrop.setAttribute('aria-hidden', open ? 'false':'true');
+    devToggle.setAttribute('aria-expanded', open ? 'true':'false');
     if (wasOpen && !open) saveDevOverrides();
   }
-  devToggle.addEventListener('click', () => { const isHidden = devPanel.getAttribute('aria-hidden') !== 'false'; setDevPanel(isHidden); });
-  devClose.addEventListener('click', () => setDevPanel(false));
-  devBackdrop.addEventListener('click', () => setDevPanel(false));
+  devToggle.addEventListener('click',()=>{ const isHidden = devPanel.getAttribute('aria-hidden') !== 'false'; setDevPanel(isHidden); });
+  devClose.addEventListener('click',()=>setDevPanel(false));
+  devBackdrop.addEventListener('click',()=>setDevPanel(false));
+  document.addEventListener('keydown',(ev)=>{ if (ev.key==='Escape' && devPanel.getAttribute('aria-hidden')==='false') setDevPanel(false); });
 
-  function saveDevOverrides() {
+  function saveDevOverrides(){
     const overrides = {
       onlineUrl: $('onlineUrl')?.value.trim() || '',
       onlineSecret: $('onlineSecret')?.value.trim() || '',
@@ -494,8 +475,8 @@
     if (overrides.onlineUrl) ONLINE_WEBHOOK_URL = overrides.onlineUrl;
     if (overrides.onlineSecret) ONLINE_SECRET = overrides.onlineSecret;
   }
-  function loadDevOverrides() {
-    try {
+  function loadDevOverrides(){
+    try{
       const raw = localStorage.getItem('apacheMobileDev'); if (!raw) return;
       const overrides = JSON.parse(raw);
       if ($('onlineUrl')) $('onlineUrl').value = overrides.onlineUrl || '';
@@ -503,45 +484,51 @@
       if ($('clientId')) $('clientId').value = overrides.clientId || 'NURSING-STATION-01';
       if (overrides.onlineUrl) ONLINE_WEBHOOK_URL = overrides.onlineUrl;
       if (overrides.onlineSecret) ONLINE_SECRET = overrides.onlineSecret;
-    } catch (_) {}
+    }catch(_){}
   }
-  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && devPanel.getAttribute('aria-hidden') === 'false') setDevPanel(false); });
 
-  // Galaxy Z Fold 6 cosmetic class
-  (function () {
+  // cosmetic: Z Fold 6
+  (function(){
     const ua = (navigator.userAgent || '').toUpperCase();
     const isFold6 = ua.includes('SM-F956') || ua.includes('Z FOLD 6') || ua.includes('Z FOLD6');
     if (isFold6) document.body.classList.add('fold6');
   })();
 
-  // Chronic toggle
-  $('chronicGrp').addEventListener('change', () => {
-    $('surgTypeWrap').style.display = radioVal('chronic') === 'Yes' ? 'grid' : 'none';
-  });
+  // chronic toggle
+  $('chronicGrp').addEventListener('change',()=>{ $('surgTypeWrap').style.display = radioVal('chronic') === 'Yes' ? 'grid' : 'none'; });
 
-  // FiO2 toggle
-  $('fio2Grp').addEventListener('change', () => {
+  // FiO2 toggle (robust): attach to individual radios + initialize once
+  function updateOxygenUI(){
     const v = radioVal('fio2');
-    $('po2Wrap').style.display = v === '<50%';
-    $('aagradWrap').style.display = v !== '<50%';
-  });
-
+    const po2 = $('po2Wrap'), aagrad = $('aagradWrap'), pao2El = $('pao2'), aagradEl = $('aagrad');
+    if (v === '<50%'){
+      po2.style.display = 'block';
+      aagrad.style.display = 'none';
+      if (aagradEl) { aagradEl.value = ''; aagradEl.removeAttribute('required'); }
+      if (pao2El) { pao2El.setAttribute('required','required'); }
+    } else {
+      po2.style.display = 'none';
+      aagrad.style.display = 'block';
+      if (pao2El) { pao2El.value=''; pao2El.removeAttribute('required'); }
+      if (aagradEl) { aagradEl.setAttribute('required','required'); }
+    }
+  }
+  document.querySelectorAll('input[name="fio2"]').forEach(r => r.addEventListener('change', updateOxygenUI));
   // Tabs
-  document.querySelectorAll('.tab').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach((btn)=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach((panel)=>panel.classList.remove('active'));
       btn.classList.add('active');
-      const target = $('tab-' + btn.dataset.tab);
+      const target = $('tab-'+btn.dataset.tab);
       if (target) target.classList.add('active');
     });
   });
 
-  // Preview card
-  const previewCard = $('previewCard');
-  const previewToggle = $('previewToggle');
-  if (previewToggle) {
-    previewToggle.addEventListener('click', () => {
+  // Preview card collapse
+  const previewCard=$('previewCard'); const previewToggle=$('previewToggle');
+  if (previewToggle){
+    previewToggle.addEventListener('click',()=>{
       const collapsed = previewCard.getAttribute('data-collapsed') !== 'false';
       previewCard.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
       previewToggle.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
@@ -553,47 +540,73 @@
   let ONLINE_SECRET = 'F8p^7m2bUqW!c4Z9Lh3@r6N0';
   loadDevOverrides();
 
-  // Helper: APACHE II scoring
-  function fToC(f) { return (f - 32) * (5/9); }
-  function ptsTempC(c){ if (c == null) return 0; if (c >= 41) return 4; if (c >= 39 && c <= 40.9) return 3; if (c >= 38.5 && c <= 38.9) return 1; if (c >= 36 && c <= 38.4) return 0; if (c >= 34 && c <= 35.9) return 1; if (c >= 32 && c <= 33.9) return 2; if (c >= 30 && c <= 31.9) return 3; return 4; }
-  function ptsMAP(v){ if (v == null) return 0; if (v >= 160) return 4; if (v >= 130) return 3; if (v >= 110) return 2; if (v >= 70) return 0; if (v >= 50) return 2; return 4; }
-  function ptsHR(v){ if (v == null) return 0; if (v >= 180) return 4; if (v >= 140) return 3; if (v >= 110) return 2; if (v >= 70) return 0; if (v >= 55) return 2; if (v >= 40) return 3; return 4; }
-  function ptsRR(v){ if (v == null) return 0; if (v >= 50) return 4; if (v >= 35) return 3; if (v >= 25) return 1; if (v >= 12) return 0; if (v >= 10) return 1; if (v >= 6) return 2; return 4; }
-  function ptsOxygen(fio2Cat, pao2, aagrad){ if (fio2Cat === '>=50%') { if (aagrad == null) return 0; if (aagrad >= 500) return 4; if (aagrad >= 350) return 3; if (aagrad >= 200) return 2; return 0; } else { if (pao2 == null) return 0; if (pao2 > 70) return 0; if (pao2 >= 61) return 1; if (pao2 >= 55) return 3; return 4; } }
-  function ptsPH(ph){ if (ph == null) return null; if (ph >= 7.70) return 4; if (ph >= 7.60) return 3; if (ph >= 7.50) return 1; if (ph >= 7.33) return 0; if (ph >= 7.25) return 2; if (ph >= 7.15) return 3; return 4; }
-  function ptsHCO3(h){ if (h == null) return 0; if (h >= 52) return 4; if (h >= 41) return 3; if (h >= 32) return 1; if (h >= 22) return 0; if (h >= 18) return 2; if (h >= 15) return 3; return 4; }
-  function ptsNa(v){ if (v == null) return 0; if (v >= 180) return 4; if (v >= 160) return 3; if (v >= 155) return 2; if (v >= 150) return 1; if (v >= 130) return 0; if (v >= 120) return 2; if (v >= 111) return 3; return 4; }
-  function ptsK(v){ if (v == null) return 0; if (v >= 7.0) return 4; if (v >= 6.0) return 3; if (v >= 5.5) return 1; if (v >= 3.5) return 0; if (v >= 3.0) return 1; if (v >= 2.5) return 2; return 4; }
-  function ptsCreatinine(v, arf){ if (v == null) return 0; let pts = 0; if (v >= 3.5) pts = 4; else if (v >= 2.0) pts = 3; else if (v >= 1.5) pts = 2; else if (v < 0.6) pts = 2; else pts = 0; if (arf) pts = pts * 2; return pts; }
-  function ptsHct(v){ if (v == null) return 0; if (v >= 60) return 4; if (v >= 50) return 2; if (v >= 46) return 1; if (v >= 30) return 0; if (v >= 20) return 2; return 4; }
-  function ptsWBC(v){ if (v == null) return 0; if (v >= 40) return 4; if (v >= 20) return 2; if (v >= 15) return 1; if (v >= 3) return 0; if (v >= 1) return 2; return 4; }
-  function ptsGCS(gcs){ if (gcs == null) return 0; const diff = 15 - gcs; return diff < 0 ? 0 : diff; }
-  function agePoints(age){ if (age == null) return 0; if (age <= 44) return 0; if (age <= 54) return 2; if (age <= 64) return 3; if (age <= 74) return 5; return 6; }
-  function chronicPoints(chronic, surgtype){ if (chronic !== 'Yes') return 0; if (surgtype === 'Elective') return 2; return 5; }
+  // === APACHE II scoring tables ===
+  function fToC(f){ return (f - 32) * (5/9); }
+  function ptsTempC(c){ if (c==null) return 0; if (c>=41) return 4; if (c>=39 && c<=40.9) return 3; if (c>=38.5 && c<=38.9) return 1; if (c>=36 && c<=38.4) return 0; if (c>=34 && c<=35.9) return 1; if (c>=32 && c<=33.9) return 2; if (c>=30 && c<=31.9) return 3; return 4; }
+  function ptsMAP(v){ if (v==null) return 0; if (v>=160) return 4; if (v>=130) return 3; if (v>=110) return 2; if (v>=70) return 0; if (v>=50) return 2; return 4; }
+  function ptsHR(v){ if (v==null) return 0; if (v>=180) return 4; if (v>=140) return 3; if (v>=110) return 2; if (v>=70) return 0; if (v>=55) return 2; if (v>=40) return 3; return 4; }
+  function ptsRR(v){ if (v==null) return 0; if (v>=50) return 4; if (v>=35) return 3; if (v>=25) return 1; if (v>=12) return 0; if (v>=10) return 1; if (v>=6) return 2; return 4; }
+  function ptsOxygen(fio2Cat, pao2, aagrad){
+    if (fio2Cat === '>=50%'){
+      if (aagrad==null) return 0;
+      if (aagrad>=500) return 4;
+      if (aagrad>=350) return 3;
+      if (aagrad>=200) return 2;
+      return 0;
+    } else {
+      if (pao2==null) return 0;
+      if (pao2>70) return 0;
+      if (pao2>=61) return 1;
+      if (pao2>=55) return 3;
+      return 4;
+    }
+  }
+  function ptsPH(ph){ if (ph==null) return null; if (ph>=7.70) return 4; if (ph>=7.60) return 3; if (ph>=7.50) return 1; if (ph>=7.33) return 0; if (ph>=7.25) return 2; if (ph>=7.15) return 3; return 4; }
+  function ptsHCO3(h){ if (h==null) return 0; if (h>=52) return 4; if (h>=41) return 3; if (h>=32) return 1; if (h>=22) return 0; if (h>=18) return 2; if (h>=15) return 3; return 4; }
+  function ptsNa(v){ if (v==null) return 0; if (v>=180) return 4; if (v>=160) return 3; if (v>=155) return 2; if (v>=150) return 1; if (v>=130) return 0; if (v>=120) return 2; if (v>=111) return 3; return 4; }
+  function ptsK(v){ if (v==null) return 0; if (v>=7.0) return 4; if (v>=6.0) return 3; if (v>=5.5) return 1; if (v>=3.5) return 0; if (v>=3.0) return 1; if (v>=2.5) return 2; return 4; }
+  function ptsCreatinine(v, arf){ if (v==null) return 0; let pts=0; if (v>=3.5) pts=4; else if (v>=2.0) pts=3; else if (v>=1.5) pts=2; else if (v<0.6) pts=2; else pts=0; if (arf) pts*=2; return pts; }
+  function ptsHct(v){ if (v==null) return 0; if (v>=60) return 4; if (v>=50) return 2; if (v>=46) return 1; if (v>=30) return 0; if (v>=20) return 2; return 4; }
+  function ptsWBC(v){ if (v==null) return 0; if (v>=40) return 4; if (v>=20) return 2; if (v>=15) return 1; if (v>=3) return 0; if (v>=1) return 2; return 4; }
+  function ptsGCS(g){ if (g==null) return 0; const diff = 15 - g; return diff < 0 ? 0 : diff; }
+  function agePoints(age){ if (age==null) return 0; if (age<=44) return 0; if (age<=54) return 2; if (age<=64) return 3; if (age<=74) return 5; return 6; }
+  function chronicPoints(chronic, surgtype){ if (chronic!=='Yes') return 0; if (surgtype==='Elective') return 2; return 5; }
+
   function computeApacheAndMortality(inputs, meta){
-    const tempC = inputs.Temperature_F != null ? fToC(inputs.Temperature_F) : null;
-    const acidBasePts = (function(){ const phPts = ptsPH(inputs.pH); return (phPts != null) ? phPts : ptsHCO3(inputs.HCO3_mEqL); })();
-    const aps = ptsTempC(tempC) + ptsMAP(inputs.MAP_mmHg) + ptsHR(inputs.HeartRate_bpm) + ptsRR(inputs.RespRate_bpm) +
-                ptsOxygen(inputs.FiO2_Category, inputs.PaO2_mmHg, inputs.AaGradient_mmHg) + acidBasePts +
-                ptsNa(inputs.Na_mEqL) + ptsK(inputs.K_mEqL) + ptsCreatinine(inputs.Creatinine_mgdl, inputs.AcuteRenalFailure === true) +
-                ptsHct(inputs.Hematocrit_pct) + ptsWBC(inputs.WBC_10e3uL) + ptsGCS(inputs.GCS != null ? inputs.GCS : null);
+    const tempC = inputs.Temperature_F!=null ? fToC(inputs.Temperature_F) : null;
+    const acidBasePts = (function(){ const phPts = ptsPH(inputs.pH); return (phPts!=null) ? phPts : ptsHCO3(inputs.HCO3_mEqL); })();
+
+    const aps = ptsTempC(tempC) +
+                ptsMAP(inputs.MAP_mmHg) +
+                ptsHR(inputs.HeartRate_bpm) +
+                ptsRR(inputs.RespRate_bpm) +
+                ptsOxygen(inputs.FiO2_Category, inputs.PaO2_mmHg, inputs.AaGradient_mmHg) +
+                acidBasePts +
+                ptsNa(inputs.Na_mEqL) +
+                ptsK(inputs.K_mEqL) +
+                ptsCreatinine(inputs.Creatinine_mgdl, inputs.AcuteRenalFailure===true) +
+                ptsHct(inputs.Hematocrit_pct) +
+                ptsWBC(inputs.WBC_10e3uL) +
+                ptsGCS(inputs.GCS!=null ? inputs.GCS : null);
+
     const agePts = agePoints(meta.age);
     const chronicPts = chronicPoints(inputs.ChronicHealth, inputs.SurgeryType);
     const apacheII = aps + agePts + chronicPts;
-    const logit = -3.517 + 0.146 * apacheII;
-    const mortProb = 1 / (1 + Math.exp(-logit));
+
+    // Simple Knaus-derived logistic mapping (same as before)
+    const logit = -3.517 + 0.146*apacheII;
+    const mortProb = 1/(1+Math.exp(-logit));
     return { apacheII, mortProb };
   }
 
   function monthKeyFromISO(iso){ return (iso || new Date().toISOString()).slice(0,7); } // "YYYY-MM"
 
   // Build payload (+ sheet row)
-  function buildPayload() {
+  function buildPayload(){
     const patientName = valStr('patientName');
     const uhid = valStr('uhid');
     const age = valNum('age');
-    const sexSel = $('sex');
-    const sex = sexSel ? sexSel.value : '';
+    const sexSel = $('sex'); const sex = sexSel ? sexSel.value : '';
     const diagnosis = valStr('diagnosis');
     const admitDate = valStr('admitDate');
     const fio2 = radioVal('fio2');
@@ -601,7 +614,7 @@
 
     if (!patientName) throw new Error('Patient Name is required');
     if (!uhid) throw new Error('UHID is required');
-    if (age === null) throw new Error('Age is required');
+    if (age===null) throw new Error('Age is required');
     if (!sex) throw new Error('Sex is required');
     if (!diagnosis) throw new Error('Diagnosis is required');
     if (!admitDate) throw new Error('Admission Date is required');
@@ -609,12 +622,12 @@
     if (!mortYN) throw new Error('Mortality (Y/N) is required');
 
     const chronic = radioVal('chronic');
-    const surgtype = chronic === 'Yes' ? radioVal('surgtype') : null;
+    const surgtype = chronic==='Yes' ? radioVal('surgtype') : null;
 
     const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
     const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
-    if (fio2 === '<50%' && pao2 === null) throw new Error('PaO₂ is required when FiO₂ < 50%');
-    if (fio2 !== '<50%' && aagrad === null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
+    if (fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
+    if (fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
 
     const inputs = {
       Age_years: age,
@@ -631,19 +644,16 @@
       Na_mEqL: valNum('na'),
       K_mEqL: valNum('k'),
       Creatinine_mgdl: valNum('cr'),
-      BUN_mgdl: valNum('bun'),
       AcuteRenalFailure: radioVal('arf') === 'Yes',
       Hematocrit_pct: valNum('hct'),
       WBC_10e3uL: valNum('wbc'),
-      Platelets_10e3uL: valNum('platelets'),
       ChronicHealth: chronic === 'Yes' ? 'Yes' : 'No',
       SurgeryType: surgtype
     };
 
     const nowIso = new Date().toISOString();
     const { apacheII, mortProb } = computeApacheAndMortality(inputs, { age });
-
-    const mortPct = Math.round(mortProb * 1000) / 10; // one decimal %
+    const mortPct = Math.round(mortProb*1000)/10; // 1 decimal %
 
     const row = [
       uhid,
@@ -654,18 +664,13 @@
       admitDate,
       apacheII,
       mortPct,
-      mortYN // user-selected Y/N goes to the 9th column
+      mortYN
     ];
 
     return {
       clientId: $('clientId') ? $('clientId').value.trim() : 'NURSING-STATION-01',
       authToken: ($('onlineSecret') && $('onlineSecret').value.trim()) || ONLINE_SECRET || '',
-      patientName,
-      uhid,
-      age,
-      sex,
-      diagnosis,
-      admitDate,
+      patientName, uhid, age, sex, diagnosis, admitDate,
       timestamp: nowIso,
       month: monthKeyFromISO(nowIso),
       submissionId: uuidv4(),
@@ -677,21 +682,18 @@
     };
   }
 
-  async function sendJson(url, payload, label) {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  async function sendJson(url, payload, label){
+    const res = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
     const text = await res.text();
-    if (!res.ok) { const bodyHint = text ? ' ' + text : ''; throw new Error(label + ' responded with ' + res.status + '.' + bodyHint); }
+    if (!res.ok){ const bodyHint = text ? ' '+text : ''; throw new Error(label+' responded with '+res.status+'.'+bodyHint); }
     if (!text) return {};
-    try {
+    try{
       const data = JSON.parse(text);
-      if (data && typeof data === 'object' && data.error) throw new Error(label + ' error: ' + data.error);
+      if (data && typeof data==='object' && data.error) throw new Error(label+' error: '+data.error);
       return data;
-    } catch (_) {
-      return { message: text };
-    }
+    }catch(_){ return { message: text }; }
   }
-
-  async function postOnline(payload) {
+  async function postOnline(payload){
     const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
     if (!url) throw new Error('Online Webhook URL not set (Developer → Online Webhook URL).');
     if (!payload.authToken) throw new Error('Online Secret not set (Developer → Online Secret).');
@@ -699,46 +701,51 @@
   }
 
   // Download CSV for current month
-  $('btnDownload').addEventListener('click', () => {
-    try {
+  $('btnDownload').addEventListener('click', ()=>{
+    try{
       const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
       const secret = ($('onlineSecret')?.value.trim() || ONLINE_SECRET || '');
-      if (!url || !secret) { toast('Set Online URL and Secret in Developer panel.', false); return; }
-      const ym = new Date().toISOString().slice(0, 7);
+      if (!url || !secret){ toast('Set Online URL and Secret in Developer panel.', false); return; }
+      const ym = new Date().toISOString().slice(0,7);
       const link = url + '?action=download&month=' + encodeURIComponent(ym) + '&auth=' + encodeURIComponent(secret);
       window.open(link, '_blank');
-    } catch (e) { toast(e.message, false); }
+    }catch(e){ toast(e.message, false); }
   });
 
   // Preview buttons
-  function updatePreview() {
+  function updatePreview(){
     const payload = buildPayload();
     $('preview').textContent = JSON.stringify(payload, null, 2);
     $('preview').classList.remove('empty');
-    previewCard.setAttribute('data-collapsed', 'false');
+    $('previewCard').setAttribute('data-collapsed','false');
   }
-  $('btnPreviewDock').addEventListener('click', () => { try { updatePreview(); toast('Preview updated'); } catch (e) { toast(e.message, false); } });
-  $('btnPreview').addEventListener('click', () => { try { updatePreview(); toast('Preview updated'); } catch (e) { toast(e.message, false); } });
+  $('btnPreviewDock').addEventListener('click', ()=>{ try{ updatePreview(); toast('Preview updated'); } catch(e){ toast(e.message, false); } });
+  $('btnPreview').addEventListener('click', ()=>{ try{ updatePreview(); toast('Preview updated'); } catch(e){ toast(e.message, false); } });
 
   // Submit
-  $('btnSubmit').addEventListener('click', async (ev) => {
+  $('btnSubmit').addEventListener('click', async (ev)=>{
     ev.preventDefault();
     const button = $('btnSubmit'); button.disabled = true;
-    try {
+    try{
       saveDevOverrides();
       const payload = buildPayload();
       $('preview').textContent = JSON.stringify(payload, null, 2);
       $('preview').classList.remove('empty');
-      previewCard.setAttribute('data-collapsed', 'false');
+      $('previewCard').setAttribute('data-collapsed','false');
 
       toast('Sending to Google Sheets…');
       await postOnline(payload);
       toast('Saved to Google Sheets ✅');
-    } catch (e) {
+    }catch(e){
       toast('Submit failed: ' + e.message, false);
-    } finally {
+    }finally{
       button.disabled = false;
     }
+  });
+
+  // Initialize UI states on first paint
+  document.addEventListener('DOMContentLoaded', ()=>{
+    updateOxygenUI(); // set correct PaO2 vs A–a field visibility + required flags
   });
   </script>
 </body>
