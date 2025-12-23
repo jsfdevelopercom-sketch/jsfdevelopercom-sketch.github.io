@@ -91,18 +91,27 @@
   .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:90}
   .toast.err{border-left-color:#dc2626;color:#dc2626}
 
+  /* Dev modal */
   .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:130}
   .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
   .dev-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
   .dev-panel{display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
   .dev-panel[aria-hidden="false"]{opacity:1;visibility:visible;pointer-events:auto}
-  .dev-sheet{width:min(560px,calc(100vw - 48px));background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);padding:26px;display:grid;gap:18px;pointer-events:auto}
+  .dev-sheet{
+    width:min(560px,calc(100vw - 48px));
+    background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);
+    border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);
+    padding:26px;display:grid;gap:18px;pointer-events:auto;
+    max-height:min(80vh, 720px);          /* vertical scroller */
+    overflow-y:auto;                      /* vertical scroller */
+  }
   .dev-sheet h3{margin:0;font-size:20px;font-weight:600}
   .dev-sheet .close{justify-self:end;border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:600}
   .dev-sheet label{color:#cbd5f5}
   .dev-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
   .dev-tip{font-size:13px;color:rgba(226,232,240,.7)}
 
+  /* Results card */
   .results-card{
     display:none;
     background:var(--surface-strong);
@@ -394,7 +403,7 @@
       </div>
 
       <div style="border-top:1px solid rgba(148,163,184,.35);padding-top:12px">
-        <h3 style="margin:0 0 8px 0;font-size:16px">Debug & Tools</h3>
+        <h3 style="margin:0 0 8px 0;font-size:16px">Debug &amp; Tools</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button id="btnBuildPreview" class="btn secondary" type="button">Build &amp; show payload</button>
           <button id="btnCopyPreview" class="btn ghost" type="button">Copy JSON</button>
@@ -460,6 +469,7 @@
   devBackdrop.addEventListener('click',()=>setDevPanel(false));
   addEventListener('keydown',(ev)=>{ if(ev.key==='Escape' && devPanel.getAttribute('aria-hidden')==='false') setDevPanel(false); });
 
+  // Persist Dev values without forcing usage
   function saveDevOverrides(){
     const overrides={
       onlineUrl:$('onlineUrl')?.value.trim()||'',
@@ -467,8 +477,6 @@
       clientId:$('clientId')?.value.trim()||'NURSING-STATION-01'
     };
     localStorage.setItem('apacheMobileDev', JSON.stringify(overrides));
-    if(overrides.onlineUrl) ONLINE_WEBHOOK_URL=overrides.onlineUrl;
-    if(overrides.onlineSecret) ONLINE_SECRET=overrides.onlineSecret;
   }
   function loadDevOverrides(){
     try{
@@ -478,11 +486,27 @@
       if($('onlineUrl')) $('onlineUrl').value=o.onlineUrl||'';
       if($('onlineSecret')) $('onlineSecret').value=o.onlineSecret||'';
       if($('clientId')) $('clientId').value=o.clientId||'NURSING-STATION-01';
-      if(o.onlineUrl) ONLINE_WEBHOOK_URL=o.onlineUrl;
-      if(o.onlineSecret) ONLINE_SECRET=o.onlineSecret;
     }catch(_){}
   }
 
+  // Use hardcoded defaults first; Dev overrides only if present.
+  function currentConn(){
+    let url = ONLINE_WEBHOOK_URL;
+    let secret = ONLINE_SECRET;
+    let clientId = 'NURSING-STATION-01';
+    try{
+      const raw = localStorage.getItem('apacheMobileDev');
+      if(raw){
+        const o = JSON.parse(raw);
+        if(o.clientId && o.clientId.trim()) clientId = o.clientId.trim();
+        if(o.onlineUrl && o.onlineUrl.trim()) url = o.onlineUrl.trim();
+        if(o.onlineSecret && o.onlineSecret.trim()) secret = o.onlineSecret.trim();
+      }
+    }catch(_){}
+    return { url, secret, clientId };
+  }
+
+  // cosmetic: Z Fold 6
   (function(){ const ua=(navigator.userAgent||'').toUpperCase(); const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6'); if(isFold6) document.body.classList.add('fold6'); })();
 
   // Chronic toggle
@@ -515,7 +539,7 @@
     });
   });
 
-  // ====== ONLINE ONLY ======
+  // ====== ONLINE ONLY (defaults first) ======
   let ONLINE_WEBHOOK_URL='https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
   let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
   loadDevOverrides();
@@ -620,8 +644,8 @@
     const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, mortPct, mortYN ];
 
     return {
-      clientId: $('clientId') ? $('clientId').value.trim() : 'NURSING-STATION-01',
-      authToken: ($('onlineSecret') && $('onlineSecret').value.trim()) || ONLINE_SECRET || '',
+      clientId: 'NURSING-STATION-01',           // will be overwritten by postOnline() via currentConn()
+      authToken: '',                            // will be set by postOnline() via currentConn()
       patientName, uhid, age, sex, diagnosis, admitDate,
       timestamp: nowIso,
       month: monthKeyFromISO(nowIso),
@@ -635,7 +659,6 @@
   }
 
   function formIsComplete(){ try{ buildPayload(); return true; }catch(_){ return false; } }
-
   function maybeShowResults(){
     const card=$('resultsCard');
     const copyBtn=$('btnCopyExcelRow');
@@ -648,10 +671,9 @@
     $('resApache').textContent = String(payload.apacheScore) + ' pts';
     $('resMort').textContent = String(payload.predictedMortalityPct.toFixed(1)) + '%';
     if(card) card.setAttribute('data-visible','true');
-    if(copyBtn) copyBtn.disabled=false; // enable when results are ready
+    if(copyBtn) copyBtn.disabled=false;
   }
 
-  // Live updates
   ['input','change'].forEach(evt=>{
     document.addEventListener(evt, (e)=>{
       if(e.target && e.target.closest('.panel')) maybeShowResults();
@@ -661,12 +683,10 @@
   // ---------- helpers for dev tools ----------
   function buildExcelRowText(){
     const p = buildPayload();
-    // Tab-separated for clean Excel/Sheets paste
     return p.sheetRow.join('\t');
   }
 
   function dummyFill(){
-    // Deterministic-ish but with random age 45-70
     const age = randInt(45,70);
     $('patientName').value = 'Jane Doe';
     $('patientNameMini').value = 'Jane Doe';
@@ -678,20 +698,17 @@
     $('admitDate').value = todayISO();
     $('diagnosis').value = 'CKD on HTN; Community-acquired pneumonia; on oxygen';
 
-    // Vitals (reasonable)
     $('tempF').value = '99.1';
     $('map').value = '78';
     $('hr').value = '96';
     $('rr').value = '22';
     $('gcs').value = '14';
 
-    // O2: assume nasal cannula (<50%), give PaO2
     document.querySelector('input[name="fio2"][value="<50%"]').checked = true;
     updateOxygenUI();
     $('pao2').value = '72';
     $('aagrad').value = '';
 
-    // Labs
     $('ph').value = '7.36';
     $('hco3').value = '22';
     $('na').value = '138';
@@ -700,15 +717,12 @@
     $('wbc').value = '13.2';
     $('hct').value = '33';
 
-    // ARF likely given CKD context
     document.querySelector('input[name="arf"][value="Yes"]').checked = true;
 
-    // Chronic disease present → non-operative
     document.querySelector('input[name="chronic"][value="Yes"]').checked = true;
     $('surgTypeWrap').style.display = 'grid';
     document.querySelector('input[name="surgtype"][value="Nonoperative"]').checked = true;
 
-    // Outcome default N
     document.querySelector('input[name="mortality"][value="N"]').checked = true;
 
     maybeShowResults();
@@ -745,145 +759,107 @@
     return data;
   }
 
+  // Sanitize /dev → /exec
+  function sanitizeExecUrl(u){
+    try{ const x=new URL(u); x.pathname=x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
+    catch(_){ return u; }
+  }
+
+  // Submit using constants first; Dev values only override if present
   async function postOnline(payload){
-    const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
-    if(!url) throw new Error('Online Webhook URL not set (Developer → Online Webhook URL).');
-    if(!payload.authToken) throw new Error('Online Secret not set (Developer → Online Secret).');
-    if(/\/dev\//i.test(url)){
-      console.warn('You are using the Apps Script /dev URL; deploy a new version and use /exec for public access.');
-    }
-    const data = await sendJson(url, payload, 'Google Sheets webhook');
+    const { url, secret, clientId } = currentConn();
+    if(!url){ throw new Error('Online Webhook URL not configured.'); }
+    payload.clientId  = clientId;
+    payload.authToken = secret || '';
+    const execUrl = sanitizeExecUrl(url);
+    const data = await sendJson(execUrl, payload, 'Google Sheets webhook');
     if(!data || data.ok !== true){
       const detail = data && (data.error || JSON.stringify(data).slice(0,200));
-      throw new Error('Sheets webhook did not confirm success'+(detail?': '+detail:''));
+      throw new Error('Sheets webhook did not confirm success' + (detail?': '+detail:''));
     }
     return data;
   }
 
   // ---------- Download CSV for current IST month ----------
-
-function istMonthYYYYMM(){
-  // IST month to match your sheet tabs
-  return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
-}
-
-function sanitizeExecUrl(u){
-  // Ensure we hit /exec, not /dev
-  try{
-    const url = new URL(u);
-    url.pathname = url.pathname.replace(/\/dev(\/)?$/i, '/exec');
-    return url.toString();
-  }catch(_){ return u; }
-}
-
-function fileNameForMonth(ym){
-  return `apache-${ym}.csv`;
-}
-
-async function downloadBlobAsFile(blob, filename){
-  const a = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
-}
-
-async function tryFetch(url, init, expectBlob=true){
-  const res = await fetch(url, init);
-  let body;
-  if(expectBlob){
-    body = await res.blob();
-  }else{
-    body = await res.text();
+  function istMonthYYYYMM(){
+    return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
   }
-  return { ok: res.ok, status: res.status, headers: res.headers, body };
-}
+  function fileNameForMonth(ym){ return `apache-${ym}.csv`; }
 
-function looksLikeCSV(headers){
-  const ct = (headers.get('content-type') || '').toLowerCase();
-  return ct.includes('text/csv') || ct.includes('application/octet-stream') || ct.includes('application/csv');
-}
+  async function tryFetch(url, init, expectBlob=true){
+    const res = await fetch(url, init);
+    let body = expectBlob ? await res.blob() : await res.text();
+    return { ok: res.ok, status: res.status, headers: res.headers, body };
+  }
+  function looksLikeCSV(headers){
+    const ct = (headers.get('content-type') || '').toLowerCase();
+    return ct.includes('text/csv') || ct.includes('application/octet-stream') || ct.includes('application/csv');
+  }
+  async function downloadBlobAsFile(blob, filename){
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+  async function tryDownloadCSV(urlBase, secret, ym){
+    const uExec = sanitizeExecUrl(urlBase);
+    const q = (params) => uExec + (uExec.includes('?') ? '&' : '?') + new URLSearchParams(params).toString();
+    const headersJSON = {'Content-Type':'application/json;charset=utf-8'};
+    const headersText = {'Content-Type':'text/plain;charset=utf-8'};
 
-async function tryDownloadCSV(urlBase, secret, ym){
-  const uExec = sanitizeExecUrl(urlBase);
-  const q = (params) => uExec + (uExec.includes('?') ? '&' : '?') + new URLSearchParams(params).toString();
-  const headersJSON = {'Content-Type':'application/json;charset=utf-8'};
-  const headersText = {'Content-Type':'text/plain;charset=utf-8'};
+    const strategies = [
+      { label:'GET ?auth=',     req:()=>tryFetch(q({action:'download', month:ym, auth:secret}), { method:'GET' }) },
+      { label:'GET ?secret=',   req:()=>tryFetch(q({action:'download', month:ym, secret:secret}), { method:'GET' }) },
+      { label:'GET ?token=',    req:()=>tryFetch(q({action:'download', month:ym, token:secret}), { method:'GET' }) },
+      { label:'GET ?key=',      req:()=>tryFetch(q({action:'download', month:ym, key:secret}), { method:'GET' }) },
+      { label:'GET Bearer',     req:()=>tryFetch(q({action:'download', month:ym}), { method:'GET', headers:{ Authorization:`Bearer ${secret}` } }) },
+      { label:'POST JSON',      req:()=>tryFetch(uExec, { method:'POST', headers:headersJSON, body:JSON.stringify({ action:'download', month:ym, authToken:secret }) }) },
+      { label:'POST text/plain',req:()=>tryFetch(uExec, { method:'POST', headers:headersText, body:JSON.stringify({ action:'download', month:ym, authToken:secret }) }) },
+    ];
 
-  // Strategy list
-  const strategies = [
-    { label:'GET ?auth=',     req:()=>tryFetch(q({action:'download', month:ym, auth:secret}), { method:'GET' }) },
-    { label:'GET ?secret=',   req:()=>tryFetch(q({action:'download', month:ym, secret:secret}), { method:'GET' }) },
-    { label:'GET ?token=',    req:()=>tryFetch(q({action:'download', month:ym, token:secret}), { method:'GET' }) },
-    { label:'GET ?key=',      req:()=>tryFetch(q({action:'download', month:ym, key:secret}), { method:'GET' }) },
-    { label:'GET Authorization Bearer', req:()=>tryFetch(q({action:'download', month:ym}), { method:'GET', headers:{ Authorization:`Bearer ${secret}` } }) },
-    { label:'POST JSON',      req:()=>tryFetch(uExec, { method:'POST', headers:headersJSON, body:JSON.stringify({ action:'download', month:ym, authToken:secret }) }) },
-    { label:'POST text/plain',req:()=>tryFetch(uExec, { method:'POST', headers:headersText, body:JSON.stringify({ action:'download', month:ym, authToken:secret }) }) },
-  ];
-
-  let lastErr = '';
-  for(const s of strategies){
-    try{
-      const r = await s.req();
-      // If server returns JSON error, try to parse & continue
-      if(r.ok && r.body && r.body.size !== 0){
-        // Some Apps Script return JSON with ok:false if wrong auth; check content-type
-        if(looksLikeCSV(r.headers)){
-          return r.body; // blob
-        }else{
-          // Might be JSON; check quickly
+    let lastErr='';
+    for(const s of strategies){
+      try{
+        const r = await s.req();
+        if(r.ok && r.body && r.body.size !== 0){
+          if(looksLikeCSV(r.headers)) return r.body;
           try{
             const text = await r.body.text();
             const obj = JSON.parse(text);
             if(obj && obj.ok === true && obj.csv){
-              // If server returned CSV as text inside JSON
               return new Blob([obj.csv], {type:'text/csv;charset=utf-8'});
             }
             lastErr = text.slice(0,300);
-          }catch(_){
-            lastErr = 'Unexpected response (not CSV)';
-          }
-        }
-      }else{
-        // Non-OK; try read text for details
-        if(r.body){
-          try{
-            const t = await r.body.text();
-            lastErr = t.slice(0,300);
-          }catch(_){
-            lastErr = `HTTP ${r.status}`;
-          }
+          }catch(_){ lastErr = 'Unexpected response (not CSV)'; }
         }else{
-          lastErr = `HTTP ${r.status}`;
+          if(r.body){
+            try{ const t=await r.body.text(); lastErr=t.slice(0,300); }
+            catch(_){ lastErr = `HTTP ${r.status}`; }
+          }else lastErr = `HTTP ${r.status}`;
         }
-      }
-    }catch(e){
-      lastErr = e && e.message ? e.message : String(e);
+      }catch(e){ lastErr = e && e.message ? e.message : String(e); }
     }
+    throw new Error(lastErr || 'All download strategies failed');
   }
-  throw new Error(lastErr || 'All download strategies failed');
-}
 
-$('btnDownload').addEventListener('click', async ()=>{
-  try{
-    const base = ($('onlineUrl')?.value.trim() || window.ONLINE_WEBHOOK_URL || '');
-    const secret = ($('onlineSecret')?.value.trim() || window.ONLINE_SECRET || '');
-    if(!base || !secret){ toast('Set Online URL and Secret in Developer panel.', false); return; }
+  // Download handler that lifts from hardcoded vars; Dev overrides only if present
+  $('btnDownload').addEventListener('click', async ()=>{
+    try{
+      const { url, secret } = currentConn();
+      if(!url){ toast('Online URL missing.', false); return; }
+      if(!secret){ toast('Online Secret missing.', false); return; } // secret is required by server
 
-    const ym = istMonthYYYYMM();
-    toast('Preparing download…');
-    const blob = await tryDownloadCSV(base, secret, ym);
-    await downloadBlobAsFile(blob, fileNameForMonth(ym));
-    toast('Download ready ✅');
-  }catch(e){
-    console.error('[download] failed:', e);
-    toast('Download failed: '+(e && e.message ? e.message : String(e)), false);
-  }
-});
-
-
+      const ym = istMonthYYYYMM();
+      toast('Preparing download…');
+      const blob = await tryDownloadCSV(url, secret, ym);
+      await downloadBlobAsFile(blob, fileNameForMonth(ym));
+      toast('Download ready ✅');
+    }catch(e){
+      console.error('[download] failed:', e);
+      toast('Download failed: '+(e && e.message ? e.message : String(e)), false);
+    }
+  });
 
   // ---------- Submit ----------
   $('btnSubmit').addEventListener('click', async (ev)=>{
@@ -943,7 +919,6 @@ $('btnDownload').addEventListener('click', async ()=>{
   document.addEventListener('DOMContentLoaded', ()=>{
     updateOxygenUI();
     maybeShowResults();
-    // disable copy row until form complete
     if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = !formIsComplete();
   });
 </script>
