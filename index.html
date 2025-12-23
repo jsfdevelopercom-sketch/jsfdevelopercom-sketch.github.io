@@ -1,4 +1,4 @@
-<!doctype html>
+ <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -153,7 +153,7 @@
         <div class="mode-pills" role="group">
           <button id="modeOnline" type="button" class="mode active" disabled>Online (Google Sheets)</button>
         </div>
-        <div id="modeHint" class="mode-hint">Data goes straight to the shared Google Sheet (one tab per month). “Download current month” opens the CSV in a new tab.</div>
+        <div id="modeHint" class="mode-hint">Data goes straight to the shared Google Sheet (one tab per month). “Download current month” gives CSV.</div>
         <div class="patient-mini" aria-label="Quick patient entry">
           <div class="mini-field"><span>👤</span><input id="patientNameMini" type="text" placeholder="Patient name" autocomplete="off"></div>
           <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID" autocomplete="off"></div>
@@ -324,3 +324,618 @@
                 <input id="cr" class="input" type="number" step="0.1">
               </div>
               <div>
+                <label for="wbc">WBC (×10³/mm³)</label>
+                <input id="wbc" class="input" type="number" step="0.1">
+              </div>
+            </div>
+            <div class="grid-2">
+              <div>
+                <label for="hct">Hematocrit (%)</label>
+                <input id="hct" class="input" type="number" step="0.1">
+              </div>
+              <div>
+                <label>Acute Renal Failure</label>
+                <div class="chip-row" id="arfGrp">
+                  <label class="chip"><input type="radio" name="arf" value="No" checked> No</label>
+                  <label class="chip"><input type="radio" name="arf" value="Yes"> Yes</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Outcome -->
+        <section class="panel" aria-labelledby="outcome-h">
+          <header>
+            <h2 id="outcome-h">Outcome</h2>
+          </header>
+          <div>
+            <label>Mortality (Y/N)*</label>
+            <div class="chip-row" role="group" aria-label="Mortality yes/no" id="mortalityGrp">
+              <label class="chip"><input type="radio" name="mortality" value="Y" required> Y</label>
+              <label class="chip"><input type="radio" name="mortality" value="N" required> N</label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Results -->
+        <aside id="resultsCard" class="results-card" aria-live="polite" aria-atomic="true">
+          <h4 class="results-title">Computed Result</h4>
+          <div class="results-grid">
+            <div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
+            <div class="metric"><small>Estimated mortality</small><span id="resMort">—</span></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <div class="action-dock" role="contentinfo">
+    <div class="action-dock__inner">
+      <button id="btnDownload" class="btn ghost" type="button">Download current month</button>
+      <button id="btnSubmit" class="btn primary" type="button">Submit to Google Sheets</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Dev modal -->
+  <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
+  <div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
+    <div class="dev-sheet">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
+        <h3 id="devTitle">Developer / Connection</h3>
+        <button id="devClose" class="close" type="button">Close</button>
+      </div>
+      <p class="dev-tip">Values persist per device. Leave blank to fall back to defaults.</p>
+      <div>
+        <label for="onlineUrl">Online Webhook URL</label>
+        <input id="onlineUrl" class="input" type="url" placeholder="https://script.google.com/.../exec">
+      </div>
+      <div>
+        <label for="onlineSecret">Online Secret</label>
+        <input id="onlineSecret" class="input" type="text" placeholder="Shared secret for Sheets webhook">
+      </div>
+      <div>
+        <label for="clientId">Client ID</label>
+        <input id="clientId" class="input" type="text" value="NURSING-STATION-01">
+      </div>
+
+      <div style="border-top:1px solid rgba(148,163,184,.35);padding-top:12px">
+        <h3 style="margin:0 0 8px 0;font-size:16px">Debug &amp; Tools</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="btnBuildPreview" class="btn secondary" type="button">Build &amp; show payload</button>
+          <button id="btnCopyPreview" class="btn ghost" type="button">Copy JSON</button>
+          <button id="btnCopyExcelRow" class="btn ghost" type="button" disabled>Copy APACHE row (Excel)</button>
+          <button id="btnDummyFill" class="btn secondary" type="button">Dummy fill</button>
+        </div>
+        <pre id="debugPreview" style="margin-top:10px;max-height:260px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">No payload yet</pre>
+
+        <h3 style="margin:8px 0;font-size:16px">Last server response</h3>
+        <pre id="lastResp" style="max-height:180px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">None</pre>
+      </div>
+      <div class="dev-tip">The app is locked to Online (Google Sheets) mode.</div>
+    </div>
+  </div>
+
+<script>
+  // ---------- small helper & UX ----------
+  const $ = (id) => document.getElementById(id);
+  const q = (sel) => document.querySelector(sel);
+  function valNum(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:Number(v); }
+  function valStr(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:v; }
+  function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
+  function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); const k=new Date(d.getTime()-off*60000); return k.toISOString().slice(0,10); }
+  function toast(msg, ok=true){
+    const t=$('toast');
+    t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block';
+    clearTimeout(toast._timer);
+    toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
+  }
+  function vlog(groupLabel, info){
+    try{ console.groupCollapsed(groupLabel); if(typeof info === 'object') console.debug(info); else console.debug(String(info)); console.groupEnd(); }catch(_){}
+  }
+
+  function detectDesktop(){
+    const ua=navigator.userAgent||"";
+    const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
+    const pointerFine=matchMedia('(pointer: fine)').matches;
+    const wideEnough=matchMedia('(min-width:1024px)').matches;
+    return looksDesktop||(pointerFine&&wideEnough);
+  }
+  function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
+  applyDesktopClass(); addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
+
+  // mini <-> main sync
+  ['patientName','uhid'].forEach((id)=>{ const main=$(id); if(!main) return; main.addEventListener('input',()=>{ const mini=$(id+'Mini'); if(mini && mini.value!==main.value) mini.value=main.value; }); });
+  ['patientNameMini','uhidMini'].forEach((id)=>{ const mini=$(id); if(!mini) return; mini.addEventListener('input',()=>{ const main=$(id.replace('Mini','')); if(main && main.value!==mini.value) main.value=mini.value; }); });
+
+  // dev modal
+  const devToggle=$('devToggle'), devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
+  devPanel.setAttribute('aria-hidden','true'); devBackdrop.setAttribute('data-visible','false');
+  function setDevPanel(open){
+    const wasOpen=devPanel.getAttribute('aria-hidden')==='false';
+    devPanel.setAttribute('aria-hidden', open?'false':'true');
+    devBackdrop.setAttribute('data-visible', open?'true':'false');
+    devBackdrop.setAttribute('aria-hidden', open?'false':'true');
+    devToggle.setAttribute('aria-expanded', open?'true':'false');
+    if(wasOpen&&!open) saveDevOverrides();
+  }
+  devToggle.addEventListener('click',()=>{ const isHidden=devPanel.getAttribute('aria-hidden')!=='false'; setDevPanel(isHidden); });
+  devClose.addEventListener('click',()=>setDevPanel(false));
+  devBackdrop.addEventListener('click',()=>setDevPanel(false));
+  addEventListener('keydown',(ev)=>{ if(ev.key==='Escape' && devPanel.getAttribute('aria-hidden')==='false') setDevPanel(false); });
+
+  // Persist Dev values without forcing usage
+  function saveDevOverrides(){
+    const overrides={
+      onlineUrl:$('onlineUrl')?.value.trim()||'',
+      onlineSecret:$('onlineSecret')?.value.trim()||'',
+      clientId:$('clientId')?.value.trim()||'NURSING-STATION-01'
+    };
+    localStorage.setItem('apacheMobileDev', JSON.stringify(overrides));
+  }
+  function loadDevOverrides(){
+    try{
+      const raw=localStorage.getItem('apacheMobileDev');
+      if(!raw) return;
+      const o=JSON.parse(raw);
+      if($('onlineUrl')) $('onlineUrl').value=o.onlineUrl||'';
+      if($('onlineSecret')) $('onlineSecret').value=o.onlineSecret||'';
+      if($('clientId')) $('clientId').value=o.clientId||'NURSING-STATION-01';
+    }catch(_){}
+  }
+
+  // Use hardcoded defaults first; Dev overrides only if present.
+  function currentConn(){
+    let url = ONLINE_WEBHOOK_URL;
+    let secret = ONLINE_SECRET;
+    let clientId = 'NURSING-STATION-01';
+    try{
+      const raw = localStorage.getItem('apacheMobileDev');
+      if(raw){
+        const o = JSON.parse(raw);
+        if(o.clientId && o.clientId.trim()) clientId = o.clientId.trim();
+        if(o.onlineUrl && o.onlineUrl.trim()) url = o.onlineUrl.trim();
+        if(o.onlineSecret && o.onlineSecret.trim()) secret = o.onlineSecret.trim();
+      }
+    }catch(_){}
+    return { url, secret, clientId };
+  }
+
+  // cosmetic: Z Fold 6
+  (function(){ const ua=(navigator.userAgent||'').toUpperCase(); const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6'); if(isFold6) document.body.classList.add('fold6'); })();
+
+  // Chronic toggle
+  $('chronicGrp').addEventListener('change',()=>{ $('surgTypeWrap').style.display = (radioVal('chronic')==='Yes') ? 'grid' : 'none'; });
+
+  // FiO2 toggle + init
+  function updateOxygenUI(){
+    const v = radioVal('fio2');
+    const po2=$('po2Wrap'), aagrad=$('aagradWrap'), pao2El=$('pao2'), aagradEl=$('aagrad');
+    if(v === '<50%'){
+      po2.style.display='block'; aagrad.style.display='none';
+      if(aagradEl){ aagradEl.value=''; aagradEl.removeAttribute('required'); }
+      if(pao2El){ pao2El.setAttribute('required','required'); }
+    } else {
+      po2.style.display='none'; aagrad.style.display='block';
+      if(pao2El){ pao2El.value=''; pao2El.removeAttribute('required'); }
+      if(aagradEl){ aagradEl.setAttribute('required','required'); }
+    }
+  }
+  document.querySelectorAll('input[name="fio2"]').forEach(r=>r.addEventListener('change',()=>{ updateOxygenUI(); maybeShowResults(); }));
+
+  // Tabs
+  document.querySelectorAll('.tab').forEach((btn)=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach((p)=>p.classList.remove('active'));
+      btn.classList.add('active');
+      const target=$('tab-'+btn.dataset.tab);
+      if(target) target.classList.add('active');
+    });
+  });
+
+  // ====== ONLINE ONLY (defaults first) ======
+  let ONLINE_WEBHOOK_URL='https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
+  let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
+  loadDevOverrides();
+
+  // === APACHE II scoring ===
+  function fToC(f){ return (f-32)*(5/9); }
+  function ptsTempC(c){ if(c==null) return 0; if(c>=41) return 4; if(c>=39 && c<=40.9) return 3; if(c>=38.5 && c<=38.9) return 1; if(c>=36 && c<=38.4) return 0; if(c>=34 && c<=35.9) return 1; if(c>=32 && c<=33.9) return 2; if(c>=30 && c<=31.9) return 3; return 4; }
+  function ptsMAP(v){ if(v==null) return 0; if(v>=160) return 4; if(v>=130) return 3; if(v>=110) return 2; if(v>=70) return 0; if(v>=50) return 2; return 4; }
+  function ptsHR(v){ if(v==null) return 0; if(v>=180) return 4; if(v>=140) return 3; if(v>=110) return 2; if(v>=70) return 0; if(v>=55) return 2; if(v>=40) return 3; return 4; }
+  function ptsRR(v){ if(v==null) return 0; if(v>=50) return 4; if(v>=35) return 3; if(v>=25) return 1; if(v>=12) return 0; if(v>=10) return 1; if(v>=6) return 2; return 4; }
+  function ptsOxygen(fio2Cat,pao2,aagrad){
+    if(fio2Cat==='>=50%'){
+      if(aagrad==null) return 0;
+      if(aagrad>=500) return 4; if(aagrad>=350) return 3; if(aagrad>=200) return 2; return 0;
+    } else {
+      if(pao2==null) return 0;
+      if(pao2>70) return 0; if(pao2>=61) return 1; if(pao2>=55) return 3; return 4;
+    }
+  }
+  function ptsPH(ph){ if(ph==null) return null; if(ph>=7.70) return 4; if(ph>=7.60) return 3; if(ph>=7.50) return 1; if(ph>=7.33) return 0; if(ph>=7.25) return 2; if(ph>=7.15) return 3; return 4; }
+  function ptsHCO3(h){ if(h==null) return 0; if(h>=52) return 4; if(h>=41) return 3; if(h>=32) return 1; if(h>=22) return 0; if(h>=18) return 2; if(h>=15) return 3; return 4; }
+  function ptsNa(v){ if(v==null) return 0; if(v>=180) return 4; if(v>=160) return 3; if(v>=155) return 2; if(v>=150) return 1; if(v>=130) return 0; if(v>=120) return 2; if(v>=111) return 3; return 4; }
+  function ptsK(v){ if(v==null) return 0; if(v>=7.0) return 4; if(v>=6.0) return 3; if(v>=5.5) return 1; if(v>=3.5) return 0; if(v>=3.0) return 1; if(v>=2.5) return 2; return 4; }
+  function ptsCreatinine(v,arf){ if(v==null) return 0; let pts=0; if(v>=3.5) pts=4; else if(v>=2.0) pts=3; else if(v>=1.5) pts=2; else if(v<0.6) pts=2; else pts=0; if(arf) pts*=2; return pts; }
+  function ptsHct(v){ if(v==null) return 0; if(v>=60) return 4; if(v>=50) return 2; if(v>=46) return 1; if(v>=30) return 0; if(v>=20) return 2; return 4; }
+  function ptsWBC(v){ if(v==null) return 0; if(v>=40) return 4; if(v>=20) return 2; if(v>=15) return 1; if(v>=3) return 0; if(v>=1) return 2; return 4; }
+  function ptsGCS(g){ if(g==null) return 0; const diff=15-g; return diff<0?0:diff; }
+  function agePoints(age){ if(age==null) return 0; if(age<=44) return 0; if(age<=54) return 2; if(age<=64) return 3; if(age<=74) return 5; return 6; }
+  function chronicPoints(chronic,surgtype){ if(chronic!=='Yes') return 0; if(surgtype==='Elective') return 2; return 5; }
+
+  function computeApacheAndMortality(inputs, meta){
+    const tempC = inputs.Temperature_F!=null ? fToC(inputs.Temperature_F) : null;
+    const acidBasePts = (function(){ const phPts=ptsPH(inputs.pH); return (phPts!=null)?phPts:ptsHCO3(inputs.HCO3_mEqL); })();
+    const aps = ptsTempC(tempC)+ptsMAP(inputs.MAP_mmHg)+ptsHR(inputs.HeartRate_bpm)+ptsRR(inputs.RespRate_bpm)+
+                ptsOxygen(inputs.FiO2_Category, inputs.PaO2_mmHg, inputs.AaGradient_mmHg)+acidBasePts+
+                ptsNa(inputs.Na_mEqL)+ptsK(inputs.K_mEqL)+ptsCreatinine(inputs.Creatinine_mgdl, inputs.AcuteRenalFailure===true)+
+                ptsHct(inputs.Hematocrit_pct)+ptsWBC(inputs.WBC_10e3uL)+ptsGCS(inputs.GCS!=null?inputs.GCS:null);
+    const agePts=agePoints(meta.age);
+    const chronicPts=chronicPoints(inputs.ChronicHealth, inputs.SurgeryType);
+    const apacheII=aps+agePts+chronicPts;
+    const logit=-3.517 + 0.146*apacheII;
+    const mortProb=1/(1+Math.exp(-logit));
+    return { apacheII, mortProb };
+  }
+
+  function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
+
+  // Build payload (+ sheet row)
+  function buildPayload(){
+    const patientName=valStr('patientName');
+    const uhid=valStr('uhid');
+    const age=valNum('age');
+    const sexSel=$('sex'); const sex=sexSel?sexSel.value:'';
+    const diagnosis=valStr('diagnosis');
+    const admitDate=valStr('admitDate');
+    const fio2=radioVal('fio2');
+    const mortYN=radioVal('mortality');
+
+    if(!patientName) throw new Error('Patient Name is required');
+    if(!uhid) throw new Error('UHID is required');
+    if(age===null) throw new Error('Age is required');
+    if(!sex) throw new Error('Sex is required');
+    if(!diagnosis) throw new Error('Diagnosis is required');
+    if(!admitDate) throw new Error('Admission Date is required');
+    if(!fio2) throw new Error('FiO₂ category is required');
+    if(!mortYN) throw new Error('Mortality (Y/N) is required');
+
+    const chronic=radioVal('chronic');
+    const surgtype=chronic==='Yes' ? radioVal('surgtype') : null;
+
+    const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
+    const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
+    if(fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
+    if(fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
+
+    const inputs={
+      Age_years: age,
+      GCS: valNum('gcs'),
+      Temperature_F: valNum('tempF'),
+      MAP_mmHg: valNum('map'),
+      HeartRate_bpm: valNum('hr'),
+      RespRate_bpm: valNum('rr'),
+      FiO2_Category: fio2,
+      PaO2_mmHg: pao2,
+      AaGradient_mmHg: aagrad,
+      pH: valNum('ph'),
+      HCO3_mEqL: valNum('hco3'),
+      Na_mEqL: valNum('na'),
+      K_mEqL: valNum('k'),
+      Creatinine_mgdl: valNum('cr'),
+      AcuteRenalFailure: radioVal('arf')==='Yes',
+      Hematocrit_pct: valNum('hct'),
+      WBC_10e3uL: valNum('wbc'),
+      ChronicHealth: chronic==='Yes' ? 'Yes' : 'No',
+      SurgeryType: surgtype
+    };
+
+    const nowIso=new Date().toISOString();
+    const { apacheII, mortProb } = computeApacheAndMortality(inputs,{ age });
+    const mortPct=Math.round(mortProb*1000)/10;
+
+    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, mortPct, mortYN ];
+
+    return {
+      clientId: 'NURSING-STATION-01',
+      authToken: '',
+      patientName, uhid, age, sex, diagnosis, admitDate,
+      timestamp: nowIso,
+      month: monthKeyFromISO(nowIso),
+      submissionId: uuidv4(),
+      apacheInputs: inputs,
+      apacheScore: apacheII,
+      predictedMortalityPct: mortPct,
+      mortalityYN: mortYN,
+      sheetRow: row
+    };
+  }
+
+  function formIsComplete(){ try{ buildPayload(); return true; }catch(_){ return false; } }
+  function maybeShowResults(){
+    const card=$('resultsCard');
+    const copyBtn=$('btnCopyExcelRow');
+    if(!formIsComplete()){
+      if(card) card.setAttribute('data-visible','false');
+      if(copyBtn) copyBtn.disabled=true;
+      return;
+    }
+    const payload = buildPayload();
+    $('resApache').textContent = String(payload.apacheScore) + ' pts';
+    $('resMort').textContent = String(payload.predictedMortalityPct.toFixed(1)) + '%';
+    if(card) card.setAttribute('data-visible','true');
+    if(copyBtn) copyBtn.disabled=false;
+  }
+
+  ['input','change'].forEach(evt=>{
+    document.addEventListener(evt, (e)=>{
+      if(e.target && e.target.closest('.panel')) maybeShowResults();
+    });
+  });
+
+  // ---------- helpers for dev tools ----------
+  function buildExcelRowText(){
+    const p = buildPayload();
+    return p.sheetRow.join('\t');
+  }
+
+  function dummyFill(){
+    const age = randInt(45,70);
+    $('patientName').value = 'Jane Doe';
+    $('patientNameMini').value = 'Jane Doe';
+    $('uhid').value = '2010' + String(randInt(1000,9999));
+    $('uhidMini').value = $('uhid').value;
+
+    $('age').value = String(age);
+    $('sex').value = 'Female';
+    $('admitDate').value = todayISO();
+    $('diagnosis').value = 'CKD on HTN; Community-acquired pneumonia; on oxygen';
+
+    $('tempF').value = '99.1';
+    $('map').value = '78';
+    $('hr').value = '96';
+    $('rr').value = '22';
+    $('gcs').value = '14';
+
+    document.querySelector('input[name="fio2"][value="<50%"]').checked = true;
+    updateOxygenUI();
+    $('pao2').value = '72';
+    $('aagrad').value = '';
+
+    $('ph').value = '7.36';
+    $('hco3').value = '22';
+    $('na').value = '138';
+    $('k').value = '4.8';
+    $('cr').value = '2.6';
+    $('wbc').value = '13.2';
+    $('hct').value = '33';
+
+    document.querySelector('input[name="arf"][value="Yes"]').checked = true;
+
+    document.querySelector('input[name="chronic"][value="Yes"]').checked = true;
+    $('surgTypeWrap').style.display = 'grid';
+    document.querySelector('input[name="surgtype"][value="Nonoperative"]').checked = true;
+
+    document.querySelector('input[name="mortality"][value="N"]').checked = true;
+
+    maybeShowResults();
+    toast('Dummy data filled');
+  }
+
+  // ---------- network helpers ----------
+  async function sendJson(url, payload, label){
+    let res, text;
+    try{
+      vlog('[fetch] '+label+' → POST', { url, payloadPreview: JSON.stringify(payload).slice(0,300) });
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+        mode: 'cors',
+        credentials: 'omit'
+      });
+    }catch(netErr){
+      console.error('[NET] '+label+' network error:', netErr);
+      throw new Error(label+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
+    }
+    try{ text = await res.text(); }catch(_){ text=''; }
+    let data=null;
+    try{ data = text ? JSON.parse(text) : null; }catch(parseErr){
+      console.error('[PARSE] Non-JSON body:', text);
+      throw new Error(label+' returned non-JSON: '+(text ? text.slice(0,200) : 'empty body'));
+    }
+    vlog('[fetch] '+label+' ← response', { status: res.status, data });
+    if(!res.ok){
+      const msg=(data && (data.error||data.message)) || ('HTTP '+res.status);
+      throw new Error(label+' HTTP error: '+msg);
+    }
+    return data;
+  }
+
+  // Sanitize /dev → /exec
+  function sanitizeExecUrl(u){
+    try{ const x=new URL(u); x.pathname=x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
+    catch(_){ return u; }
+  }
+
+  // Submit using constants first; Dev values only override if present
+  async function postOnline(payload){
+    const { url, secret, clientId } = currentConn();
+    if(!url){ throw new Error('Online Webhook URL not configured.'); }
+    payload.clientId  = clientId;
+    payload.authToken = secret || '';
+    const execUrl = sanitizeExecUrl(url);
+    const data = await sendJson(execUrl, payload, 'Google Sheets webhook');
+    if(!data || data.ok !== true){
+      const detail = data && (data.error || JSON.stringify(data).slice(0,200));
+      throw new Error('Sheets webhook did not confirm success' + (detail?': '+detail:''));
+    }
+    return data;
+  }
+
+  // ---------- CSV download (Android, iOS, Desktop friendly) ----------
+  function istMonthYYYYMM(){
+    return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
+  }
+  function fileNameForMonth(ym){ return `apache-${ym}.csv`; }
+
+  async function tryFetch(url, init){
+    const res = await fetch(url, init);
+    return { ok: res.ok, status: res.status, headers: res.headers, body: await res.blob() };
+  }
+  function looksLikeCSV(headers){
+    const ct = (headers.get('content-type') || '').toLowerCase();
+    const cd = (headers.get('content-disposition') || '').toLowerCase();
+    return ct.includes('text/csv') || cd.includes('filename=');
+  }
+
+  async function saveBlobSmart(blob, filename){
+    // iOS Safari often ignores a[download]; use Share sheet if available
+    try{
+      if (typeof window !== 'undefined' && 'canShare' in navigator) {
+        const file = new File([blob], filename, { type: blob.type || 'text/csv' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          return;
+        }
+      }
+    }catch(_){}
+    // fallback: anchor download; if not supported, open in a new tab
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{
+      URL.revokeObjectURL(url);
+      a.remove();
+      // Absolute last resort: open viewer
+      if (!/Chrome|Firefox|Edg|Safari/i.test(navigator.userAgent)) window.open(url, '_blank');
+    }, 0);
+  }
+
+  async function tryDownloadCSV(urlBase, secret, ym){
+    const uExec = sanitizeExecUrl(urlBase);
+    const query = (params) => uExec + (uExec.includes('?') ? '&' : '?') + new URLSearchParams(params).toString();
+    const acceptHeaders = { 'Accept':'text/csv,application/json;q=0.9,*/*;q=0.8' };
+
+    // Most strict/explicit first: GET with authToken
+    const strategies = [
+      { label:'GET ?authToken=', req:()=>tryFetch(query({action:'download', month:ym, authToken:secret}), { method:'GET', headers:acceptHeaders }) },
+      { label:'GET Bearer',     req:()=>tryFetch(query({action:'download', month:ym}), { method:'GET', headers:{ ...acceptHeaders, Authorization:`Bearer ${secret}` } }) },
+      { label:'GET ?auth=',     req:()=>tryFetch(query({action:'download', month:ym, auth:secret}), { method:'GET', headers:acceptHeaders }) },
+      { label:'GET ?secret=',   req:()=>tryFetch(query({action:'download', month:ym, secret:secret}), { method:'GET', headers:acceptHeaders }) },
+      { label:'GET ?token=',    req:()=>tryFetch(query({action:'download', month:ym, token:secret}), { method:'GET', headers:acceptHeaders }) },
+      { label:'GET ?key=',      req:()=>tryFetch(query({action:'download', month:ym, key:secret}), { method:'GET', headers:acceptHeaders }) }
+      // NOTE: no POST fallbacks here to avoid hitting append-row code paths on the server.
+    ];
+
+    let lastErr='';
+    for(const s of strategies){
+      try{
+        const r = await s.req();
+        if(r.ok && r.body && r.body.size !== 0){
+          if(looksLikeCSV(r.headers)) return r.body;
+          // may be JSON; try to decode to capture server message
+          const text = await r.body.text();
+          try{
+            const obj = JSON.parse(text);
+            if(obj && obj.ok === true && obj.csv){
+              return new Blob([obj.csv], {type:'text/csv;charset=utf-8'});
+            }
+            lastErr = (obj && (obj.error||obj.message)) ? obj.error||obj.message : text.slice(0,300);
+          }catch(_){ lastErr = text.slice(0,300); }
+        }else{
+          lastErr = `HTTP ${r.status}`;
+        }
+      }catch(e){ lastErr = e && e.message ? e.message : String(e); }
+    }
+    throw new Error(lastErr || 'All download strategies failed');
+  }
+
+  $('btnDownload').addEventListener('click', async ()=>{
+    try{
+      const { url, secret } = currentConn();
+      if(!url){ toast('Online URL missing.', false); return; }
+      if(!secret){ toast('Online Secret missing.', false); return; }
+
+      const ym = istMonthYYYYMM();
+      toast('Preparing CSV…');
+      const blob = await tryDownloadCSV(url, secret, ym);
+      await saveBlobSmart(blob, fileNameForMonth(ym));
+      toast('Download ready ✅');
+    }catch(e){
+      console.error('[download] failed:', e);
+      toast('Download failed: '+(e && e.message ? e.message : String(e)), false);
+    }
+  });
+
+  // ---------- Submit ----------
+  $('btnSubmit').addEventListener('click', async (ev)=>{
+    ev.preventDefault();
+    const button=$('btnSubmit'); button.disabled=true;
+    try{
+      saveDevOverrides();
+      const payload=buildPayload();
+      vlog('[submit] Built payload', payload);
+      toast('Sending to Google Sheets…');
+      const resp = await postOnline(payload);
+      if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
+      toast('Saved to Google Sheets ✅');
+      maybeShowResults();
+    }catch(e){
+      if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
+      toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
+      console.error('[submit] error:', e);
+    }finally{
+      button.disabled=false;
+    }
+  });
+
+  // ---------- Dev tools ----------
+  $('btnBuildPreview').addEventListener('click', ()=>{
+    try{
+      const payload=buildPayload();
+      $('debugPreview').textContent = JSON.stringify(payload, null, 2);
+      toast('Payload built');
+    }catch(e){
+      $('debugPreview').textContent = 'Error: '+e.message;
+      toast(e.message, false);
+      console.error('[preview] error:', e);
+    }
+  });
+
+  $('btnCopyPreview').addEventListener('click', ()=>{
+    try{
+      navigator.clipboard.writeText($('debugPreview').textContent||'');
+      toast('Copied JSON');
+    }catch(_){ toast('Copy failed', false); }
+  });
+
+  $('btnCopyExcelRow').addEventListener('click', ()=>{
+    try{
+      const t = buildExcelRowText();
+      navigator.clipboard.writeText(t);
+      toast('Row copied (tab-separated). Paste into Excel/Sheets.');
+    }catch(e){
+      toast('Copy failed: '+(e && e.message ? e.message : String(e)), false);
+    }
+  });
+
+  $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
+
+  // ---------- Init ----------
+  document.addEventListener('DOMContentLoaded', ()=>{
+    updateOxygenUI();
+    maybeShowResults();
+    if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = !formIsComplete();
+  });
+</script>
+</body>
+</html>
