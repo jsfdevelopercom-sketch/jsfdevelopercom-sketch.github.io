@@ -97,13 +97,26 @@
   .dev-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
   .dev-tip{font-size:13px;color:rgba(226,232,240,.7)}
 
-  /* Results card */
-  .results-card{position:fixed;left:clamp(18px,7vw,64px);right:clamp(18px,7vw,64px);bottom:calc(96px + max(env(safe-area-inset-bottom,24px),28px));background:var(--surface-strong);border:1px solid rgba(148,163,184,.35);border-radius:18px;box-shadow:var(--shadow);padding:14px 16px;display:none}
+  /* Results card — pinned above dock, above form, below modal */
+  .results-card{
+    position:fixed;
+    left:clamp(18px,7vw,64px);
+    right:clamp(18px,7vw,64px);
+    bottom:calc(104px + max(env(safe-area-inset-bottom,24px),28px));
+    background:var(--surface-strong);
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:18px;
+    box-shadow:var(--shadow);
+    padding:14px 16px;
+    display:none;
+    z-index:120; /* <-- key line */
+  }
   .results-card[data-visible="true"]{display:block}
   .results-title{margin:0 0 6px 0;font-weight:700}
   .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .metric{padding:10px 12px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:700}
   .metric small{display:block;font-weight:600;color:var(--muted)}
+
   body.desktop .workspace{grid-template-columns:1fr 360px;align-items:start}
   body.desktop .cards-flow{grid-template-columns:repeat(2,minmax(0,1fr))}
   body.desktop .action-dock__inner{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -358,7 +371,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <!-- Dev modal (now also houses JSON preview) -->
+  <!-- Dev modal (includes JSON preview) -->
   <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
   <div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
     <div class="dev-sheet">
@@ -400,7 +413,7 @@
   function valStr(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:v; }
   function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
   function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
-  function toast(msg, ok=true){ const t=$('toast'); t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block'; clearTimeout(toast._timer); toast._timer=setTimeout(()=>{ t.style.display='none'; }, 4800); }
+  function toast(msg, ok=true){ const t=$('toast'); t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block'; clearTimeout(toast._timer); toast._timer=setTimeout(()=>{ t.style.display='none'); }, 4800); }
 
   // desktop class
   function detectDesktop(){ const ua=navigator.userAgent||""; const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua); const pointerFine=matchMedia('(pointer: fine)').matches; const wideEnough=matchMedia('(min-width:1024px)').matches; return looksDesktop||(pointerFine&&wideEnough); }
@@ -556,11 +569,7 @@
 
   // Show compact results card only when all required fields satisfied
   function formIsComplete(){
-    try{
-      // will throw if something required is missing per our rules
-      buildPayload();
-      return true;
-    }catch(_){ return false; }
+    try{ buildPayload(); return true; }catch(_){ return false; }
   }
   function maybeShowResults(){
     if(!formIsComplete()){ $('resultsCard').setAttribute('data-visible','false'); return; }
@@ -576,7 +585,7 @@
     });
   });
 
-  // CORS-safe POST (text/plain) as requested
+  // CORS-safe POST (text/plain) to avoid preflight
   async function sendJson(url, payload, label){
     const res = await fetch(url, {
       method: 'POST',
