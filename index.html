@@ -761,22 +761,129 @@
   }
 
   // ---------- Download CSV for current IST month ----------
-  $('btnDownload').addEventListener('click', ()=>{
-    try{
-      const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
-      const secret = ($('onlineSecret')?.value.trim() || ONLINE_SECRET || '');
-      if(!url || !secret){ toast('Set Online URL and Secret in Developer panel.', false); return; }
 
-      const ym = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
-      const link = url + '?action=download&month=' + encodeURIComponent(ym) + '&auth=' + encodeURIComponent(secret);
-      vlog('[download] Opening CSV link', { month: ym, link });
-      const w = window.open(link, '_blank');
-      if(!w){ toast('Popup blocked. Allow popups for this site.', false); }
+function istMonthYYYYMM(){
+  // IST month to match your sheet tabs
+  return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
+}
+
+function sanitizeExecUrl(u){
+  // Ensure we hit /exec, not /dev
+  try{
+    const url = new URL(u);
+    url.pathname = url.pathname.replace(/\/dev(\/)?$/i, '/exec');
+    return url.toString();
+  }catch(_){ return u; }
+}
+
+function fileNameForMonth(ym){
+  return `apache-${ym}.csv`;
+}
+
+async function downloadBlobAsFile(blob, filename){
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+async function tryFetch(url, init, expectBlob=true){
+  const res = await fetch(url, init);
+  let body;
+  if(expectBlob){
+    body = await res.blob();
+  }else{
+    body = await res.text();
+  }
+  return { ok: res.ok, status: res.status, headers: res.headers, body };
+}
+
+function looksLikeCSV(headers){
+  const ct = (headers.get('content-type') || '').toLowerCase();
+  return ct.includes('text/csv') || ct.includes('application/octet-stream') || ct.includes('application/csv');
+}
+
+async function tryDownloadCSV(urlBase, secret, ym){
+  const uExec = sanitizeExecUrl(urlBase);
+  const q = (params) => uExec + (uExec.includes('?') ? '&' : '?') + new URLSearchParams(params).toString();
+  const headersJSON = {'Content-Type':'application/json;charset=utf-8'};
+  const headersText = {'Content-Type':'text/plain;charset=utf-8'};
+
+  // Strategy list
+  const strategies = [
+    { label:'GET ?auth=',     req:()=>tryFetch(q({action:'download', month:ym, auth:secret}), { method:'GET' }) },
+    { label:'GET ?secret=',   req:()=>tryFetch(q({action:'download', month:ym, secret:secret}), { method:'GET' }) },
+    { label:'GET ?token=',    req:()=>tryFetch(q({action:'download', month:ym, token:secret}), { method:'GET' }) },
+    { label:'GET ?key=',      req:()=>tryFetch(q({action:'download', month:ym, key:secret}), { method:'GET' }) },
+    { label:'GET Authorization Bearer', req:()=>tryFetch(q({action:'download', month:ym}), { method:'GET', headers:{ Authorization:`Bearer ${secret}` } }) },
+    { label:'POST JSON',      req:()=>tryFetch(uExec, { method:'POST', headers:headersJSON, body:JSON.stringify({ action:'download', month:ym, authToken:secret }) }) },
+    { label:'POST text/plain',req:()=>tryFetch(uExec, { method:'POST', headers:headersText, body:JSON.stringify({ action:'download', month:ym, authToken:secret }) }) },
+  ];
+
+  let lastErr = '';
+  for(const s of strategies){
+    try{
+      const r = await s.req();
+      // If server returns JSON error, try to parse & continue
+      if(r.ok && r.body && r.body.size !== 0){
+        // Some Apps Script return JSON with ok:false if wrong auth; check content-type
+        if(looksLikeCSV(r.headers)){
+          return r.body; // blob
+        }else{
+          // Might be JSON; check quickly
+          try{
+            const text = await r.body.text();
+            const obj = JSON.parse(text);
+            if(obj && obj.ok === true && obj.csv){
+              // If server returned CSV as text inside JSON
+              return new Blob([obj.csv], {type:'text/csv;charset=utf-8'});
+            }
+            lastErr = text.slice(0,300);
+          }catch(_){
+            lastErr = 'Unexpected response (not CSV)';
+          }
+        }
+      }else{
+        // Non-OK; try read text for details
+        if(r.body){
+          try{
+            const t = await r.body.text();
+            lastErr = t.slice(0,300);
+          }catch(_){
+            lastErr = `HTTP ${r.status}`;
+          }
+        }else{
+          lastErr = `HTTP ${r.status}`;
+        }
+      }
     }catch(e){
-      console.error('[download] error:', e);
-      toast(e.message, false);
+      lastErr = e && e.message ? e.message : String(e);
     }
-  });
+  }
+  throw new Error(lastErr || 'All download strategies failed');
+}
+
+$('btnDownload').addEventListener('click', async ()=>{
+  try{
+    const base = ($('onlineUrl')?.value.trim() || window.ONLINE_WEBHOOK_URL || '');
+    const secret = ($('onlineSecret')?.value.trim() || window.ONLINE_SECRET || '');
+    if(!base || !secret){ toast('Set Online URL and Secret in Developer panel.', false); return; }
+
+    const ym = istMonthYYYYMM();
+    toast('Preparing download…');
+    const blob = await tryDownloadCSV(base, secret, ym);
+    await downloadBlobAsFile(blob, fileNameForMonth(ym));
+    toast('Download ready ✅');
+  }catch(e){
+    console.error('[download] failed:', e);
+    toast('Download failed: '+(e && e.message ? e.message : String(e)), false);
+  }
+});
+
+
 
   // ---------- Submit ----------
   $('btnSubmit').addEventListener('click', async (ev)=>{
