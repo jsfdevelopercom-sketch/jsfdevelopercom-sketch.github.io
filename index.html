@@ -346,7 +346,7 @@
           </header>
           <div>
             <label>Mortality (Y/N)*</label>
-            <div class="chip-row" role="group" aria-label="Mortality yes/no">
+            <div class="chip-row" role="group" aria-label="Mortality yes/no" id="mortalityGrp">
               <label class="chip"><input type="radio" name="mortality" value="Y" required> Y</label>
               <label class="chip"><input type="radio" name="mortality" value="N" required> N</label>
             </div>
@@ -374,7 +374,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <!-- Dev modal (includes JSON preview) -->
+  <!-- Dev modal (includes JSON & last response preview) -->
   <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
   <div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
     <div class="dev-sheet">
@@ -403,6 +403,9 @@
           <button id="btnCopyPreview" class="btn ghost" type="button">Copy JSON</button>
         </div>
         <pre id="debugPreview" style="margin-top:10px;max-height:260px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">No payload yet</pre>
+
+        <h3 style="margin:8px 0;font-size:16px">Last server response</h3>
+        <pre id="lastResp" style="max-height:180px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">None</pre>
       </div>
       <div class="dev-tip">The app is locked to Online (Google Sheets) mode.</div>
     </div>
@@ -420,7 +423,7 @@
     const t=$('toast');
     t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block';
     clearTimeout(toast._timer);
-    toast._timer=setTimeout(()=>{ t.style.display='none'; }, 4800);
+    toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
   }
 
   // desktop class
@@ -625,10 +628,8 @@
     };
   }
 
-  // Show compact results card only when all required fields satisfied
-  function formIsComplete(){
-    try{ buildPayload(); return true; }catch(_){ return false; }
-  }
+  // Show result card only when all required fields are satisfied (strict mode)
+  function formIsComplete(){ try{ buildPayload(); return true; }catch(_){ return false; } }
   function maybeShowResults(){
     const card=$('resultsCard');
     if(!card) return;
@@ -646,29 +647,48 @@
     });
   });
 
-  // CORS-safe POST (text/plain) to avoid preflight
+  // Low-level POST helper; throws on non-2xx and returns parsed JSON or throws if not JSON
   async function sendJson(url, payload, label){
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-      mode: 'cors',
-      credentials: 'omit'
-    });
-    const text = await res.text();
-    if(!res.ok){ const bodyHint=text?(' '+text):''; throw new Error(label+' responded with '+res.status+'.'+bodyHint); }
-    if(!text) return {};
+    let res, text;
     try{
-      const data = JSON.parse(text);
-      if(data && typeof data==='object' && data.error) throw new Error(label+' error: '+data.error);
-      return data;
-    }catch(_){ return { message:text }; }
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+        mode: 'cors',
+        credentials: 'omit'
+      });
+    }catch(netErr){
+      throw new Error(label+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
+    }
+    try{
+      text = await res.text();
+    }catch(_readErr){
+      text = '';
+    }
+    // Apps Script often returns 200 OK even on error; we must inspect body JSON.
+    let data=null;
+    try{ data = text ? JSON.parse(text) : null; }catch(parseErr){
+      throw new Error(label+' returned non-JSON: '+(text ? text.slice(0,200) : 'empty body'));
+    }
+    if(!res.ok){
+      const msg=(data && (data.error||data.message)) || ('HTTP '+res.status);
+      throw new Error(label+' HTTP error: '+msg);
+    }
+    return data;
   }
+
   async function postOnline(payload){
     const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
     if(!url) throw new Error('Online Webhook URL not set (Developer → Online Webhook URL).');
     if(!payload.authToken) throw new Error('Online Secret not set (Developer → Online Secret).');
-    return sendJson(url, payload, 'Google Sheets webhook');
+    const data = await sendJson(url, payload, 'Google Sheets webhook');
+    // Hard gate: only succeed when server confirms ok:true
+    if(!data || data.ok !== true){
+      const detail = data && (data.error || JSON.stringify(data).slice(0,200));
+      throw new Error('Sheets webhook did not confirm success'+(detail?': '+detail:''));
+    }
+    return data;
   }
 
   // Download CSV for current month
@@ -691,11 +711,15 @@
       saveDevOverrides();
       const payload=buildPayload();
       toast('Sending to Google Sheets…');
-      await postOnline(payload);
-      toast('Saved to Google Sheets ✅');
+      const resp = await postOnline(payload);
+      // Log and show in dev pane
+      if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
+      toast('Saved to Google Sheets ✅'); // only after ok:true
       maybeShowResults();
     }catch(e){
-      toast('Submit failed: '+e.message, false);
+      if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
+      toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
+      console.error(e);
     }finally{
       button.disabled=false;
     }
