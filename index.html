@@ -67,10 +67,18 @@
   .grid-2,.grid-3{display:grid;gap:18px}
   .grid-2{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
   .grid-3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+
   .chip-row{display:flex;flex-wrap:wrap;gap:12px}
   .chip{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-md);background:rgba(148,163,184,.14);border:1px solid transparent;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s ease}
   .chip input[type=radio]{accent-color:var(--accent)}
   .chip:hover{background:rgba(37,99,235,.1)}
+
+  /* Tabs */
+  .tab-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .tab{border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.7);padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
+  .tab.active{background:linear-gradient(135deg,#2563eb,#14a3e9);color:#fff;border-color:transparent}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
 
   .action-dock{position:fixed;left:0;right:0;bottom:0;padding:18px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,24px),28px);background:rgba(255,255,255,.96);border-top:1px solid rgba(148,163,184,.35);box-shadow:0 -18px 42px -24px rgba(15,23,42,.45);backdrop-filter:blur(16px)}
   .action-dock__inner{max-width:var(--max-width);margin:0 auto;display:grid;gap:12px}
@@ -97,24 +105,19 @@
   .dev-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
   .dev-tip{font-size:13px;color:rgba(226,232,240,.7)}
 
-  /* Results card — pinned above dock, above form, below modal */
+  /* Results card inside flow (not fixed) */
   .results-card{
-    position:fixed;
-    left:clamp(18px,7vw,64px);
-    right:clamp(18px,7vw,64px);
-    bottom:calc(104px + max(env(safe-area-inset-bottom,24px),28px));
+    display:none;
     background:var(--surface-strong);
     border:1px solid rgba(148,163,184,.35);
     border-radius:18px;
     box-shadow:var(--shadow);
-    padding:14px 16px;
-    display:none;
-    z-index:120; /* <-- key line */
+    padding:16px 18px;
   }
   .results-card[data-visible="true"]{display:block}
-  .results-title{margin:0 0 6px 0;font-weight:700}
-  .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .metric{padding:10px 12px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:700}
+  .results-title{margin:0 0 8px 0;font-weight:700}
+  .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .metric{padding:12px 14px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:700}
   .metric small{display:block;font-weight:600;color:var(--muted)}
 
   body.desktop .workspace{grid-template-columns:1fr 360px;align-items:start}
@@ -343,24 +346,24 @@
           </header>
           <div>
             <label>Mortality (Y/N)*</label>
-            <div class="chip-row" id="mortalityGrp" role="group" aria-label="Mortality yes/no">
+            <div class="chip-row" role="group" aria-label="Mortality yes/no">
               <label class="chip"><input type="radio" name="mortality" value="Y" required> Y</label>
               <label class="chip"><input type="radio" name="mortality" value="N" required> N</label>
             </div>
           </div>
         </section>
+
+        <!-- Results card (appears when the form is complete) -->
+        <aside id="resultsCard" class="results-card" aria-live="polite" aria-atomic="true">
+          <h4 class="results-title">Computed Result</h4>
+          <div class="results-grid">
+            <div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
+            <div class="metric"><small>Estimated mortality</small><span id="resMort">—</span></div>
+          </div>
+        </aside>
       </div>
     </main>
   </div>
-
-  <!-- Compact results card (auto when complete) -->
-  <aside id="resultsCard" class="results-card" aria-live="polite" aria-atomic="true">
-    <h4 class="results-title">Computed Result</h4>
-    <div class="results-grid">
-      <div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
-      <div class="metric"><small>Estimated mortality</small><span id="resMort">—</span></div>
-    </div>
-  </aside>
 
   <div class="action-dock" role="contentinfo">
     <div class="action-dock__inner">
@@ -413,7 +416,12 @@
   function valStr(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:v; }
   function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
   function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
-  function toast(msg, ok=true){ const t=$('toast'); t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block'; clearTimeout(toast._timer); toast._timer=setTimeout(()=>{ t.style.display='none'); }, 4800); }
+  function toast(msg, ok=true){
+    const t=$('toast');
+    t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block';
+    clearTimeout(toast._timer);
+    toast._timer=setTimeout(()=>{ t.style.display='none'; }, 4800);
+  }
 
   // desktop class
   function detectDesktop(){ const ua=navigator.userAgent||""; const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua); const pointerFine=matchMedia('(pointer: fine)').matches; const wideEnough=matchMedia('(min-width:1024px)').matches; return looksDesktop||(pointerFine&&wideEnough); }
@@ -427,14 +435,41 @@
   // dev modal
   const devToggle=$('devToggle'), devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
   devPanel.setAttribute('aria-hidden','true'); devBackdrop.setAttribute('data-visible','false');
-  function setDevPanel(open){ const wasOpen=devPanel.getAttribute('aria-hidden')==='false'; devPanel.setAttribute('aria-hidden', open?'false':'true'); devBackdrop.setAttribute('data-visible', open?'true':'false'); devBackdrop.setAttribute('aria-hidden', open?'false':'true'); devToggle.setAttribute('aria-expanded', open?'true':'false'); if(wasOpen&&!open) saveDevOverrides(); }
+  function setDevPanel(open){
+    const wasOpen=devPanel.getAttribute('aria-hidden')==='false';
+    devPanel.setAttribute('aria-hidden', open?'false':'true');
+    devBackdrop.setAttribute('data-visible', open?'true':'false');
+    devBackdrop.setAttribute('aria-hidden', open?'false':'true');
+    devToggle.setAttribute('aria-expanded', open?'true':'false');
+    if(wasOpen&&!open) saveDevOverrides();
+  }
   devToggle.addEventListener('click',()=>{ const isHidden=devPanel.getAttribute('aria-hidden')!=='false'; setDevPanel(isHidden); });
   devClose.addEventListener('click',()=>setDevPanel(false));
   devBackdrop.addEventListener('click',()=>setDevPanel(false));
   addEventListener('keydown',(ev)=>{ if(ev.key==='Escape' && devPanel.getAttribute('aria-hidden')==='false') setDevPanel(false); });
 
-  function saveDevOverrides(){ const overrides={ onlineUrl:$('onlineUrl')?.value.trim()||'', onlineSecret:$('onlineSecret')?.value.trim()||'', clientId:$('clientId')?.value.trim()||'NURSING-STATION-01' }; localStorage.setItem('apacheMobileDev', JSON.stringify(overrides)); if(overrides.onlineUrl) ONLINE_WEBHOOK_URL=overrides.onlineUrl; if(overrides.onlineSecret) ONLINE_SECRET=overrides.onlineSecret; }
-  function loadDevOverrides(){ try{ const raw=localStorage.getItem('apacheMobileDev'); if(!raw) return; const o=JSON.parse(raw); if($('onlineUrl')) $('onlineUrl').value=o.onlineUrl||''; if($('onlineSecret')) $('onlineSecret').value=o.onlineSecret||''; if($('clientId')) $('clientId').value=o.clientId||'NURSING-STATION-01'; if(o.onlineUrl) ONLINE_WEBHOOK_URL=o.onlineUrl; if(o.onlineSecret) ONLINE_SECRET=o.onlineSecret; }catch(_){ } }
+  function saveDevOverrides(){
+    const overrides={
+      onlineUrl:$('onlineUrl')?.value.trim()||'',
+      onlineSecret:$('onlineSecret')?.value.trim()||'',
+      clientId:$('clientId')?.value.trim()||'NURSING-STATION-01'
+    };
+    localStorage.setItem('apacheMobileDev', JSON.stringify(overrides));
+    if(overrides.onlineUrl) ONLINE_WEBHOOK_URL=overrides.onlineUrl;
+    if(overrides.onlineSecret) ONLINE_SECRET=overrides.onlineSecret;
+  }
+  function loadDevOverrides(){
+    try{
+      const raw=localStorage.getItem('apacheMobileDev');
+      if(!raw) return;
+      const o=JSON.parse(raw);
+      if($('onlineUrl')) $('onlineUrl').value=o.onlineUrl||'';
+      if($('onlineSecret')) $('onlineSecret').value=o.onlineSecret||'';
+      if($('clientId')) $('clientId').value=o.clientId||'NURSING-STATION-01';
+      if(o.onlineUrl) ONLINE_WEBHOOK_URL=o.onlineUrl;
+      if(o.onlineSecret) ONLINE_SECRET=o.onlineSecret;
+    }catch(_){}
+  }
 
   // cosmetic: Z Fold 6
   (function(){ const ua=(navigator.userAgent||'').toUpperCase(); const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6'); if(isFold6) document.body.classList.add('fold6'); })();
@@ -446,13 +481,28 @@
   function updateOxygenUI(){
     const v = radioVal('fio2');
     const po2=$('po2Wrap'), aagrad=$('aagradWrap'), pao2El=$('pao2'), aagradEl=$('aagrad');
-    if(v === '<50%'){ po2.style.display='block'; aagrad.style.display='none'; if(aagradEl){ aagradEl.value=''; aagradEl.removeAttribute('required'); } if(pao2El){ pao2El.setAttribute('required','required'); } }
-    else { po2.style.display='none'; aagrad.style.display='block'; if(pao2El){ pao2El.value=''; pao2El.removeAttribute('required'); } if(aagradEl){ aagradEl.setAttribute('required','required'); } }
+    if(v === '<50%'){
+      po2.style.display='block'; aagrad.style.display='none';
+      if(aagradEl){ aagradEl.value=''; aagradEl.removeAttribute('required'); }
+      if(pao2El){ pao2El.setAttribute('required','required'); }
+    } else {
+      po2.style.display='none'; aagrad.style.display='block';
+      if(pao2El){ pao2El.value=''; pao2El.removeAttribute('required'); }
+      if(aagradEl){ aagradEl.setAttribute('required','required'); }
+    }
   }
   document.querySelectorAll('input[name="fio2"]').forEach(r=>r.addEventListener('change',()=>{ updateOxygenUI(); maybeShowResults(); }));
 
   // Tabs
-  document.querySelectorAll('.tab').forEach((btn)=>{ btn.addEventListener('click',()=>{ document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active')); document.querySelectorAll('.tab-panel').forEach((p)=>p.classList.remove('active')); btn.classList.add('active'); const target=$('tab-'+btn.dataset.tab); if(target) target.classList.add('active'); }); });
+  document.querySelectorAll('.tab').forEach((btn)=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach((p)=>p.classList.remove('active'));
+      btn.classList.add('active');
+      const target=$('tab-'+btn.dataset.tab);
+      if(target) target.classList.add('active');
+    });
+  });
 
   // ====== ONLINE ONLY ======
   let ONLINE_WEBHOOK_URL='https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
@@ -465,7 +515,15 @@
   function ptsMAP(v){ if(v==null) return 0; if(v>=160) return 4; if(v>=130) return 3; if(v>=110) return 2; if(v>=70) return 0; if(v>=50) return 2; return 4; }
   function ptsHR(v){ if(v==null) return 0; if(v>=180) return 4; if(v>=140) return 3; if(v>=110) return 2; if(v>=70) return 0; if(v>=55) return 2; if(v>=40) return 3; return 4; }
   function ptsRR(v){ if(v==null) return 0; if(v>=50) return 4; if(v>=35) return 3; if(v>=25) return 1; if(v>=12) return 0; if(v>=10) return 1; if(v>=6) return 2; return 4; }
-  function ptsOxygen(fio2Cat,pao2,aagrad){ if(fio2Cat==='>=50%'){ if(aagrad==null) return 0; if(aagrad>=500) return 4; if(aagrad>=350) return 3; if(aagrad>=200) return 2; return 0; } else { if(pao2==null) return 0; if(pao2>70) return 0; if(pao2>=61) return 1; if(pao2>=55) return 3; return 4; } }
+  function ptsOxygen(fio2Cat,pao2,aagrad){
+    if(fio2Cat==='>=50%'){
+      if(aagrad==null) return 0;
+      if(aagrad>=500) return 4; if(aagrad>=350) return 3; if(aagrad>=200) return 2; return 0;
+    } else {
+      if(pao2==null) return 0;
+      if(pao2>70) return 0; if(pao2>=61) return 1; if(pao2>=55) return 3; return 4;
+    }
+  }
   function ptsPH(ph){ if(ph==null) return null; if(ph>=7.70) return 4; if(ph>=7.60) return 3; if(ph>=7.50) return 1; if(ph>=7.33) return 0; if(ph>=7.25) return 2; if(ph>=7.15) return 3; return 4; }
   function ptsHCO3(h){ if(h==null) return 0; if(h>=52) return 4; if(h>=41) return 3; if(h>=32) return 1; if(h>=22) return 0; if(h>=18) return 2; if(h>=15) return 3; return 4; }
   function ptsNa(v){ if(v==null) return 0; if(v>=180) return 4; if(v>=160) return 3; if(v>=155) return 2; if(v>=150) return 1; if(v>=130) return 0; if(v>=120) return 2; if(v>=111) return 3; return 4; }
@@ -572,16 +630,19 @@
     try{ buildPayload(); return true; }catch(_){ return false; }
   }
   function maybeShowResults(){
-    if(!formIsComplete()){ $('resultsCard').setAttribute('data-visible','false'); return; }
+    const card=$('resultsCard');
+    if(!card) return;
+    if(!formIsComplete()){ card.setAttribute('data-visible','false'); return; }
     const payload = buildPayload();
     $('resApache').textContent = String(payload.apacheScore) + ' pts';
     $('resMort').textContent = String(payload.predictedMortalityPct.toFixed(1)) + '%';
-    $('resultsCard').setAttribute('data-visible','true');
+    card.setAttribute('data-visible','true');
   }
+
   // Watch inputs for live result updates
   ['input','change'].forEach(evt=>{
     document.addEventListener(evt, (e)=>{
-      if(e.target && (e.target.closest('.panel') || e.target.id==='mortalityGrp')) maybeShowResults();
+      if(e.target && e.target.closest('.panel')) maybeShowResults();
     });
   });
 
