@@ -102,8 +102,8 @@
     background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);
     border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);
     padding:26px;display:grid;gap:18px;pointer-events:auto;
-    max-height:min(80vh, 720px);          /* vertical scroller */
-    overflow-y:auto;                      /* vertical scroller */
+    max-height:min(80vh, 720px);
+    overflow-y:auto;
   }
   .dev-sheet h3{margin:0;font-size:20px;font-weight:600}
   .dev-sheet .close{justify-self:end;border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:600}
@@ -348,7 +348,6 @@
         <section class="panel" aria-labelledby="outcome-h">
           <header>
             <h2 id="outcome-h">Outcome</h2>
-            <p class="hint">Select the actual outcome. Predicted mortality % is computed separately.</p>
           </header>
           <div>
             <label>Mortality (Y/N)*</label>
@@ -644,8 +643,8 @@
     const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, mortPct, mortYN ];
 
     return {
-      clientId: 'NURSING-STATION-01',           // will be overwritten by postOnline() via currentConn()
-      authToken: '',                            // will be set by postOnline() via currentConn()
+      clientId: 'NURSING-STATION-01',
+      authToken: '',
       patientName, uhid, age, sex, diagnosis, admitDate,
       timestamp: nowIso,
       month: monthKeyFromISO(nowIso),
@@ -780,42 +779,61 @@
     return data;
   }
 
-  // ---------- Download CSV for current IST month ----------
+  // ---------- CSV download (Android, iOS, Desktop friendly) ----------
   function istMonthYYYYMM(){
     return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
   }
   function fileNameForMonth(ym){ return `apache-${ym}.csv`; }
 
-  async function tryFetch(url, init, expectBlob=true){
+  async function tryFetch(url, init){
     const res = await fetch(url, init);
-    let body = expectBlob ? await res.blob() : await res.text();
-    return { ok: res.ok, status: res.status, headers: res.headers, body };
+    return { ok: res.ok, status: res.status, headers: res.headers, body: await res.blob() };
   }
   function looksLikeCSV(headers){
     const ct = (headers.get('content-type') || '').toLowerCase();
-    return ct.includes('text/csv') || ct.includes('application/octet-stream') || ct.includes('application/csv');
+    const cd = (headers.get('content-disposition') || '').toLowerCase();
+    return ct.includes('text/csv') || cd.includes('filename=');
   }
-  async function downloadBlobAsFile(blob, filename){
+
+  async function saveBlobSmart(blob, filename){
+    // iOS Safari often ignores a[download]; use Share sheet if available
+    try{
+      if (typeof window !== 'undefined' && 'canShare' in navigator) {
+        const file = new File([blob], filename, { type: blob.type || 'text/csv' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          return;
+        }
+      }
+    }catch(_){}
+    // fallback: anchor download; if not supported, open in a new tab
     const a = document.createElement('a');
     const url = URL.createObjectURL(blob);
     a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{
+      URL.revokeObjectURL(url);
+      a.remove();
+      // Absolute last resort: open viewer
+      if (!/Chrome|Firefox|Edg|Safari/i.test(navigator.userAgent)) window.open(url, '_blank');
+    }, 0);
   }
+
   async function tryDownloadCSV(urlBase, secret, ym){
     const uExec = sanitizeExecUrl(urlBase);
-    const q = (params) => uExec + (uExec.includes('?') ? '&' : '?') + new URLSearchParams(params).toString();
-    const headersJSON = {'Content-Type':'application/json;charset=utf-8'};
-    const headersText = {'Content-Type':'text/plain;charset=utf-8'};
+    const query = (params) => uExec + (uExec.includes('?') ? '&' : '?') + new URLSearchParams(params).toString();
+    const acceptHeaders = { 'Accept':'text/csv,application/json;q=0.9,*/*;q=0.8' };
 
+    // Most strict/explicit first: GET with authToken
     const strategies = [
-      { label:'GET ?auth=',     req:()=>tryFetch(q({action:'download', month:ym, auth:secret}), { method:'GET' }) },
-      { label:'GET ?secret=',   req:()=>tryFetch(q({action:'download', month:ym, secret:secret}), { method:'GET' }) },
-      { label:'GET ?token=',    req:()=>tryFetch(q({action:'download', month:ym, token:secret}), { method:'GET' }) },
-      { label:'GET ?key=',      req:()=>tryFetch(q({action:'download', month:ym, key:secret}), { method:'GET' }) },
-      { label:'GET Bearer',     req:()=>tryFetch(q({action:'download', month:ym}), { method:'GET', headers:{ Authorization:`Bearer ${secret}` } }) },
-      { label:'POST JSON',      req:()=>tryFetch(uExec, { method:'POST', headers:headersJSON, body:JSON.stringify({ action:'download', month:ym, authToken:secret }) }) },
-      { label:'POST text/plain',req:()=>tryFetch(uExec, { method:'POST', headers:headersText, body:JSON.stringify({ action:'download', month:ym, authToken:secret }) }) },
+      { label:'GET ?authToken=', req:()=>tryFetch(query({action:'download', month:ym, authToken:secret}), { method:'GET', headers:acceptHeaders }) },
+      { label:'GET Bearer',     req:()=>tryFetch(query({action:'download', month:ym}), { method:'GET', headers:{ ...acceptHeaders, Authorization:`Bearer ${secret}` } }) },
+      { label:'GET ?auth=',     req:()=>tryFetch(query({action:'download', month:ym, auth:secret}), { method:'GET', headers:acceptHeaders }) },
+      { label:'GET ?secret=',   req:()=>tryFetch(query({action:'download', month:ym, secret:secret}), { method:'GET', headers:acceptHeaders }) },
+      { label:'GET ?token=',    req:()=>tryFetch(query({action:'download', month:ym, token:secret}), { method:'GET', headers:acceptHeaders }) },
+      { label:'GET ?key=',      req:()=>tryFetch(query({action:'download', month:ym, key:secret}), { method:'GET', headers:acceptHeaders }) }
+      // NOTE: no POST fallbacks here to avoid hitting append-row code paths on the server.
     ];
 
     let lastErr='';
@@ -824,36 +842,33 @@
         const r = await s.req();
         if(r.ok && r.body && r.body.size !== 0){
           if(looksLikeCSV(r.headers)) return r.body;
+          // may be JSON; try to decode to capture server message
+          const text = await r.body.text();
           try{
-            const text = await r.body.text();
             const obj = JSON.parse(text);
             if(obj && obj.ok === true && obj.csv){
               return new Blob([obj.csv], {type:'text/csv;charset=utf-8'});
             }
-            lastErr = text.slice(0,300);
-          }catch(_){ lastErr = 'Unexpected response (not CSV)'; }
+            lastErr = (obj && (obj.error||obj.message)) ? obj.error||obj.message : text.slice(0,300);
+          }catch(_){ lastErr = text.slice(0,300); }
         }else{
-          if(r.body){
-            try{ const t=await r.body.text(); lastErr=t.slice(0,300); }
-            catch(_){ lastErr = `HTTP ${r.status}`; }
-          }else lastErr = `HTTP ${r.status}`;
+          lastErr = `HTTP ${r.status}`;
         }
       }catch(e){ lastErr = e && e.message ? e.message : String(e); }
     }
     throw new Error(lastErr || 'All download strategies failed');
   }
 
-  // Download handler that lifts from hardcoded vars; Dev overrides only if present
   $('btnDownload').addEventListener('click', async ()=>{
     try{
       const { url, secret } = currentConn();
       if(!url){ toast('Online URL missing.', false); return; }
-      if(!secret){ toast('Online Secret missing.', false); return; } // secret is required by server
+      if(!secret){ toast('Online Secret missing.', false); return; }
 
       const ym = istMonthYYYYMM();
-      toast('Preparing download…');
+      toast('Preparing CSV…');
       const blob = await tryDownloadCSV(url, secret, ym);
-      await downloadBlobAsFile(blob, fileNameForMonth(ym));
+      await saveBlobSmart(blob, fileNameForMonth(ym));
       toast('Download ready ✅');
     }catch(e){
       console.error('[download] failed:', e);
