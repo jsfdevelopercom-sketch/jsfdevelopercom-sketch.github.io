@@ -91,7 +91,6 @@
   .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:90}
   .toast.err{border-left-color:#dc2626;color:#dc2626}
 
-  /* Dev modal */
   .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:130}
   .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
   .dev-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
@@ -111,7 +110,6 @@
   .dev-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
   .dev-tip{font-size:13px;color:rgba(226,232,240,.7)}
 
-  /* Results card */
   .results-card{
     display:none;
     background:var(--surface-strong);
@@ -153,7 +151,7 @@
         <div class="mode-pills" role="group">
           <button id="modeOnline" type="button" class="mode active" disabled>Online (Google Sheets)</button>
         </div>
-        <div id="modeHint" class="mode-hint">Data goes straight to the shared Google Sheet (one tab per month). “Download current month” gives CSV.</div>
+        <div id="modeHint" class="mode-hint">Data goes straight to the shared Google Sheet (one tab per month). “Download current month” opens the CSV in a new tab.</div>
         <div class="patient-mini" aria-label="Quick patient entry">
           <div class="mini-field"><span>👤</span><input id="patientNameMini" type="text" placeholder="Patient name" autocomplete="off"></div>
           <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID" autocomplete="off"></div>
@@ -468,7 +466,7 @@
   devBackdrop.addEventListener('click',()=>setDevPanel(false));
   addEventListener('keydown',(ev)=>{ if(ev.key==='Escape' && devPanel.getAttribute('aria-hidden')==='false') setDevPanel(false); });
 
-  // Persist Dev values without forcing usage
+  // Persist Dev values
   function saveDevOverrides(){
     const overrides={
       onlineUrl:$('onlineUrl')?.value.trim()||'',
@@ -760,7 +758,7 @@
 
   // Sanitize /dev → /exec
   function sanitizeExecUrl(u){
-    try{ const x=new URL(u); x.pathname=x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
+    try{ const x=new URL(u); x.pathname=x.pathnamereplace?x.pathname.replace(/\/dev(\/)?$/i,'/exec'):x.pathname; return x.toString(); }
     catch(_){ return u; }
   }
 
@@ -779,67 +777,55 @@
     return data;
   }
 
-  // ---------- CSV download: guaranteed new-tab navigation (Android, iOS, Desktop) ----------
+  // ---------- CSV download: hidden-form to new tab (Android, iOS, Desktop safe) ----------
   function istMonthYYYYMM(){
     return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
   }
-  function buildDownloadUrl(urlBase, ym, secret){
-    const exec = sanitizeExecUrl(urlBase);
-    let u;
-    try{ u = new URL(exec); }catch(_){ return exec; }
-    u.searchParams.set('action','download');
-    u.searchParams.set('month', ym);
-    // let server treat this as "force-download" branch
-    u.searchParams.set('mode','redirect');
-    if (secret && secret.trim()){
-      // include token via query (works with navigation; server should validate)
-      u.searchParams.set('authToken', secret.trim());
-    }
-    return u.toString();
+
+  function submitHiddenFormToNewTab(actionUrl, params){
+    // Create a named target and let the browser open it as a proper navigation
+    const form = document.createElement('form');
+    form.method = 'GET';
+    form.action = actionUrl;
+    form.target = '_blank'; // guaranteed new tab/window
+    form.rel = 'noopener';  // security hint for some UAs
+
+    Object.entries(params).forEach(([k,v])=>{
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = k;
+      input.value = v;
+      form.appendChild(input);
+    });
+
+    // Must be attached to DOM for iOS/Safari/WebViews
+    document.body.appendChild(form);
+    form.submit();
+    // Cleanup
+    setTimeout(()=>{ form.remove(); }, 1000);
   }
 
-  function openCsvInNewTab(targetUrl){
-    // 1) Synchronous blank tab to avoid blockers
-    let navWin = null;
-    try { navWin = window.open('', '_blank', 'noopener'); } catch(_){ navWin = null; }
-
-    if (navWin && !navWin.closed) {
-      // iOS/Android/desktop: set location after opening about:blank
-      navWin.location.href = targetUrl;
-      toast('Opening CSV in a new tab…');
-      return;
+  function buildDownloadParams(ym, secret){
+    const p = { action:'download', month: ym, mode:'redirect' };
+    if (secret && secret.trim()){
+      // Send token as query param; server should validate on its side
+      p.authToken = secret.trim();
     }
-
-    // 2) Fallback: synthetic anchor with target=_blank (some WebViews allow this)
-    try{
-      const a = document.createElement('a');
-      a.href = targetUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      // must be in DOM for some iOS versions
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      toast('Opening CSV…');
-      return;
-    }catch(_){}
-
-    // 3) Final fallback: same-tab navigation
-    try{
-      window.location.assign(targetUrl);
-      toast('Opening CSV…');
-    }catch(e){
-      console.error('[download] navigation failed:', e);
-      toast('Download navigation blocked by browser.', false);
-    }
+    return p;
   }
 
   $('btnDownload').addEventListener('click', ()=>{
     const { url, secret } = currentConn();
     if(!url){ toast('Online URL missing.', false); return; }
     const ym = istMonthYYYYMM();
-    const targetUrl = buildDownloadUrl(url, ym, secret||'');
-    openCsvInNewTab(targetUrl);
+
+    let exec;
+    try { exec = new URL(sanitizeExecUrl(url)).toString(); }
+    catch(_){ exec = sanitizeExecUrl(url); }
+
+    // Synchronously submit GET form to a new tab – works across Android/iOS/Desktop
+    submitHiddenFormToNewTab(exec, buildDownloadParams(ym, secret||''));
+    toast('Opening CSV in a new tab…');
   });
 
   // ---------- Submit ----------
