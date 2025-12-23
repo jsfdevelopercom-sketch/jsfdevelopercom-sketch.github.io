@@ -73,7 +73,6 @@
   .chip input[type=radio]{accent-color:var(--accent)}
   .chip:hover{background:rgba(37,99,235,.1)}
 
-  /* Tabs */
   .tab-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
   .tab{border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.7);padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
   .tab.active{background:linear-gradient(135deg,#2563eb,#14a3e9);color:#fff;border-color:transparent}
@@ -92,20 +91,18 @@
   .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:90}
   .toast.err{border-left-color:#dc2626;color:#dc2626}
 
-  /* Dev sheet (modal) */
   .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:130}
   .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
   .dev-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
   .dev-panel{display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
   .dev-panel[aria-hidden="false"]{opacity:1;visibility:visible;pointer-events:auto}
-  .dev-sheet{width:min(520px,calc(100vw - 48px));background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);padding:26px;display:grid;gap:18px;pointer-events:auto}
+  .dev-sheet{width:min(560px,calc(100vw - 48px));background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);padding:26px;display:grid;gap:18px;pointer-events:auto}
   .dev-sheet h3{margin:0;font-size:20px;font-weight:600}
   .dev-sheet .close{justify-self:end;border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:600}
   .dev-sheet label{color:#cbd5f5}
   .dev-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
   .dev-tip{font-size:13px;color:rgba(226,232,240,.7)}
 
-  /* Results card inside flow (not fixed) */
   .results-card{
     display:none;
     background:var(--surface-strong);
@@ -397,10 +394,12 @@
       </div>
 
       <div style="border-top:1px solid rgba(148,163,184,.35);padding-top:12px">
-        <h3 style="margin:0 0 8px 0;font-size:16px">Debug preview</h3>
+        <h3 style="margin:0 0 8px 0;font-size:16px">Debug & Tools</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button id="btnBuildPreview" class="btn secondary" type="button">Build &amp; show payload</button>
           <button id="btnCopyPreview" class="btn ghost" type="button">Copy JSON</button>
+          <button id="btnCopyExcelRow" class="btn ghost" type="button" disabled>Copy APACHE row (Excel)</button>
+          <button id="btnDummyFill" class="btn secondary" type="button">Dummy fill</button>
         </div>
         <pre id="debugPreview" style="margin-top:10px;max-height:260px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">No payload yet</pre>
 
@@ -419,18 +418,18 @@
   function valStr(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:v; }
   function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
   function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); const k=new Date(d.getTime()-off*60000); return k.toISOString().slice(0,10); }
   function toast(msg, ok=true){
     const t=$('toast');
     t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block';
     clearTimeout(toast._timer);
     toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
   }
-  // console verbosity for dev (hidden from normal users)
   function vlog(groupLabel, info){
     try{ console.groupCollapsed(groupLabel); if(typeof info === 'object') console.debug(info); else console.debug(String(info)); console.groupEnd(); }catch(_){}
   }
 
-  // desktop class (fixed: wideEnough variable name)
   function detectDesktop(){
     const ua=navigator.userAgent||"";
     const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
@@ -484,7 +483,6 @@
     }catch(_){}
   }
 
-  // cosmetic: Z Fold 6
   (function(){ const ua=(navigator.userAgent||'').toUpperCase(); const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6'); if(isFold6) document.body.classList.add('fold6'); })();
 
   // Chronic toggle
@@ -636,16 +634,21 @@
     };
   }
 
-  // Show result card only when all required fields are satisfied
   function formIsComplete(){ try{ buildPayload(); return true; }catch(_){ return false; } }
+
   function maybeShowResults(){
     const card=$('resultsCard');
-    if(!card) return;
-    if(!formIsComplete()){ card.setAttribute('data-visible','false'); return; }
+    const copyBtn=$('btnCopyExcelRow');
+    if(!formIsComplete()){
+      if(card) card.setAttribute('data-visible','false');
+      if(copyBtn) copyBtn.disabled=true;
+      return;
+    }
     const payload = buildPayload();
     $('resApache').textContent = String(payload.apacheScore) + ' pts';
     $('resMort').textContent = String(payload.predictedMortalityPct.toFixed(1)) + '%';
-    card.setAttribute('data-visible','true');
+    if(card) card.setAttribute('data-visible','true');
+    if(copyBtn) copyBtn.disabled=false; // enable when results are ready
   }
 
   // Live updates
@@ -654,6 +657,63 @@
       if(e.target && e.target.closest('.panel')) maybeShowResults();
     });
   });
+
+  // ---------- helpers for dev tools ----------
+  function buildExcelRowText(){
+    const p = buildPayload();
+    // Tab-separated for clean Excel/Sheets paste
+    return p.sheetRow.join('\t');
+  }
+
+  function dummyFill(){
+    // Deterministic-ish but with random age 45-70
+    const age = randInt(45,70);
+    $('patientName').value = 'Jane Doe';
+    $('patientNameMini').value = 'Jane Doe';
+    $('uhid').value = '2010' + String(randInt(1000,9999));
+    $('uhidMini').value = $('uhid').value;
+
+    $('age').value = String(age);
+    $('sex').value = 'Female';
+    $('admitDate').value = todayISO();
+    $('diagnosis').value = 'CKD on HTN; Community-acquired pneumonia; on oxygen';
+
+    // Vitals (reasonable)
+    $('tempF').value = '99.1';
+    $('map').value = '78';
+    $('hr').value = '96';
+    $('rr').value = '22';
+    $('gcs').value = '14';
+
+    // O2: assume nasal cannula (<50%), give PaO2
+    document.querySelector('input[name="fio2"][value="<50%"]').checked = true;
+    updateOxygenUI();
+    $('pao2').value = '72';
+    $('aagrad').value = '';
+
+    // Labs
+    $('ph').value = '7.36';
+    $('hco3').value = '22';
+    $('na').value = '138';
+    $('k').value = '4.8';
+    $('cr').value = '2.6';
+    $('wbc').value = '13.2';
+    $('hct').value = '33';
+
+    // ARF likely given CKD context
+    document.querySelector('input[name="arf"][value="Yes"]').checked = true;
+
+    // Chronic disease present → non-operative
+    document.querySelector('input[name="chronic"][value="Yes"]').checked = true;
+    $('surgTypeWrap').style.display = 'grid';
+    document.querySelector('input[name="surgtype"][value="Nonoperative"]').checked = true;
+
+    // Outcome default N
+    document.querySelector('input[name="mortality"][value="N"]').checked = true;
+
+    maybeShowResults();
+    toast('Dummy data filled');
+  }
 
   // ---------- network helpers ----------
   async function sendJson(url, payload, label){
@@ -707,9 +767,7 @@
       const secret = ($('onlineSecret')?.value.trim() || ONLINE_SECRET || '');
       if(!url || !secret){ toast('Set Online URL and Secret in Developer panel.', false); return; }
 
-      // IST month to match server sheet tabs
       const ym = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
-
       const link = url + '?action=download&month=' + encodeURIComponent(ym) + '&auth=' + encodeURIComponent(secret);
       vlog('[download] Opening CSV link', { month: ym, link });
       const w = window.open(link, '_blank');
@@ -742,7 +800,7 @@
     }
   });
 
-  // ---------- Dev preview ----------
+  // ---------- Dev tools ----------
   $('btnBuildPreview').addEventListener('click', ()=>{
     try{
       const payload=buildPayload();
@@ -754,6 +812,7 @@
       console.error('[preview] error:', e);
     }
   });
+
   $('btnCopyPreview').addEventListener('click', ()=>{
     try{
       navigator.clipboard.writeText($('debugPreview').textContent||'');
@@ -761,10 +820,24 @@
     }catch(_){ toast('Copy failed', false); }
   });
 
+  $('btnCopyExcelRow').addEventListener('click', ()=>{
+    try{
+      const t = buildExcelRowText();
+      navigator.clipboard.writeText(t);
+      toast('Row copied (tab-separated). Paste into Excel/Sheets.');
+    }catch(e){
+      toast('Copy failed: '+(e && e.message ? e.message : String(e)), false);
+    }
+  });
+
+  $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
+
   // ---------- Init ----------
   document.addEventListener('DOMContentLoaded', ()=>{
     updateOxygenUI();
     maybeShowResults();
+    // disable copy row until form complete
+    if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = !formIsComplete();
   });
 </script>
 </body>
