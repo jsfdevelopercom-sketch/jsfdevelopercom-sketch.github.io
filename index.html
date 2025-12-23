@@ -353,7 +353,7 @@
           </div>
         </section>
 
-        <!-- Results card (appears when the form is complete) -->
+        <!-- Results -->
         <aside id="resultsCard" class="results-card" aria-live="polite" aria-atomic="true">
           <h4 class="results-title">Computed Result</h4>
           <div class="results-grid">
@@ -374,7 +374,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <!-- Dev modal (includes JSON & last response preview) -->
+  <!-- Dev modal -->
   <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
   <div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
     <div class="dev-sheet">
@@ -412,7 +412,7 @@
   </div>
 
 <script>
-  // --- helpers
+  // ---------- small helper & UX ----------
   const $ = (id) => document.getElementById(id);
   const q = (sel) => document.querySelector(sel);
   function valNum(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:Number(v); }
@@ -425,9 +425,19 @@
     clearTimeout(toast._timer);
     toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
   }
+  // console verbosity for dev (hidden from normal users)
+  function vlog(groupLabel, info){
+    try{ console.groupCollapsed(groupLabel); if(typeof info === 'object') console.debug(info); else console.debug(String(info)); console.groupEnd(); }catch(_){}
+  }
 
-  // desktop class
-  function detectDesktop(){ const ua=navigator.userAgent||""; const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua); const pointerFine=matchMedia('(pointer: fine)').matches; const wideEnough=matchMedia('(min-width:1024px)').matches; return looksDesktop||(pointerFine&&wideEnough); }
+  // desktop class (fixed: wideEnough variable name)
+  function detectDesktop(){
+    const ua=navigator.userAgent||"";
+    const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
+    const pointerFine=matchMedia('(pointer: fine)').matches;
+    const wideEnough=matchMedia('(min-width:1024px)').matches;
+    return looksDesktop||(pointerFine&&wideEnough);
+  }
   function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
   applyDesktopClass(); addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
 
@@ -548,8 +558,6 @@
     const agePts=agePoints(meta.age);
     const chronicPts=chronicPoints(inputs.ChronicHealth, inputs.SurgeryType);
     const apacheII=aps+agePts+chronicPts;
-
-    // Knaus logit mapping (single general mortality)
     const logit=-3.517 + 0.146*apacheII;
     const mortProb=1/(1+Math.exp(-logit));
     return { apacheII, mortProb };
@@ -628,7 +636,7 @@
     };
   }
 
-  // Show result card only when all required fields are satisfied (strict mode)
+  // Show result card only when all required fields are satisfied
   function formIsComplete(){ try{ buildPayload(); return true; }catch(_){ return false; } }
   function maybeShowResults(){
     const card=$('resultsCard');
@@ -640,17 +648,18 @@
     card.setAttribute('data-visible','true');
   }
 
-  // Watch inputs for live result updates
+  // Live updates
   ['input','change'].forEach(evt=>{
     document.addEventListener(evt, (e)=>{
       if(e.target && e.target.closest('.panel')) maybeShowResults();
     });
   });
 
-  // Low-level POST helper; throws on non-2xx and returns parsed JSON or throws if not JSON
+  // ---------- network helpers ----------
   async function sendJson(url, payload, label){
     let res, text;
     try{
+      vlog('[fetch] '+label+' → POST', { url, payloadPreview: JSON.stringify(payload).slice(0,300) });
       res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -659,18 +668,16 @@
         credentials: 'omit'
       });
     }catch(netErr){
+      console.error('[NET] '+label+' network error:', netErr);
       throw new Error(label+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
     }
-    try{
-      text = await res.text();
-    }catch(_readErr){
-      text = '';
-    }
-    // Apps Script often returns 200 OK even on error; we must inspect body JSON.
+    try{ text = await res.text(); }catch(_){ text=''; }
     let data=null;
     try{ data = text ? JSON.parse(text) : null; }catch(parseErr){
+      console.error('[PARSE] Non-JSON body:', text);
       throw new Error(label+' returned non-JSON: '+(text ? text.slice(0,200) : 'empty body'));
     }
+    vlog('[fetch] '+label+' ← response', { status: res.status, data });
     if(!res.ok){
       const msg=(data && (data.error||data.message)) || ('HTTP '+res.status);
       throw new Error(label+' HTTP error: '+msg);
@@ -682,8 +689,10 @@
     const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
     if(!url) throw new Error('Online Webhook URL not set (Developer → Online Webhook URL).');
     if(!payload.authToken) throw new Error('Online Secret not set (Developer → Online Secret).');
+    if(/\/dev\//i.test(url)){
+      console.warn('You are using the Apps Script /dev URL; deploy a new version and use /exec for public access.');
+    }
     const data = await sendJson(url, payload, 'Google Sheets webhook');
-    // Hard gate: only succeed when server confirms ok:true
     if(!data || data.ok !== true){
       const detail = data && (data.error || JSON.stringify(data).slice(0,200));
       throw new Error('Sheets webhook did not confirm success'+(detail?': '+detail:''));
@@ -691,41 +700,49 @@
     return data;
   }
 
-  // Download CSV for current month
+  // ---------- Download CSV for current IST month ----------
   $('btnDownload').addEventListener('click', ()=>{
     try{
       const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
       const secret = ($('onlineSecret')?.value.trim() || ONLINE_SECRET || '');
       if(!url || !secret){ toast('Set Online URL and Secret in Developer panel.', false); return; }
-      const ym = new Date().toISOString().slice(0,7);
+
+      // IST month to match server sheet tabs
+      const ym = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
+
       const link = url + '?action=download&month=' + encodeURIComponent(ym) + '&auth=' + encodeURIComponent(secret);
-      window.open(link, '_blank');
-    }catch(e){ toast(e.message, false); }
+      vlog('[download] Opening CSV link', { month: ym, link });
+      const w = window.open(link, '_blank');
+      if(!w){ toast('Popup blocked. Allow popups for this site.', false); }
+    }catch(e){
+      console.error('[download] error:', e);
+      toast(e.message, false);
+    }
   });
 
-  // Submit
+  // ---------- Submit ----------
   $('btnSubmit').addEventListener('click', async (ev)=>{
     ev.preventDefault();
     const button=$('btnSubmit'); button.disabled=true;
     try{
       saveDevOverrides();
       const payload=buildPayload();
+      vlog('[submit] Built payload', payload);
       toast('Sending to Google Sheets…');
       const resp = await postOnline(payload);
-      // Log and show in dev pane
       if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
-      toast('Saved to Google Sheets ✅'); // only after ok:true
+      toast('Saved to Google Sheets ✅');
       maybeShowResults();
     }catch(e){
       if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
       toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
-      console.error(e);
+      console.error('[submit] error:', e);
     }finally{
       button.disabled=false;
     }
   });
 
-  // Dev preview
+  // ---------- Dev preview ----------
   $('btnBuildPreview').addEventListener('click', ()=>{
     try{
       const payload=buildPayload();
@@ -734,6 +751,7 @@
     }catch(e){
       $('debugPreview').textContent = 'Error: '+e.message;
       toast(e.message, false);
+      console.error('[preview] error:', e);
     }
   });
   $('btnCopyPreview').addEventListener('click', ()=>{
@@ -743,7 +761,7 @@
     }catch(_){ toast('Copy failed', false); }
   });
 
-  // Init
+  // ---------- Init ----------
   document.addEventListener('DOMContentLoaded', ()=>{
     updateOxygenUI();
     maybeShowResults();
