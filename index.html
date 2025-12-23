@@ -8,145 +8,108 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
+  :root{
     color-scheme: light;
-    --surface: rgba(255, 255, 255, 0.9);
-    --surface-strong: rgba(255, 255, 255, 0.98);
-    --outline: rgba(148, 163, 184, 0.4);
-    --outline-strong: rgba(37, 99, 235, 0.35);
-    --muted: #475569;
-    --text: #0f172a;
-    --accent: #2563eb;
-    --accent-dark: #1d4ed8;
-    --accent-soft: rgba(37, 99, 235, 0.12);
+    --surface: rgba(255,255,255,0.9);
+    --surface-strong: rgba(255,255,255,0.98);
+    --outline: rgba(148,163,184,0.4);
+    --muted:#475569; --text:#0f172a;
+    --accent:#2563eb; --accent-dark:#1d4ed8;
     --bg-gradient:
-      radial-gradient(circle at 5% 0%, rgba(59, 130, 246, 0.22), transparent 45%),
-      radial-gradient(circle at 95% 0%, rgba(14, 165, 233, 0.18), transparent 40%),
-      linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 55%, #f8fafc 100%);
-    --shadow: 0 30px 60px -25px rgba(15, 23, 42, 0.35);
-    --shadow-soft: 0 20px 50px -30px rgba(15, 23, 42, 0.35);
-    --radius-lg: 26px;
-    --radius-md: 18px;
-    --radius-sm: 12px;
-    --max-width: 1260px;
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
+      radial-gradient(circle at 5% 0%, rgba(59,130,246,.22), transparent 45%),
+      radial-gradient(circle at 95% 0%, rgba(14,165,233,.18), transparent 40%),
+      linear-gradient(180deg,#f1f5f9 0%,#e2e8f0 55%,#f8fafc 100%);
+    --shadow: 0 30px 60px -25px rgba(15,23,42,.35);
+    --shadow-soft: 0 20px 50px -30px rgba(15,23,42,.35);
+    --radius-lg: 26px; --radius-md:18px; --radius-sm:12px;
+    --max-width:1260px;
+    font-synthesis:none; text-rendering:optimizeLegibility;
   }
-  *, *::before, *::after { box-sizing: border-box; }
-  body {
-    margin: 0; min-height: 100vh; font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: var(--text); background: var(--bg-gradient); display: flex; flex-direction: column;
-  }
-  a { color: inherit; }
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:"Inter",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg-gradient);display:flex;flex-direction:column}
+  a{color:inherit}
 
-  .masthead { position: relative; padding: clamp(24px, 5vw, 42px) clamp(18px, 7vw, 64px) clamp(28px, 6vw, 52px); display: flex; flex-direction: column; gap: clamp(18px, 4vw, 36px); overflow: hidden; }
-  .masthead::before { content: ""; position: absolute; inset: 12% auto -20% 50%; width: clamp(240px, 40vw, 520px); height: clamp(240px, 45vw, 560px);
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.45), transparent 70%); transform: translateX(-50%) rotate(18deg); filter: blur(42px); opacity: 0.6; }
-  .masthead__inner { position: relative; z-index: 1; max-width: var(--max-width); margin: 0 auto; display: flex; flex-direction: column; gap: clamp(18px, 4vw, 36px); }
-  .topline { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
-  .brand { display: flex; align-items: center; gap: 16px; }
-  .brand__mark { width: 48px; height: 48px; border-radius: 16px; background: linear-gradient(135deg, rgba(37, 99, 235, 0.92), rgba(59, 130, 246, 0.7));
-    display: grid; place-items: center; color: #fff; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 0.04em; box-shadow: var(--shadow-soft); }
-  .brand__copy h1 { margin: 0; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(30px, 5vw, 44px); font-weight: 700; letter-spacing: -0.02em; }
-  .brand__copy p { margin: 6px 0 0; max-width: 520px; color: var(--muted); font-size: clamp(15px, 2.5vw, 18px); line-height: 1.6; }
-  .dev-bubble { width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.7); background: rgba(15, 23, 42, 0.75);
-    color: #e2e8f0; display: grid; place-items: center; cursor: pointer; box-shadow: 0 16px 40px -20px rgba(15, 23, 42, 0.65); backdrop-filter: blur(12px); transition: transform 0.2s ease; }
-  .dev-bubble:hover { transform: translateY(-2px); }
+  .masthead{position:relative;padding:clamp(24px,5vw,42px) clamp(18px,7vw,64px) clamp(28px,6vw,52px);display:flex;flex-direction:column;gap:clamp(18px,4vw,36px);overflow:hidden}
+  .masthead::before{content:"";position:absolute;inset:12% auto -20% 50%;width:clamp(240px,40vw,520px);height:clamp(240px,45vw,560px);background:radial-gradient(circle, rgba(37,99,235,.45), transparent 70%);transform:translateX(-50%) rotate(18deg);filter:blur(42px);opacity:.6}
+  .masthead__inner{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:flex;flex-direction:column;gap:clamp(18px,4vw,36px)}
+  .topline{display:flex;align-items:center;justify-content:space-between;gap:18px}
+  .brand{display:flex;align-items:center;gap:16px}
+  .brand__mark{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.7));display:grid;place-items:center;color:#fff;font-family:"Plus Jakarta Sans","Inter",sans-serif;font-weight:700;font-size:20px;letter-spacing:.04em;box-shadow:var(--shadow-soft)}
+  .brand__copy h1{margin:0;font-family:"Plus Jakarta Sans","Inter",sans-serif;font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.02em}
+  .brand__copy p{margin:6px 0 0;max-width:520px;color:var(--muted);font-size:clamp(15px,2.5vw,18px);line-height:1.6}
+  .dev-bubble{width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.7);background:rgba(15,23,42,.75);color:#e2e8f0;display:grid;place-items:center;cursor:pointer;box-shadow:0 16px 40px -20px rgba(15,23,42,.65);backdrop-filter:blur(12px);transition:transform .2s ease}
+  .dev-bubble:hover{transform:translateY(-2px)}
 
-  .mode-switcher { display: grid; gap: 10px; align-items: start; }
-  .mode-pills { display: grid; grid-template-columns: 1fr; gap: 12px; }
-  .mode { position: relative; border-radius: var(--radius-md); border: 1px solid transparent; padding: 14px 18px; background: rgba(255, 255, 255, 0.65); color: var(--muted); font-weight: 600; text-align: left; cursor: default; }
-  .mode.active { background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(14, 165, 233, 0.8)); color: #fff; box-shadow: 0 18px 42px -18px rgba(37, 99, 235, 0.6); }
-  .mode-hint { font-size: 14px; color: var(--muted); }
+  .mode-switcher{display:grid;gap:10px;align-items:start}
+  .mode-pills{display:grid;grid-template-columns:1fr;gap:12px}
+  .mode{position:relative;border-radius:var(--radius-md);border:1px solid transparent;padding:14px 18px;background:rgba(255,255,255,.65);color:var(--muted);font-weight:600;text-align:left;cursor:default}
+  .mode.active{background:linear-gradient(135deg,#2563eb,#14a3e9);color:#fff;box-shadow:0 18px 42px -18px rgba(37,99,235,.6)}
+  .mode-hint{font-size:14px;color:var(--muted)}
 
-  .patient-mini { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--muted); }
-  .mini-field { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: 1px solid rgba(148, 163, 184, 0.4); background: rgba(255, 255, 255, 0.75); box-shadow: 0 12px 28px -22px rgba(15, 23, 42, 0.45); }
-  .mini-field span { font-size: 16px; }
-  .mini-field input { border: 0; background: transparent; font-size: 14px; outline: none; min-width: 110px; }
+  .patient-mini{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted)}
+  .mini-field{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.75);box-shadow:0 12px 28px -22px rgba(15,23,42,.45)}
+  .mini-field span{font-size:16px}
+  .mini-field input{border:0;background:transparent;font-size:14px;outline:none;min-width:110px}
 
-  .workspace-wrapper { flex: 1; padding: 0 clamp(18px, 7vw, 64px) clamp(140px, 12vw, 200px); }
-  .workspace { position: relative; z-index: 1; max-width: var(--max-width); margin: 0 auto; display: grid; gap: clamp(20px, 4vw, 36px); }
-  .cards-flow { display: grid; gap: clamp(18px, 3vw, 28px); }
-  .panel { background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--outline); padding: clamp(18px, 3vw, 28px); box-shadow: var(--shadow-soft); backdrop-filter: blur(14px); display: grid; gap: clamp(16px, 2.5vw, 26px); }
-  .panel header { display: grid; gap: 6px; }
-  .panel h2 { margin: 0; font-size: clamp(18px, 2.7vw, 22px); font-weight: 700; letter-spacing: -0.01em; }
-  .panel .hint { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .workspace-wrapper{flex:1;padding:0 clamp(18px,7vw,64px) clamp(180px,12vw,220px)}
+  .workspace{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:grid;gap:clamp(20px,4vw,36px)}
+  .cards-flow{display:grid;gap:clamp(18px,3vw,28px)}
+  .panel{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--outline);padding:clamp(18px,3vw,28px);box-shadow:var(--shadow-soft);backdrop-filter:blur(14px);display:grid;gap:clamp(16px,2.5vw,26px)}
+  .panel header{display:grid;gap:6px}
+  .panel h2{margin:0;font-size:clamp(18px,2.7vw,22px);font-weight:700;letter-spacing:-.01em}
+  .panel .hint{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
 
-  label { font-weight: 600; font-size: 14px; color: #1e293b; display: block; margin-bottom: 6px; }
-  .input, select, textarea { width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid rgba(148, 163, 184, 0.5); background: rgba(248, 250, 252, 0.92); font-size: 15px; transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
-  .input:focus, select:focus, textarea:focus { outline: none; border-color: rgba(37, 99, 235, 0.6); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); background: #fff; }
-  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-innerspin-button { -webkit-appearance: none; margin: 0; }
+  label{font-weight:600;font-size:14px;color:#1e293b;display:block;margin-bottom:6px}
+  .input,select,textarea{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid rgba(148,163,184,.5);background:rgba(248,250,252,.92);font-size:15px;transition:border .2s ease,box-shadow .2s ease,background .2s ease}
+  .input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(37,99,235,.6);box-shadow:0 0 0 4px rgba(37,99,235,.15);background:#fff}
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
-  .grid-2, .grid-3 { display: grid; gap: 18px; }
-  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .grid-2,.grid-3{display:grid;gap:18px}
+  .grid-2{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .grid-3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .chip-row{display:flex;flex-wrap:wrap;gap:12px}
+  .chip{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-md);background:rgba(148,163,184,.14);border:1px solid transparent;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s ease}
+  .chip input[type=radio]{accent-color:var(--accent)}
+  .chip:hover{background:rgba(37,99,235,.1)}
 
-  .chip-row { display: flex; flex-wrap: wrap; gap: 12px; }
-  .chip { display: inline-flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: var(--radius-md); background: rgba(148, 163, 184, 0.14); border: 1px solid transparent; font-weight: 600; cursor: pointer; color: var(--muted); transition: all 0.2s ease; }
-  .chip input[type=radio] { accent-color: var(--accent); }
-  .chip:hover { background: rgba(37, 99, 235, 0.1); }
+  .action-dock{position:fixed;left:0;right:0;bottom:0;padding:18px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,24px),28px);background:rgba(255,255,255,.96);border-top:1px solid rgba(148,163,184,.35);box-shadow:0 -18px 42px -24px rgba(15,23,42,.45);backdrop-filter:blur(16px)}
+  .action-dock__inner{max-width:var(--max-width);margin:0 auto;display:grid;gap:12px}
+  .btn{border-radius:var(--radius-md);border:1px solid transparent;padding:16px;font-weight:600;font-size:16px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+  .btn.primary{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;box-shadow:0 20px 40px -18px rgba(37,99,235,.55)}
+  .btn.primary:hover:not([disabled]){transform:translateY(-1px)}
+  .btn.secondary{background:rgba(37,99,235,.08);color:var(--accent-dark);border:1px solid rgba(37,99,235,.18)}
+  .btn.ghost{background:transparent;border:1px solid rgba(148,163,184,.35);color:var(--muted)}
+  .btn[disabled]{opacity:.6;cursor:progress}
 
-  .tab-bar { display: flex; flex-wrap: wrap; gap: 10px; }
-  .tab { flex: 1 1 150px; text-align: center; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid transparent; background: rgba(15, 23, 42, 0.08); font-weight: 600; color: var(--muted); cursor: pointer; transition: all 0.2s ease; }
-  .tab.active { background: rgba(37, 99, 235, 0.9); color: #fff; box-shadow: 0 12px 28px -18px rgba(37, 99, 235, 0.6); }
-  .tab-panel { display: none; gap: 18px; }
-  .tab-panel.active { display: grid; }
+  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:90}
+  .toast.err{border-left-color:#dc2626;color:#dc2626}
 
-  .insight-card { position: relative; background: var(--surface-strong); border-radius: var(--radius-lg); border: 1px solid rgba(148, 163, 184, 0.35); padding: clamp(18px, 3vw, 28px); box-shadow: var(--shadow); display: grid; gap: 16px; backdrop-filter: blur(16px); }
-  .insight-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 600; }
-  .insight-hint { font-size: 13px; color: var(--muted); }
-  .preview-collapse { display: none; font-size: 14px; color: var(--accent-dark); cursor: pointer; }
-  .preview-body { border-radius: var(--radius-sm); border: 1px solid rgba(15, 23, 42, 0.4); background: #0f172a; color: #e2e8f0; padding: 16px; font-family: ui-monospace, Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 13px; max-height: 360px; overflow: auto; line-height: 1.6; }
-  .preview-body.empty { display: grid; place-items: center; color: rgba(226, 232, 240, 0.6); }
+  /* Dev sheet (modal) */
+  .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:130}
+  .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
+  .dev-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
+  .dev-panel{display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
+  .dev-panel[aria-hidden="false"]{opacity:1;visibility:visible;pointer-events:auto}
+  .dev-sheet{width:min(520px,calc(100vw - 48px));background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);padding:26px;display:grid;gap:18px;pointer-events:auto}
+  .dev-sheet h3{margin:0;font-size:20px;font-weight:600}
+  .dev-sheet .close{justify-self:end;border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:600}
+  .dev-sheet label{color:#cbd5f5}
+  .dev-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
+  .dev-tip{font-size:13px;color:rgba(226,232,240,.7)}
 
-  .action-dock { position: fixed; left: 0; right: 0; bottom: 0; padding: 18px clamp(18px, 7vw, 64px) max(env(safe-area-inset-bottom, 24px), 28px);
-    background: rgba(255, 255, 255, 0.96); border-top: 1px solid rgba(148, 163, 184, 0.35); box-shadow: 0 -18px 42px -24px rgba(15, 23, 42, 0.45); backdrop-filter: blur(16px); }
-  .action-dock__inner { max-width: var(--max-width); margin: 0 auto; display: grid; gap: 12px; }
-  .btn { border-radius: var(--radius-md); border: 1px solid transparent; padding: 16px; font-weight: 600; font-size: 16px; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; }
-  .btn.primary { background: linear-gradient(135deg, #2563eb, #1e40af); color: #fff; box-shadow: 0 20px 40px -18px rgba(37, 99, 235, 0.55); }
-  .btn.primary:hover:not([disabled]) { transform: translateY(-1px); }
-  .btn.secondary { background: rgba(37, 99, 235, 0.08); color: var(--accent-dark); border: 1px solid rgba(37, 99, 235, 0.18); }
-  .btn.ghost { background: transparent; border: 1px solid rgba(148, 163, 184, 0.35); color: var(--muted); }
-  .btn[disabled] { opacity: 0.6; cursor: progress; }
-
-  .toast { position: fixed; right: clamp(18px, 5vw, 64px); bottom: clamp(120px, 12vw, 180px); min-width: min(360px, calc(100vw - 48px)); background: #fff; border-radius: var(--radius-md);
-    border-left: 4px solid #16a34a; padding: 16px 20px; box-shadow: var(--shadow); font-weight: 600; color: var(--text); display: none; z-index: 90; }
-  .toast.err { border-left-color: #dc2626; color: #dc2626; }
-
-  .dev-panel, .dev-backdrop { position: fixed; inset: 0; z-index: 130; }
-  .dev-backdrop { background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
-  .dev-backdrop[data-visible="true"] { opacity: 1; pointer-events: auto; }
-  .dev-panel { display: grid; place-items: center; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.25s ease, visibility 0.25s ease; }
-  .dev-panel[aria-hidden="false"] { opacity: 1; visibility: visible; pointer-events: auto; }
-  .dev-sheet { width: min(420px, calc(100vw - 48px)); background: #0f172a; color: #f8fafc; border-radius: var(--radius-lg); border: 1px solid rgba(148, 163, 184, 0.35); box-shadow: 0 30px 80px -30px rgba(15, 23, 42, 0.8); padding: 26px; display: grid; gap: 18px; pointer-events: auto; }
-  .dev-sheet h3 { margin: 0; font-size: 20px; font-weight: 600; }
-  .dev-sheet .close { justify-self: end; border: 0; background: rgba(148, 163, 184, 0.15); color: #e2e8f0; border-radius: 999px; padding: 8px 14px; cursor: pointer; font-weight: 600; }
-  .dev-sheet label { color: #cbd5f5; }
-  .dev-sheet .input { background: rgba(15, 23, 42, 0.75); color: #f8fafc; border: 1px solid rgba(148, 163, 184, 0.4); }
-  .dev-tip { font-size: 13px; color: rgba(226, 232, 240, 0.7); }
-
-  body.desktop .workspace { grid-template-columns: 1fr 360px; align-items: start; }
-  body.desktop .cards-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  body.desktop .panel[data-span="full"] { grid-column: 1 / -1; }
-  body.desktop .preview-collapse { display: none !important; }
-  body.desktop .insight-card { position: sticky; top: clamp(32px, 8vw, 64px); }
-  body.desktop .action-dock__inner { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  body.desktop .action-dock__inner .btn.secondary { order: 1; }
-
-  @media (max-width: 899px) { body.desktop .workspace { grid-template-columns: 1fr; } }
-  @media (max-width: 720px) {
-    .topline { flex-direction: column; align-items: flex-start; }
-    .dev-bubble { position: absolute; top: 0; right: 12px; transform: translateY(-50%); }
-    .workspace-wrapper { padding-bottom: clamp(200px, 24vw, 260px); }
-    .preview-collapse { display: inline-flex; align-items: center; gap: 6px; }
-    .insight-card[data-collapsed="true"] .preview-body { display: none; }
-    .insight-card[data-collapsed="true"] .preview-collapse::after { content: "Show"; }
-    .insight-card[data-collapsed="false"] .preview-collapse::after { content: "Hide"; }
-    .action-dock__inner { grid-template-columns: 1fr; }
-  }
-  body.fold6 .patient-mini { display: flex; }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  /* Results card */
+  .results-card{position:fixed;left:clamp(18px,7vw,64px);right:clamp(18px,7vw,64px);bottom:calc(96px + max(env(safe-area-inset-bottom,24px),28px));background:var(--surface-strong);border:1px solid rgba(148,163,184,.35);border-radius:18px;box-shadow:var(--shadow);padding:14px 16px;display:none}
+  .results-card[data-visible="true"]{display:block}
+  .results-title{margin:0 0 6px 0;font-weight:700}
+  .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .metric{padding:10px 12px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:700}
+  .metric small{display:block;font-weight:600;color:var(--muted)}
+  body.desktop .workspace{grid-template-columns:1fr 360px;align-items:start}
+  body.desktop .cards-flow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body.desktop .action-dock__inner{grid-template-columns:repeat(3,minmax(0,1fr))}
+  @media (max-width:899px){body.desktop .workspace{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   }
 </style>
 </head>
@@ -180,6 +143,7 @@
   <div class="workspace-wrapper">
     <main class="workspace" id="formContent">
       <div class="cards-flow">
+        <!-- Patient -->
         <section class="panel" data-span="full" aria-labelledby="patient-h">
           <header>
             <h2 id="patient-h">Patient</h2>
@@ -197,6 +161,7 @@
           </div>
         </section>
 
+        <!-- Demographics -->
         <section class="panel" aria-labelledby="demo-h">
           <header>
             <h2 id="demo-h">Demographics & Admission</h2>
@@ -233,6 +198,7 @@
           </div>
         </section>
 
+        <!-- Chronic -->
         <section class="panel" aria-labelledby="chronic-h">
           <header>
             <h2 id="chronic-h">Chronic health</h2>
@@ -254,6 +220,7 @@
           </div>
         </section>
 
+        <!-- Inputs -->
         <section class="panel" data-span="full" aria-labelledby="inputs-h">
           <header>
             <h2 id="inputs-h">Clinical inputs</h2>
@@ -370,34 +337,33 @@
           </div>
         </section>
       </div>
-
-      <aside class="insight-card" id="previewCard" data-collapsed="false">
-        <div class="insight-title">
-          <span>Submission preview</span>
-          <button id="btnPreview" class="btn ghost" type="button">Refresh preview</button>
-        </div>
-        <div id="previewToggle" class="preview-collapse" role="button" aria-expanded="true">Preview</div>
-        <pre id="preview" class="preview-body empty">Nothing captured yet</pre>
-        <div class="insight-hint">Updated automatically on submit to mirror what leaves the device.</div>
-      </aside>
     </main>
   </div>
+
+  <!-- Compact results card (auto when complete) -->
+  <aside id="resultsCard" class="results-card" aria-live="polite" aria-atomic="true">
+    <h4 class="results-title">Computed Result</h4>
+    <div class="results-grid">
+      <div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
+      <div class="metric"><small>Estimated mortality</small><span id="resMort">—</span></div>
+    </div>
+  </aside>
 
   <div class="action-dock" role="contentinfo">
     <div class="action-dock__inner">
       <button id="btnDownload" class="btn ghost" type="button">Download current month</button>
-      <button id="btnPreviewDock" class="btn secondary" type="button">Preview only</button>
       <button id="btnSubmit" class="btn primary" type="button">Submit to Google Sheets</button>
     </div>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <!-- Dev modal (now also houses JSON preview) -->
   <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
   <div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
     <div class="dev-sheet">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
-        <h3 id="devTitle">Developer overrides</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
+        <h3 id="devTitle">Developer / Connection</h3>
         <button id="devClose" class="close" type="button">Close</button>
       </div>
       <p class="dev-tip">Values persist per device. Leave blank to fall back to defaults.</p>
@@ -413,223 +379,139 @@
         <label for="clientId">Client ID</label>
         <input id="clientId" class="input" type="text" value="NURSING-STATION-01">
       </div>
+
+      <div style="border-top:1px solid rgba(148,163,184,.35);padding-top:12px">
+        <h3 style="margin:0 0 8px 0;font-size:16px">Debug preview</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="btnBuildPreview" class="btn secondary" type="button">Build &amp; show payload</button>
+          <button id="btnCopyPreview" class="btn ghost" type="button">Copy JSON</button>
+        </div>
+        <pre id="debugPreview" style="margin-top:10px;max-height:260px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">No payload yet</pre>
+      </div>
       <div class="dev-tip">The app is locked to Online (Google Sheets) mode.</div>
     </div>
   </div>
 
-  <script>
+<script>
   // --- helpers
   const $ = (id) => document.getElementById(id);
   const q = (sel) => document.querySelector(sel);
-  function valNum(id){ const el = $(id); if (!el) return null; const v = el.value.trim(); return v === '' ? null : Number(v); }
-  function valStr(id){ const el = $(id); if (!el) return null; const v = el.value.trim(); return v === '' ? null : v; }
-  function radioVal(name){ const el = document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : null; }
-  function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c)=>{ const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15; const v = c === 'x' ? r : ((r & 0x3) | 0x8); return v.toString(16); }); }
+  function valNum(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:Number(v); }
+  function valStr(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:v; }
+  function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
+  function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
   function toast(msg, ok=true){ const t=$('toast'); t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block'; clearTimeout(toast._timer); toast._timer=setTimeout(()=>{ t.style.display='none'; }, 4800); }
 
-  // desktop class detection
-  function detectDesktop(){
-    const ua = navigator.userAgent || "";
-    const looksDesktop = /(Macintosh|Windows|Linux)/i.test(ua) && !/(Mobile|Tablet|Android)/i.test(ua);
-    const pointerFine = window.matchMedia('(pointer: fine)').matches;
-    const wideEnough = window.matchMedia('(min-width: 1024px)').matches;
-    return looksDesktop || (pointerFine && wideEnough);
-  }
+  // desktop class
+  function detectDesktop(){ const ua=navigator.userAgent||""; const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua); const pointerFine=matchMedia('(pointer: fine)').matches; const wideEnough=matchMedia('(min-width:1024px)').matches; return looksDesktop||(pointerFine&&wideEnough); }
   function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
-  applyDesktopClass();
-  window.addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
+  applyDesktopClass(); addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
 
   // mini <-> main sync
-  ['patientName','uhid'].forEach((id)=>{
-    const main=$(id); if (!main) return;
-    main.addEventListener('input',()=>{ const mini=$(id+'Mini'); if (mini && mini.value!==main.value) mini.value=main.value; });
-  });
-  ['patientNameMini','uhidMini'].forEach((id)=>{
-    const mini=$(id); if (!mini) return;
-    mini.addEventListener('input',()=>{ const main=$(id.replace('Mini','')); if (main && main.value!==mini.value) main.value=mini.value; });
-  });
+  ['patientName','uhid'].forEach((id)=>{ const main=$(id); if(!main) return; main.addEventListener('input',()=>{ const mini=$(id+'Mini'); if(mini && mini.value!==main.value) mini.value=main.value; }); });
+  ['patientNameMini','uhidMini'].forEach((id)=>{ const mini=$(id); if(!mini) return; mini.addEventListener('input',()=>{ const main=$(id.replace('Mini','')); if(main && main.value!==mini.value) main.value=mini.value; }); });
 
-  // dev panel
+  // dev modal
   const devToggle=$('devToggle'), devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
   devPanel.setAttribute('aria-hidden','true'); devBackdrop.setAttribute('data-visible','false');
-  function setDevPanel(open){
-    const wasOpen = devPanel.getAttribute('aria-hidden') === 'false';
-    devPanel.setAttribute('aria-hidden', open ? 'false':'true');
-    devBackdrop.setAttribute('data-visible', open ? 'true':'false');
-    devBackdrop.setAttribute('aria-hidden', open ? 'false':'true');
-    devToggle.setAttribute('aria-expanded', open ? 'true':'false');
-    if (wasOpen && !open) saveDevOverrides();
-  }
-  devToggle.addEventListener('click',()=>{ const isHidden = devPanel.getAttribute('aria-hidden') !== 'false'; setDevPanel(isHidden); });
+  function setDevPanel(open){ const wasOpen=devPanel.getAttribute('aria-hidden')==='false'; devPanel.setAttribute('aria-hidden', open?'false':'true'); devBackdrop.setAttribute('data-visible', open?'true':'false'); devBackdrop.setAttribute('aria-hidden', open?'false':'true'); devToggle.setAttribute('aria-expanded', open?'true':'false'); if(wasOpen&&!open) saveDevOverrides(); }
+  devToggle.addEventListener('click',()=>{ const isHidden=devPanel.getAttribute('aria-hidden')!=='false'; setDevPanel(isHidden); });
   devClose.addEventListener('click',()=>setDevPanel(false));
   devBackdrop.addEventListener('click',()=>setDevPanel(false));
-  document.addEventListener('keydown',(ev)=>{ if (ev.key==='Escape' && devPanel.getAttribute('aria-hidden')==='false') setDevPanel(false); });
+  addEventListener('keydown',(ev)=>{ if(ev.key==='Escape' && devPanel.getAttribute('aria-hidden')==='false') setDevPanel(false); });
 
-  function saveDevOverrides(){
-    const overrides = {
-      onlineUrl: $('onlineUrl')?.value.trim() || '',
-      onlineSecret: $('onlineSecret')?.value.trim() || '',
-      clientId: $('clientId')?.value.trim() || 'NURSING-STATION-01'
-    };
-    localStorage.setItem('apacheMobileDev', JSON.stringify(overrides));
-    if (overrides.onlineUrl) ONLINE_WEBHOOK_URL = overrides.onlineUrl;
-    if (overrides.onlineSecret) ONLINE_SECRET = overrides.onlineSecret;
-  }
-  function loadDevOverrides(){
-    try{
-      const raw = localStorage.getItem('apacheMobileDev'); if (!raw) return;
-      const overrides = JSON.parse(raw);
-      if ($('onlineUrl')) $('onlineUrl').value = overrides.onlineUrl || '';
-      if ($('onlineSecret')) $('onlineSecret').value = overrides.onlineSecret || '';
-      if ($('clientId')) $('clientId').value = overrides.clientId || 'NURSING-STATION-01';
-      if (overrides.onlineUrl) ONLINE_WEBHOOK_URL = overrides.onlineUrl;
-      if (overrides.onlineSecret) ONLINE_SECRET = overrides.onlineSecret;
-    }catch(_){}
-  }
+  function saveDevOverrides(){ const overrides={ onlineUrl:$('onlineUrl')?.value.trim()||'', onlineSecret:$('onlineSecret')?.value.trim()||'', clientId:$('clientId')?.value.trim()||'NURSING-STATION-01' }; localStorage.setItem('apacheMobileDev', JSON.stringify(overrides)); if(overrides.onlineUrl) ONLINE_WEBHOOK_URL=overrides.onlineUrl; if(overrides.onlineSecret) ONLINE_SECRET=overrides.onlineSecret; }
+  function loadDevOverrides(){ try{ const raw=localStorage.getItem('apacheMobileDev'); if(!raw) return; const o=JSON.parse(raw); if($('onlineUrl')) $('onlineUrl').value=o.onlineUrl||''; if($('onlineSecret')) $('onlineSecret').value=o.onlineSecret||''; if($('clientId')) $('clientId').value=o.clientId||'NURSING-STATION-01'; if(o.onlineUrl) ONLINE_WEBHOOK_URL=o.onlineUrl; if(o.onlineSecret) ONLINE_SECRET=o.onlineSecret; }catch(_){ } }
 
   // cosmetic: Z Fold 6
-  (function(){
-    const ua = (navigator.userAgent || '').toUpperCase();
-    const isFold6 = ua.includes('SM-F956') || ua.includes('Z FOLD 6') || ua.includes('Z FOLD6');
-    if (isFold6) document.body.classList.add('fold6');
-  })();
+  (function(){ const ua=(navigator.userAgent||'').toUpperCase(); const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6'); if(isFold6) document.body.classList.add('fold6'); })();
 
-  // chronic toggle
-  $('chronicGrp').addEventListener('change',()=>{ $('surgTypeWrap').style.display = radioVal('chronic') === 'Yes' ? 'grid' : 'none'; });
+  // Chronic toggle
+  $('chronicGrp').addEventListener('change',()=>{ $('surgTypeWrap').style.display = (radioVal('chronic')==='Yes') ? 'grid' : 'none'; });
 
-  // FiO2 toggle (robust): attach to individual radios + initialize once
+  // FiO2 toggle + init
   function updateOxygenUI(){
     const v = radioVal('fio2');
-    const po2 = $('po2Wrap'), aagrad = $('aagradWrap'), pao2El = $('pao2'), aagradEl = $('aagrad');
-    if (v === '<50%'){
-      po2.style.display = 'block';
-      aagrad.style.display = 'none';
-      if (aagradEl) { aagradEl.value = ''; aagradEl.removeAttribute('required'); }
-      if (pao2El) { pao2El.setAttribute('required','required'); }
-    } else {
-      po2.style.display = 'none';
-      aagrad.style.display = 'block';
-      if (pao2El) { pao2El.value=''; pao2El.removeAttribute('required'); }
-      if (aagradEl) { aagradEl.setAttribute('required','required'); }
-    }
+    const po2=$('po2Wrap'), aagrad=$('aagradWrap'), pao2El=$('pao2'), aagradEl=$('aagrad');
+    if(v === '<50%'){ po2.style.display='block'; aagrad.style.display='none'; if(aagradEl){ aagradEl.value=''; aagradEl.removeAttribute('required'); } if(pao2El){ pao2El.setAttribute('required','required'); } }
+    else { po2.style.display='none'; aagrad.style.display='block'; if(pao2El){ pao2El.value=''; pao2El.removeAttribute('required'); } if(aagradEl){ aagradEl.setAttribute('required','required'); } }
   }
-  document.querySelectorAll('input[name="fio2"]').forEach(r => r.addEventListener('change', updateOxygenUI));
+  document.querySelectorAll('input[name="fio2"]').forEach(r=>r.addEventListener('change',()=>{ updateOxygenUI(); maybeShowResults(); }));
+
   // Tabs
-  document.querySelectorAll('.tab').forEach((btn)=>{
-    btn.addEventListener('click',()=>{
-      document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach((panel)=>panel.classList.remove('active'));
-      btn.classList.add('active');
-      const target = $('tab-'+btn.dataset.tab);
-      if (target) target.classList.add('active');
-    });
-  });
+  document.querySelectorAll('.tab').forEach((btn)=>{ btn.addEventListener('click',()=>{ document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active')); document.querySelectorAll('.tab-panel').forEach((p)=>p.classList.remove('active')); btn.classList.add('active'); const target=$('tab-'+btn.dataset.tab); if(target) target.classList.add('active'); }); });
 
-  // Preview card collapse
-  const previewCard=$('previewCard'); const previewToggle=$('previewToggle');
-  if (previewToggle){
-    previewToggle.addEventListener('click',()=>{
-      const collapsed = previewCard.getAttribute('data-collapsed') !== 'false';
-      previewCard.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
-      previewToggle.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
-    });
-  }
-
-  // ====== ONLINE ONLY (Direct → Google Sheets) ======
-  let ONLINE_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
-  let ONLINE_SECRET = 'F8p^7m2bUqW!c4Z9Lh3@r6N0';
+  // ====== ONLINE ONLY ======
+  let ONLINE_WEBHOOK_URL='https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
+  let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
   loadDevOverrides();
 
-  // === APACHE II scoring tables ===
-  function fToC(f){ return (f - 32) * (5/9); }
-  function ptsTempC(c){ if (c==null) return 0; if (c>=41) return 4; if (c>=39 && c<=40.9) return 3; if (c>=38.5 && c<=38.9) return 1; if (c>=36 && c<=38.4) return 0; if (c>=34 && c<=35.9) return 1; if (c>=32 && c<=33.9) return 2; if (c>=30 && c<=31.9) return 3; return 4; }
-  function ptsMAP(v){ if (v==null) return 0; if (v>=160) return 4; if (v>=130) return 3; if (v>=110) return 2; if (v>=70) return 0; if (v>=50) return 2; return 4; }
-  function ptsHR(v){ if (v==null) return 0; if (v>=180) return 4; if (v>=140) return 3; if (v>=110) return 2; if (v>=70) return 0; if (v>=55) return 2; if (v>=40) return 3; return 4; }
-  function ptsRR(v){ if (v==null) return 0; if (v>=50) return 4; if (v>=35) return 3; if (v>=25) return 1; if (v>=12) return 0; if (v>=10) return 1; if (v>=6) return 2; return 4; }
-  function ptsOxygen(fio2Cat, pao2, aagrad){
-    if (fio2Cat === '>=50%'){
-      if (aagrad==null) return 0;
-      if (aagrad>=500) return 4;
-      if (aagrad>=350) return 3;
-      if (aagrad>=200) return 2;
-      return 0;
-    } else {
-      if (pao2==null) return 0;
-      if (pao2>70) return 0;
-      if (pao2>=61) return 1;
-      if (pao2>=55) return 3;
-      return 4;
-    }
-  }
-  function ptsPH(ph){ if (ph==null) return null; if (ph>=7.70) return 4; if (ph>=7.60) return 3; if (ph>=7.50) return 1; if (ph>=7.33) return 0; if (ph>=7.25) return 2; if (ph>=7.15) return 3; return 4; }
-  function ptsHCO3(h){ if (h==null) return 0; if (h>=52) return 4; if (h>=41) return 3; if (h>=32) return 1; if (h>=22) return 0; if (h>=18) return 2; if (h>=15) return 3; return 4; }
-  function ptsNa(v){ if (v==null) return 0; if (v>=180) return 4; if (v>=160) return 3; if (v>=155) return 2; if (v>=150) return 1; if (v>=130) return 0; if (v>=120) return 2; if (v>=111) return 3; return 4; }
-  function ptsK(v){ if (v==null) return 0; if (v>=7.0) return 4; if (v>=6.0) return 3; if (v>=5.5) return 1; if (v>=3.5) return 0; if (v>=3.0) return 1; if (v>=2.5) return 2; return 4; }
-  function ptsCreatinine(v, arf){ if (v==null) return 0; let pts=0; if (v>=3.5) pts=4; else if (v>=2.0) pts=3; else if (v>=1.5) pts=2; else if (v<0.6) pts=2; else pts=0; if (arf) pts*=2; return pts; }
-  function ptsHct(v){ if (v==null) return 0; if (v>=60) return 4; if (v>=50) return 2; if (v>=46) return 1; if (v>=30) return 0; if (v>=20) return 2; return 4; }
-  function ptsWBC(v){ if (v==null) return 0; if (v>=40) return 4; if (v>=20) return 2; if (v>=15) return 1; if (v>=3) return 0; if (v>=1) return 2; return 4; }
-  function ptsGCS(g){ if (g==null) return 0; const diff = 15 - g; return diff < 0 ? 0 : diff; }
-  function agePoints(age){ if (age==null) return 0; if (age<=44) return 0; if (age<=54) return 2; if (age<=64) return 3; if (age<=74) return 5; return 6; }
-  function chronicPoints(chronic, surgtype){ if (chronic!=='Yes') return 0; if (surgtype==='Elective') return 2; return 5; }
+  // === APACHE II scoring ===
+  function fToC(f){ return (f-32)*(5/9); }
+  function ptsTempC(c){ if(c==null) return 0; if(c>=41) return 4; if(c>=39 && c<=40.9) return 3; if(c>=38.5 && c<=38.9) return 1; if(c>=36 && c<=38.4) return 0; if(c>=34 && c<=35.9) return 1; if(c>=32 && c<=33.9) return 2; if(c>=30 && c<=31.9) return 3; return 4; }
+  function ptsMAP(v){ if(v==null) return 0; if(v>=160) return 4; if(v>=130) return 3; if(v>=110) return 2; if(v>=70) return 0; if(v>=50) return 2; return 4; }
+  function ptsHR(v){ if(v==null) return 0; if(v>=180) return 4; if(v>=140) return 3; if(v>=110) return 2; if(v>=70) return 0; if(v>=55) return 2; if(v>=40) return 3; return 4; }
+  function ptsRR(v){ if(v==null) return 0; if(v>=50) return 4; if(v>=35) return 3; if(v>=25) return 1; if(v>=12) return 0; if(v>=10) return 1; if(v>=6) return 2; return 4; }
+  function ptsOxygen(fio2Cat,pao2,aagrad){ if(fio2Cat==='>=50%'){ if(aagrad==null) return 0; if(aagrad>=500) return 4; if(aagrad>=350) return 3; if(aagrad>=200) return 2; return 0; } else { if(pao2==null) return 0; if(pao2>70) return 0; if(pao2>=61) return 1; if(pao2>=55) return 3; return 4; } }
+  function ptsPH(ph){ if(ph==null) return null; if(ph>=7.70) return 4; if(ph>=7.60) return 3; if(ph>=7.50) return 1; if(ph>=7.33) return 0; if(ph>=7.25) return 2; if(ph>=7.15) return 3; return 4; }
+  function ptsHCO3(h){ if(h==null) return 0; if(h>=52) return 4; if(h>=41) return 3; if(h>=32) return 1; if(h>=22) return 0; if(h>=18) return 2; if(h>=15) return 3; return 4; }
+  function ptsNa(v){ if(v==null) return 0; if(v>=180) return 4; if(v>=160) return 3; if(v>=155) return 2; if(v>=150) return 1; if(v>=130) return 0; if(v>=120) return 2; if(v>=111) return 3; return 4; }
+  function ptsK(v){ if(v==null) return 0; if(v>=7.0) return 4; if(v>=6.0) return 3; if(v>=5.5) return 1; if(v>=3.5) return 0; if(v>=3.0) return 1; if(v>=2.5) return 2; return 4; }
+  function ptsCreatinine(v,arf){ if(v==null) return 0; let pts=0; if(v>=3.5) pts=4; else if(v>=2.0) pts=3; else if(v>=1.5) pts=2; else if(v<0.6) pts=2; else pts=0; if(arf) pts*=2; return pts; }
+  function ptsHct(v){ if(v==null) return 0; if(v>=60) return 4; if(v>=50) return 2; if(v>=46) return 1; if(v>=30) return 0; if(v>=20) return 2; return 4; }
+  function ptsWBC(v){ if(v==null) return 0; if(v>=40) return 4; if(v>=20) return 2; if(v>=15) return 1; if(v>=3) return 0; if(v>=1) return 2; return 4; }
+  function ptsGCS(g){ if(g==null) return 0; const diff=15-g; return diff<0?0:diff; }
+  function agePoints(age){ if(age==null) return 0; if(age<=44) return 0; if(age<=54) return 2; if(age<=64) return 3; if(age<=74) return 5; return 6; }
+  function chronicPoints(chronic,surgtype){ if(chronic!=='Yes') return 0; if(surgtype==='Elective') return 2; return 5; }
 
   function computeApacheAndMortality(inputs, meta){
     const tempC = inputs.Temperature_F!=null ? fToC(inputs.Temperature_F) : null;
-    const acidBasePts = (function(){ const phPts = ptsPH(inputs.pH); return (phPts!=null) ? phPts : ptsHCO3(inputs.HCO3_mEqL); })();
+    const acidBasePts = (function(){ const phPts=ptsPH(inputs.pH); return (phPts!=null)?phPts:ptsHCO3(inputs.HCO3_mEqL); })();
+    const aps = ptsTempC(tempC)+ptsMAP(inputs.MAP_mmHg)+ptsHR(inputs.HeartRate_bpm)+ptsRR(inputs.RespRate_bpm)+
+                ptsOxygen(inputs.FiO2_Category, inputs.PaO2_mmHg, inputs.AaGradient_mmHg)+acidBasePts+
+                ptsNa(inputs.Na_mEqL)+ptsK(inputs.K_mEqL)+ptsCreatinine(inputs.Creatinine_mgdl, inputs.AcuteRenalFailure===true)+
+                ptsHct(inputs.Hematocrit_pct)+ptsWBC(inputs.WBC_10e3uL)+ptsGCS(inputs.GCS!=null?inputs.GCS:null);
+    const agePts=agePoints(meta.age);
+    const chronicPts=chronicPoints(inputs.ChronicHealth, inputs.SurgeryType);
+    const apacheII=aps+agePts+chronicPts;
 
-    const aps = ptsTempC(tempC) +
-                ptsMAP(inputs.MAP_mmHg) +
-                ptsHR(inputs.HeartRate_bpm) +
-                ptsRR(inputs.RespRate_bpm) +
-                ptsOxygen(inputs.FiO2_Category, inputs.PaO2_mmHg, inputs.AaGradient_mmHg) +
-                acidBasePts +
-                ptsNa(inputs.Na_mEqL) +
-                ptsK(inputs.K_mEqL) +
-                ptsCreatinine(inputs.Creatinine_mgdl, inputs.AcuteRenalFailure===true) +
-                ptsHct(inputs.Hematocrit_pct) +
-                ptsWBC(inputs.WBC_10e3uL) +
-                ptsGCS(inputs.GCS!=null ? inputs.GCS : null);
-
-    const agePts = agePoints(meta.age);
-    const chronicPts = chronicPoints(inputs.ChronicHealth, inputs.SurgeryType);
-    const apacheII = aps + agePts + chronicPts;
-
-    // Simple Knaus-derived logistic mapping (same as before)
-    const logit = -3.517 + 0.146*apacheII;
-    const mortProb = 1/(1+Math.exp(-logit));
+    // Knaus logit mapping (single general mortality)
+    const logit=-3.517 + 0.146*apacheII;
+    const mortProb=1/(1+Math.exp(-logit));
     return { apacheII, mortProb };
   }
 
-  function monthKeyFromISO(iso){ return (iso || new Date().toISOString()).slice(0,7); } // "YYYY-MM"
+  function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
 
   // Build payload (+ sheet row)
   function buildPayload(){
-    const patientName = valStr('patientName');
-    const uhid = valStr('uhid');
-    const age = valNum('age');
-    const sexSel = $('sex'); const sex = sexSel ? sexSel.value : '';
-    const diagnosis = valStr('diagnosis');
-    const admitDate = valStr('admitDate');
-    const fio2 = radioVal('fio2');
-    const mortYN = radioVal('mortality');
+    const patientName=valStr('patientName');
+    const uhid=valStr('uhid');
+    const age=valNum('age');
+    const sexSel=$('sex'); const sex=sexSel?sexSel.value:'';
+    const diagnosis=valStr('diagnosis');
+    const admitDate=valStr('admitDate');
+    const fio2=radioVal('fio2');
+    const mortYN=radioVal('mortality');
 
-    if (!patientName) throw new Error('Patient Name is required');
-    if (!uhid) throw new Error('UHID is required');
-    if (age===null) throw new Error('Age is required');
-    if (!sex) throw new Error('Sex is required');
-    if (!diagnosis) throw new Error('Diagnosis is required');
-    if (!admitDate) throw new Error('Admission Date is required');
-    if (!fio2) throw new Error('FiO₂ category is required');
-    if (!mortYN) throw new Error('Mortality (Y/N) is required');
+    if(!patientName) throw new Error('Patient Name is required');
+    if(!uhid) throw new Error('UHID is required');
+    if(age===null) throw new Error('Age is required');
+    if(!sex) throw new Error('Sex is required');
+    if(!diagnosis) throw new Error('Diagnosis is required');
+    if(!admitDate) throw new Error('Admission Date is required');
+    if(!fio2) throw new Error('FiO₂ category is required');
+    if(!mortYN) throw new Error('Mortality (Y/N) is required');
 
-    const chronic = radioVal('chronic');
-    const surgtype = chronic==='Yes' ? radioVal('surgtype') : null;
+    const chronic=radioVal('chronic');
+    const surgtype=chronic==='Yes' ? radioVal('surgtype') : null;
 
     const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
     const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
-    if (fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
-    if (fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
+    if(fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
+    if(fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
 
-    const inputs = {
+    const inputs={
       Age_years: age,
       GCS: valNum('gcs'),
       Temperature_F: valNum('tempF'),
@@ -644,28 +526,18 @@
       Na_mEqL: valNum('na'),
       K_mEqL: valNum('k'),
       Creatinine_mgdl: valNum('cr'),
-      AcuteRenalFailure: radioVal('arf') === 'Yes',
+      AcuteRenalFailure: radioVal('arf')==='Yes',
       Hematocrit_pct: valNum('hct'),
       WBC_10e3uL: valNum('wbc'),
-      ChronicHealth: chronic === 'Yes' ? 'Yes' : 'No',
+      ChronicHealth: chronic==='Yes' ? 'Yes' : 'No',
       SurgeryType: surgtype
     };
 
-    const nowIso = new Date().toISOString();
-    const { apacheII, mortProb } = computeApacheAndMortality(inputs, { age });
-    const mortPct = Math.round(mortProb*1000)/10; // 1 decimal %
+    const nowIso=new Date().toISOString();
+    const { apacheII, mortProb } = computeApacheAndMortality(inputs,{ age });
+    const mortPct=Math.round(mortProb*1000)/10;
 
-    const row = [
-      uhid,
-      patientName,
-      age,
-      sex,
-      diagnosis,
-      admitDate,
-      apacheII,
-      mortPct,
-      mortYN
-    ];
+    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, mortPct, mortYN ];
 
     return {
       clientId: $('clientId') ? $('clientId').value.trim() : 'NURSING-STATION-01',
@@ -682,21 +554,50 @@
     };
   }
 
+  // Show compact results card only when all required fields satisfied
+  function formIsComplete(){
+    try{
+      // will throw if something required is missing per our rules
+      buildPayload();
+      return true;
+    }catch(_){ return false; }
+  }
+  function maybeShowResults(){
+    if(!formIsComplete()){ $('resultsCard').setAttribute('data-visible','false'); return; }
+    const payload = buildPayload();
+    $('resApache').textContent = String(payload.apacheScore) + ' pts';
+    $('resMort').textContent = String(payload.predictedMortalityPct.toFixed(1)) + '%';
+    $('resultsCard').setAttribute('data-visible','true');
+  }
+  // Watch inputs for live result updates
+  ['input','change'].forEach(evt=>{
+    document.addEventListener(evt, (e)=>{
+      if(e.target && (e.target.closest('.panel') || e.target.id==='mortalityGrp')) maybeShowResults();
+    });
+  });
+
+  // CORS-safe POST (text/plain) as requested
   async function sendJson(url, payload, label){
-    const res = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      mode: 'cors',
+      credentials: 'omit'
+    });
     const text = await res.text();
-    if (!res.ok){ const bodyHint = text ? ' '+text : ''; throw new Error(label+' responded with '+res.status+'.'+bodyHint); }
-    if (!text) return {};
+    if(!res.ok){ const bodyHint=text?(' '+text):''; throw new Error(label+' responded with '+res.status+'.'+bodyHint); }
+    if(!text) return {};
     try{
       const data = JSON.parse(text);
-      if (data && typeof data==='object' && data.error) throw new Error(label+' error: '+data.error);
+      if(data && typeof data==='object' && data.error) throw new Error(label+' error: '+data.error);
       return data;
-    }catch(_){ return { message: text }; }
+    }catch(_){ return { message:text }; }
   }
   async function postOnline(payload){
     const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
-    if (!url) throw new Error('Online Webhook URL not set (Developer → Online Webhook URL).');
-    if (!payload.authToken) throw new Error('Online Secret not set (Developer → Online Secret).');
+    if(!url) throw new Error('Online Webhook URL not set (Developer → Online Webhook URL).');
+    if(!payload.authToken) throw new Error('Online Secret not set (Developer → Online Secret).');
     return sendJson(url, payload, 'Google Sheets webhook');
   }
 
@@ -705,48 +606,54 @@
     try{
       const url = ($('onlineUrl')?.value.trim() || ONLINE_WEBHOOK_URL || '');
       const secret = ($('onlineSecret')?.value.trim() || ONLINE_SECRET || '');
-      if (!url || !secret){ toast('Set Online URL and Secret in Developer panel.', false); return; }
+      if(!url || !secret){ toast('Set Online URL and Secret in Developer panel.', false); return; }
       const ym = new Date().toISOString().slice(0,7);
       const link = url + '?action=download&month=' + encodeURIComponent(ym) + '&auth=' + encodeURIComponent(secret);
       window.open(link, '_blank');
     }catch(e){ toast(e.message, false); }
   });
 
-  // Preview buttons
-  function updatePreview(){
-    const payload = buildPayload();
-    $('preview').textContent = JSON.stringify(payload, null, 2);
-    $('preview').classList.remove('empty');
-    $('previewCard').setAttribute('data-collapsed','false');
-  }
-  $('btnPreviewDock').addEventListener('click', ()=>{ try{ updatePreview(); toast('Preview updated'); } catch(e){ toast(e.message, false); } });
-  $('btnPreview').addEventListener('click', ()=>{ try{ updatePreview(); toast('Preview updated'); } catch(e){ toast(e.message, false); } });
-
   // Submit
   $('btnSubmit').addEventListener('click', async (ev)=>{
     ev.preventDefault();
-    const button = $('btnSubmit'); button.disabled = true;
+    const button=$('btnSubmit'); button.disabled=true;
     try{
       saveDevOverrides();
-      const payload = buildPayload();
-      $('preview').textContent = JSON.stringify(payload, null, 2);
-      $('preview').classList.remove('empty');
-      $('previewCard').setAttribute('data-collapsed','false');
-
+      const payload=buildPayload();
       toast('Sending to Google Sheets…');
       await postOnline(payload);
       toast('Saved to Google Sheets ✅');
+      maybeShowResults();
     }catch(e){
-      toast('Submit failed: ' + e.message, false);
+      toast('Submit failed: '+e.message, false);
     }finally{
-      button.disabled = false;
+      button.disabled=false;
     }
   });
 
-  // Initialize UI states on first paint
-  document.addEventListener('DOMContentLoaded', ()=>{
-    updateOxygenUI(); // set correct PaO2 vs A–a field visibility + required flags
+  // Dev preview
+  $('btnBuildPreview').addEventListener('click', ()=>{
+    try{
+      const payload=buildPayload();
+      $('debugPreview').textContent = JSON.stringify(payload, null, 2);
+      toast('Payload built');
+    }catch(e){
+      $('debugPreview').textContent = 'Error: '+e.message;
+      toast(e.message, false);
+    }
   });
-  </script>
+  $('btnCopyPreview').addEventListener('click', ()=>{
+    try{
+      navigator.clipboard.writeText($('debugPreview').textContent||'');
+      toast('Copied JSON');
+    }catch(_){ toast('Copy failed', false); }
+  });
+
+  // Init
+  document.addEventListener('DOMContentLoaded', ()=>{
+    updateOxygenUI();
+    maybeShowResults();
+  });
+</script>
 </body>
 </html>
