@@ -1,4 +1,4 @@
- <!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -779,101 +779,67 @@
     return data;
   }
 
-  // ---------- CSV download (Android, iOS, Desktop friendly) ----------
+  // ---------- CSV download: guaranteed new-tab navigation (Android, iOS, Desktop) ----------
   function istMonthYYYYMM(){
     return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
   }
-  function fileNameForMonth(ym){ return `apache-${ym}.csv`; }
-
-  async function tryFetch(url, init){
-    const res = await fetch(url, init);
-    return { ok: res.ok, status: res.status, headers: res.headers, body: await res.blob() };
+  function buildDownloadUrl(urlBase, ym, secret){
+    const exec = sanitizeExecUrl(urlBase);
+    let u;
+    try{ u = new URL(exec); }catch(_){ return exec; }
+    u.searchParams.set('action','download');
+    u.searchParams.set('month', ym);
+    // let server treat this as "force-download" branch
+    u.searchParams.set('mode','redirect');
+    if (secret && secret.trim()){
+      // include token via query (works with navigation; server should validate)
+      u.searchParams.set('authToken', secret.trim());
+    }
+    return u.toString();
   }
-  function looksLikeCSV(headers){
-    const ct = (headers.get('content-type') || '').toLowerCase();
-    const cd = (headers.get('content-disposition') || '').toLowerCase();
-    return ct.includes('text/csv') || cd.includes('filename=');
-  }
 
-  async function saveBlobSmart(blob, filename){
-    // iOS Safari often ignores a[download]; use Share sheet if available
+  function openCsvInNewTab(targetUrl){
+    // 1) Synchronous blank tab to avoid blockers
+    let navWin = null;
+    try { navWin = window.open('', '_blank', 'noopener'); } catch(_){ navWin = null; }
+
+    if (navWin && !navWin.closed) {
+      // iOS/Android/desktop: set location after opening about:blank
+      navWin.location.href = targetUrl;
+      toast('Opening CSV in a new tab…');
+      return;
+    }
+
+    // 2) Fallback: synthetic anchor with target=_blank (some WebViews allow this)
     try{
-      if (typeof window !== 'undefined' && 'canShare' in navigator) {
-        const file = new File([blob], filename, { type: blob.type || 'text/csv' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: filename });
-          return;
-        }
-      }
-    }catch(_){}
-    // fallback: anchor download; if not supported, open in a new tab
-    const a = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    a.href = url; a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{
-      URL.revokeObjectURL(url);
+      const a = document.createElement('a');
+      a.href = targetUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      // must be in DOM for some iOS versions
+      document.body.appendChild(a);
+      a.click();
       a.remove();
-      // Absolute last resort: open viewer
-      if (!/Chrome|Firefox|Edg|Safari/i.test(navigator.userAgent)) window.open(url, '_blank');
-    }, 0);
-  }
+      toast('Opening CSV…');
+      return;
+    }catch(_){}
 
-  async function tryDownloadCSV(urlBase, secret, ym){
-    const uExec = sanitizeExecUrl(urlBase);
-    const query = (params) => uExec + (uExec.includes('?') ? '&' : '?') + new URLSearchParams(params).toString();
-    const acceptHeaders = { 'Accept':'text/csv,application/json;q=0.9,*/*;q=0.8' };
-
-    // Most strict/explicit first: GET with authToken
-    const strategies = [
-      { label:'GET ?authToken=', req:()=>tryFetch(query({action:'download', month:ym, authToken:secret}), { method:'GET', headers:acceptHeaders }) },
-      { label:'GET Bearer',     req:()=>tryFetch(query({action:'download', month:ym}), { method:'GET', headers:{ ...acceptHeaders, Authorization:`Bearer ${secret}` } }) },
-      { label:'GET ?auth=',     req:()=>tryFetch(query({action:'download', month:ym, auth:secret}), { method:'GET', headers:acceptHeaders }) },
-      { label:'GET ?secret=',   req:()=>tryFetch(query({action:'download', month:ym, secret:secret}), { method:'GET', headers:acceptHeaders }) },
-      { label:'GET ?token=',    req:()=>tryFetch(query({action:'download', month:ym, token:secret}), { method:'GET', headers:acceptHeaders }) },
-      { label:'GET ?key=',      req:()=>tryFetch(query({action:'download', month:ym, key:secret}), { method:'GET', headers:acceptHeaders }) }
-      // NOTE: no POST fallbacks here to avoid hitting append-row code paths on the server.
-    ];
-
-    let lastErr='';
-    for(const s of strategies){
-      try{
-        const r = await s.req();
-        if(r.ok && r.body && r.body.size !== 0){
-          if(looksLikeCSV(r.headers)) return r.body;
-          // may be JSON; try to decode to capture server message
-          const text = await r.body.text();
-          try{
-            const obj = JSON.parse(text);
-            if(obj && obj.ok === true && obj.csv){
-              return new Blob([obj.csv], {type:'text/csv;charset=utf-8'});
-            }
-            lastErr = (obj && (obj.error||obj.message)) ? obj.error||obj.message : text.slice(0,300);
-          }catch(_){ lastErr = text.slice(0,300); }
-        }else{
-          lastErr = `HTTP ${r.status}`;
-        }
-      }catch(e){ lastErr = e && e.message ? e.message : String(e); }
-    }
-    throw new Error(lastErr || 'All download strategies failed');
-  }
-
-  $('btnDownload').addEventListener('click', async ()=>{
+    // 3) Final fallback: same-tab navigation
     try{
-      const { url, secret } = currentConn();
-      if(!url){ toast('Online URL missing.', false); return; }
-      if(!secret){ toast('Online Secret missing.', false); return; }
-
-      const ym = istMonthYYYYMM();
-      toast('Preparing CSV…');
-      const blob = await tryDownloadCSV(url, secret, ym);
-      await saveBlobSmart(blob, fileNameForMonth(ym));
-      toast('Download ready ✅');
+      window.location.assign(targetUrl);
+      toast('Opening CSV…');
     }catch(e){
-      console.error('[download] failed:', e);
-      toast('Download failed: '+(e && e.message ? e.message : String(e)), false);
+      console.error('[download] navigation failed:', e);
+      toast('Download navigation blocked by browser.', false);
     }
+  }
+
+  $('btnDownload').addEventListener('click', ()=>{
+    const { url, secret } = currentConn();
+    if(!url){ toast('Online URL missing.', false); return; }
+    const ym = istMonthYYYYMM();
+    const targetUrl = buildDownloadUrl(url, ym, secret||'');
+    openCsvInNewTab(targetUrl);
   });
 
   // ---------- Submit ----------
