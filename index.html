@@ -88,9 +88,11 @@
   .btn.ghost{background:transparent;border:1px solid rgba(148,163,184,.35);color:var(--muted)}
   .btn[disabled]{opacity:.6;cursor:progress}
 
-  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:90}
+  /* Toasts */
+  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:120}
   .toast.err{border-left-color:#dc2626;color:#dc2626}
   .toast.warn{border-left-color:#f59e0b;color:#92400e}
+  .toast.center{left:50%;top:50%;transform:translate(-50%,-50%);right:auto;bottom:auto;min-width:min(460px,calc(100vw - 48px));text-align:center}
 
   .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:130}
   .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
@@ -124,6 +126,15 @@
   .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .metric{padding:12px 14px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:700}
   .metric small{display:block;font-weight:600;color:var(--muted)}
+
+  /* Inline duplicate indicator beside UHID */
+  .inline-wrap{display:flex;align-items:center;gap:8px}
+  .dup-indicator{display:none;font-size:12px;color:#64748b;white-space:nowrap}
+  .dup-indicator[data-state="checking"],
+  .dup-indicator[data-state="none"],
+  .dup-indicator[data-state="error"]{display:inline-flex;align-items:center;gap:6px}
+  .spinner{width:14px;height:14px;border:2px solid rgba(37,99,235,.25);border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
 
   body.desktop .workspace{grid-template-columns:1fr 360px;align-items:start}
   body.desktop .cards-flow{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -179,8 +190,10 @@
               <input id="patientName" class="input" type="text" required placeholder="e.g., Jane Doe" autocomplete="off">
             </div>
             <div>
-              <label for="uhid">UHID*</label>
-              <input id="uhid" class="input" type="text" required placeholder="Hospital unique ID" autocomplete="off">
+              <label for="uhid">UHID* <span id="dupIndicator" class="dup-indicator"><span class="spinner" aria-hidden="true"></span><span>Looking for duplicates…</span></span></label>
+              <div class="inline-wrap">
+                <input id="uhid" class="input" type="text" required placeholder="Hospital unique ID" autocomplete="off" aria-describedby="dupIndicator">
+              </div>
             </div>
           </div>
         </section>
@@ -380,6 +393,7 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="toastCenter" class="toast center warn" role="status" aria-live="assertive"></div>
 
   <!-- Dev modal -->
   <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
@@ -437,6 +451,12 @@
     t.textContent=msg; t.className='toast'+(ok?'':' err')+(klass?(' '+klass):''); t.style.display='block';
     clearTimeout(toast._timer);
     toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
+  }
+  function toastCenter(msg){
+    const t=$('toastCenter');
+    t.textContent=msg; t.style.display='block';
+    clearTimeout(toastCenter._timer);
+    toastCenter._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
   }
   function vlog(groupLabel, info){
     try{ console.groupCollapsed(groupLabel); if(typeof info === 'object') console.debug(info); else console.debug(String(info)); console.groupEnd(); }catch(_){}
@@ -509,7 +529,7 @@
     return { url, secret, clientId };
   }
 
-  // cosmetic: Z Fold 6
+  // Z Fold cosmetic
   (function(){ const ua=(navigator.userAgent||'').toUpperCase(); const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6'); if(isFold6) document.body.classList.add('fold6'); })();
 
   // Chronic toggle
@@ -763,7 +783,7 @@
     return data;
   }
 
-  // Sanitize /dev → /exec (fix original typo: pathname.replace)
+  // Sanitize /dev → /exec (fix typo)
   function sanitizeExecUrl(u){
     try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
     catch(_){ return u; }
@@ -784,44 +804,74 @@
     return data;
   }
 
-  // ---------- CSV download: hidden-form to new tab (Android, iOS, Desktop safe) ----------
+  // ---------- Robust CSV download (Chrome mobile/desktop safe) ----------
   function submitHiddenFormToNewTab(actionUrl, params){
     const form = document.createElement('form');
     form.method = 'GET';
     form.action = actionUrl;
-    form.target = '_blank'; // new tab/window (user-gesture navigation)
+    form.target = '_blank';
     form.rel = 'noopener';
-
     Object.entries(params).forEach(([k,v])=>{
       const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = k;
-      input.value = v;
+      input.type = 'hidden'; input.name = k; input.value = v;
       form.appendChild(input);
     });
-
     document.body.appendChild(form);
     form.submit();
     setTimeout(()=>{ form.remove(); }, 1000);
   }
-
   function buildDownloadParams(ym, secret){
-    const p = { action:'download', month: ym, mode:'redirect' }; // server serves HTML that forces download
+    const p = { action:'download', month: ym, mode:'redirect' };
     if (secret && secret.trim()){ p.authToken = secret.trim(); }
     return p;
   }
+  async function blobFallbackDownload(url, fileName){
+    try{
+      console.log('[download] blob fallback →', url);
+      const res = await fetch(url, { method:'GET', mode:'cors', credentials:'include' });
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      const obj = URL.createObjectURL(blob);
+      a.href = obj;
+      a.download = fileName || ('apache-'+istMonthYYYYMM()+'.csv');
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(obj); a.remove(); }, 1500);
+      return true;
+    }catch(e){
+      console.warn('[download] blob fallback failed:', e);
+      return false;
+    }
+  }
 
-  $('btnDownload').addEventListener('click', ()=>{
+  $('btnDownload').addEventListener('click', async ()=>{
     const { url, secret } = currentConn();
     if(!url){ toast('Online URL missing.', false); return; }
     const ym = istMonthYYYYMM();
-
     let exec;
     try { exec = new URL(sanitizeExecUrl(url)).toString(); }
     catch(_){ exec = sanitizeExecUrl(url); }
 
-    submitHiddenFormToNewTab(exec, buildDownloadParams(ym, secret||''));
-    toast('Opening CSV in a new tab…');
+    const params = buildDownloadParams(ym, secret||'');
+    const qs = new URLSearchParams(params).toString();
+    const full = exec + (exec.includes('?')?'&':'?') + qs;
+
+    // Attempt 1: user-gesture navigation by GET form (works on many UAs)
+    console.log('[download] attempt#1 form GET →', full);
+    submitHiddenFormToNewTab(exec, params);
+
+    // Attempt 2: direct window.open()
+    setTimeout(()=> {
+      const popup = window.open(full, '_blank', 'noopener');
+      console.log('[download] attempt#2 window.open →', popup ? 'opened' : 'blocked/null');
+    }, 50);
+
+    // Attempt 3: blob fallback with credentials (handles Chrome desktop cookie/redirect quirks)
+    setTimeout(async ()=>{
+      const ok = await blobFallbackDownload(full, 'APACHE-'+ym+'.csv');
+      if(ok){ toast('Download started'); }
+      else { toast('Download may be blocked. Check popup/Downloads.', false); }
+    }, 400);
   });
 
   // ---------- Submit ----------
@@ -858,87 +908,127 @@
       console.error('[preview] error:', e);
     }
   });
-
   $('btnCopyPreview').addEventListener('click', ()=>{
-    try{
-      navigator.clipboard.writeText($('debugPreview').textContent||'');
-      toast('Copied JSON');
-    }catch(_){ toast('Copy failed', false); }
+    try{ navigator.clipboard.writeText($('debugPreview').textContent||''); toast('Copied JSON'); }
+    catch(_){ toast('Copy failed', false); }
   });
-
   $('btnCopyExcelRow').addEventListener('click', ()=>{
-    try{
-      const t = buildExcelRowText();
-      navigator.clipboard.writeText(t);
-      toast('Row copied (tab-separated). Paste into Excel/Sheets.');
-    }catch(e){
-      toast('Copy failed: '+(e && e.message ? e.message : String(e)), false);
-    }
+    try{ navigator.clipboard.writeText(buildExcelRowText()); toast('Row copied (tab-separated). Paste into Excel/Sheets.'); }
+    catch(e){ toast('Copy failed: '+(e && e.message ? e.message : String(e)), false); }
   });
-
   $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
 
-  // ---------- Parallel duplicate-check (non-blocking, debounced, cancelable) ----------
-  let dupCheckTimer = null;
+  // ---------- Duplicate-check (blur-triggered, cancelable, inline status, center warning) ----------
   let dupAbort = null;
+  const dupEl = $('dupIndicator');
 
-  function normName(s){
-    return String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
+  function setDupStatus(state, text){
+    if(!dupEl) return;
+    dupEl.dataset.state = state || '';
+    if(state === 'checking'){
+      dupEl.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>'+(text||'Looking for duplicates…')+'</span>';
+      dupEl.style.display = 'inline-flex';
+    }else if(state === 'none'){
+      dupEl.innerHTML = '<span>✓</span><span>'+(text||'No duplicates')</span>';
+      dupEl.style.display = 'inline-flex';
+      setTimeout(()=>{ dupEl.style.display='none'; }, 1600);
+    }else if(state === 'error'){
+      dupEl.innerHTML = '<span>!</span><span>'+(text||'Check failed')</span>';
+      dupEl.style.display = 'inline-flex';
+      setTimeout(()=>{ dupEl.style.display='none'; }, 2000);
+    }else{
+      dupEl.style.display='none';
+    }
   }
 
-  async function checkDuplicateNow(uhid, patientName){
+  function cancelDupRequest(){
+    if(dupAbort){ try{ dupAbort.abort(); }catch(_){ } dupAbort=null; }
+  }
+
+  function bothFilled(){
+    const name = valStr('patientName');
+    const uhid = valStr('uhid');
+    return !!(name && uhid);
+  }
+
+  async function checkDuplicateNow(reason){
+    const name = valStr('patientName');
+    const uhid = valStr('uhid');
+    if(!name || !uhid){ return; }
+
     const { url, secret, clientId } = currentConn();
-    if(!url) return;
-    if(dupAbort) dupAbort.abort(); // cancel any in-flight check
+    if(!url){ return; }
+
+    cancelDupRequest();
     dupAbort = new AbortController();
+    setDupStatus('checking', 'Looking for duplicates…');
 
     const payload = {
-      action: 'check',
-      clientId,
+      action: 'check',              // matches Apps Script expectation
+      clientId,                     // forwarded as-is
       authToken: secret || '',
       month: istMonthYYYYMM(),
-      uhid: String(uhid||'').trim(),
-      patientName: String(patientName||'').trim()
+      uhid: String(uhid).trim(),
+      patientName: String(name).trim()
     };
+
+    console.log('[duplicate-check] sending ('+reason+') →', payload);
 
     try{
       const execUrl = sanitizeExecUrl(url);
-      const data = await (async function(urlX, body, signal){
-        let res, text;
-        res = await fetch(urlX, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body), mode:'cors', credentials:'omit', signal });
-        text = await res.text();
-        const j = text ? JSON.parse(text) : null;
-        if(!res.ok) throw new Error((j && (j.error||j.message)) || ('HTTP '+res.status));
-        return j;
-      })(execUrl, payload, dupAbort.signal);
+      const res = await fetch(execUrl, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(payload),
+        mode:'cors',
+        credentials:'omit',
+        signal: dupAbort.signal
+      });
+      const text = await res.text();
+      let data = {};
+      try{ data = text ? JSON.parse(text) : {}; }catch(_){ data={}; }
+      console.log('[duplicate-check] response status=', res.status, 'body=', data);
 
-      if(data && data.ok && (data.status==='duplicate_entry' || data.duplicate===true)){
-        // Minimal, non-blocking warning toast
-        toast('Possible duplicate entry found!', true, 'warn');
+      if(!res.ok){
+        setDupStatus('error','Check failed');
+        return;
       }
+
+      // Expected: { ok: true, status: 'duplicate_entry' } OR { ok:true, duplicate:true } when found
+      const isDup = (data && (data.status==='duplicate_entry' || data.duplicate===true));
+      if(isDup){
+        setDupStatus('', ''); // hide the inline badge
+        toastCenter('Possible duplicate entry found!');
+      }else{
+        setDupStatus('none','No duplicates');
+      }
+
       if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
     }catch(e){
-      if(e && e.name==='AbortError') return; // silently ignore aborted request
-      // do not spam the user—only log
-      console.warn('[duplicate-check] warn:', e && e.message ? e.message : e);
+      if(e && e.name==='AbortError'){
+        console.log('[duplicate-check] aborted (new edit/focus)'); 
+        return;
+      }
+      console.warn('[duplicate-check] error:', e && e.message ? e.message : e);
+      setDupStatus('error','Check failed');
     }
   }
 
-  function scheduleDuplicateCheck(){
-    clearTimeout(dupCheckTimer);
-    dupCheckTimer = setTimeout(()=>{
-      const uhid = valStr('uhid');
-      const name = valStr('patientName');
-      if(uhid && name) checkDuplicateNow(uhid, name);
-    }, 350);
+  // send when either field loses focus AND both are filled
+  function onBlurTrigger(ev){
+    if(bothFilled()){ checkDuplicateNow('blur from '+ev.target.id); }
+  }
+  // quash old request when user focuses to edit either identifier
+  function onFocusCancel(){
+    cancelDupRequest();
+    setDupStatus('', '');
   }
 
-  // fire on both mini and main inputs (typing should remain smooth)
   ['patientName','uhid','patientNameMini','uhidMini'].forEach(id=>{
     const el=$(id);
     if(!el) return;
-    el.addEventListener('input', scheduleDuplicateCheck);
-    el.addEventListener('blur', scheduleDuplicateCheck);
+    el.addEventListener('focus', onFocusCancel, true);
+    el.addEventListener('blur', onBlurTrigger, true);
   });
 
   // ---------- Init ----------
@@ -946,6 +1036,7 @@
     updateOxygenUI();
     maybeShowResults();
     if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = !formIsComplete();
+    setDupStatus('', '');
   });
 </script>
 </body>
