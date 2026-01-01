@@ -90,6 +90,7 @@
 
   .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:90}
   .toast.err{border-left-color:#dc2626;color:#dc2626}
+  .toast.warn{border-left-color:#f59e0b;color:#92400e}
 
   .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:130}
   .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
@@ -131,6 +132,9 @@
   @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   }
+
+  /* tiny footer */
+  .tiny-footer{font-size:12px;color:#64748b;text-align:center;padding:8px 0 14px 0}
 </style>
 </head>
 <body>
@@ -151,7 +155,7 @@
         <div class="mode-pills" role="group">
           <button id="modeOnline" type="button" class="mode active" disabled>Online (Google Sheets)</button>
         </div>
-        <div id="modeHint" class="mode-hint">Data goes straight to the shared Google Sheet (one tab per month). “Download current month” opens the CSV in a new tab.</div>
+        <div id="modeHint" class="mode-hint">Data go straight to the shared ICU Google Sheet (one tab per month). “Download current month” opens a CSV in a new tab.</div>
         <div class="patient-mini" aria-label="Quick patient entry">
           <div class="mini-field"><span>👤</span><input id="patientNameMini" type="text" placeholder="Patient name" autocomplete="off"></div>
           <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID" autocomplete="off"></div>
@@ -167,7 +171,7 @@
         <section class="panel" data-span="full" aria-labelledby="patient-h">
           <header>
             <h2 id="patient-h">Patient</h2>
-            <p class="hint">Identifiers sync between compact and expanded entry areas automatically.</p>
+            <p class="hint">Enter the patient’s full name as per hospital record and their UHID (the hospital’s unique health identifier).</p>
           </header>
           <div class="grid-2">
             <div>
@@ -176,7 +180,7 @@
             </div>
             <div>
               <label for="uhid">UHID*</label>
-              <input id="uhid" class="input" type="text" required placeholder="Unit health ID" autocomplete="off">
+              <input id="uhid" class="input" type="text" required placeholder="Hospital unique ID" autocomplete="off">
             </div>
           </div>
         </section>
@@ -185,7 +189,7 @@
         <section class="panel" aria-labelledby="demo-h">
           <header>
             <h2 id="demo-h">Demographics & Admission</h2>
-            <p class="hint">These fields are required to build the monthly sheet row.</p>
+            <p class="hint">Age in years, biological sex, and the date of ICU admission. “Diagnosis” is the primary working diagnosis at ICU admission.</p>
           </header>
           <div class="grid-3">
             <div>
@@ -222,7 +226,7 @@
         <section class="panel" aria-labelledby="chronic-h">
           <header>
             <h2 id="chronic-h">Chronic health</h2>
-            <p class="hint">Reveal surgical pathways when significant organ failure is present.</p>
+            <p class="hint">Mark severe chronic organ failure/immunocompromise. If present, specify surgical context for this admission.</p>
           </header>
           <div class="chip-row" id="chronicGrp">
             <label class="chip"><input type="radio" name="chronic" value="No" checked> No</label>
@@ -244,7 +248,7 @@
         <section class="panel" data-span="full" aria-labelledby="inputs-h">
           <header>
             <h2 id="inputs-h">Clinical inputs</h2>
-            <p class="hint">Segment vitals, oxygenation and labs with quick swipe tabs.</p>
+            <p class="hint">Vitals, oxygenation choice (PaO₂ vs A–a gradient based on FiO₂), and key labs for APACHE II calculation.</p>
           </header>
           <div class="tab-bar" role="tablist">
             <button class="tab active" type="button" data-tab="vitals">Vitals</button>
@@ -416,6 +420,8 @@
     </div>
   </div>
 
+  <div class="tiny-footer">© @ JSFDev</div>
+
 <script>
   // ---------- small helper & UX ----------
   const $ = (id) => document.getElementById(id);
@@ -426,9 +432,9 @@
   function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
   function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
   function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); const k=new Date(d.getTime()-off*60000); return k.toISOString().slice(0,10); }
-  function toast(msg, ok=true){
+  function toast(msg, ok=true, klass=''){
     const t=$('toast');
-    t.textContent=msg; t.className='toast'+(ok?'':' err'); t.style.display='block';
+    t.textContent=msg; t.className='toast'+(ok?'':' err')+(klass?(' '+klass):''); t.style.display='block';
     clearTimeout(toast._timer);
     toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
   }
@@ -583,6 +589,7 @@
   }
 
   function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
+  function istMonthYYYYMM(){ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }
 
   // Build payload (+ sheet row)
   function buildPayload(){
@@ -756,9 +763,9 @@
     return data;
   }
 
-  // Sanitize /dev → /exec
+  // Sanitize /dev → /exec (fix original typo: pathname.replace)
   function sanitizeExecUrl(u){
-    try{ const x=new URL(u); x.pathname=x.pathnamereplace?x.pathname.replace(/\/dev(\/)?$/i,'/exec'):x.pathname; return x.toString(); }
+    try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
     catch(_){ return u; }
   }
 
@@ -778,17 +785,12 @@
   }
 
   // ---------- CSV download: hidden-form to new tab (Android, iOS, Desktop safe) ----------
-  function istMonthYYYYMM(){
-    return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
-  }
-
   function submitHiddenFormToNewTab(actionUrl, params){
-    // Create a named target and let the browser open it as a proper navigation
     const form = document.createElement('form');
     form.method = 'GET';
     form.action = actionUrl;
-    form.target = '_blank'; // guaranteed new tab/window
-    form.rel = 'noopener';  // security hint for some UAs
+    form.target = '_blank'; // new tab/window (user-gesture navigation)
+    form.rel = 'noopener';
 
     Object.entries(params).forEach(([k,v])=>{
       const input = document.createElement('input');
@@ -798,19 +800,14 @@
       form.appendChild(input);
     });
 
-    // Must be attached to DOM for iOS/Safari/WebViews
     document.body.appendChild(form);
     form.submit();
-    // Cleanup
     setTimeout(()=>{ form.remove(); }, 1000);
   }
 
   function buildDownloadParams(ym, secret){
-    const p = { action:'download', month: ym, mode:'redirect' };
-    if (secret && secret.trim()){
-      // Send token as query param; server should validate on its side
-      p.authToken = secret.trim();
-    }
+    const p = { action:'download', month: ym, mode:'redirect' }; // server serves HTML that forces download
+    if (secret && secret.trim()){ p.authToken = secret.trim(); }
     return p;
   }
 
@@ -823,7 +820,6 @@
     try { exec = new URL(sanitizeExecUrl(url)).toString(); }
     catch(_){ exec = sanitizeExecUrl(url); }
 
-    // Synchronously submit GET form to a new tab – works across Android/iOS/Desktop
     submitHiddenFormToNewTab(exec, buildDownloadParams(ym, secret||''));
     toast('Opening CSV in a new tab…');
   });
@@ -881,6 +877,69 @@
   });
 
   $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
+
+  // ---------- Parallel duplicate-check (non-blocking, debounced, cancelable) ----------
+  let dupCheckTimer = null;
+  let dupAbort = null;
+
+  function normName(s){
+    return String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
+  }
+
+  async function checkDuplicateNow(uhid, patientName){
+    const { url, secret, clientId } = currentConn();
+    if(!url) return;
+    if(dupAbort) dupAbort.abort(); // cancel any in-flight check
+    dupAbort = new AbortController();
+
+    const payload = {
+      action: 'check',
+      clientId,
+      authToken: secret || '',
+      month: istMonthYYYYMM(),
+      uhid: String(uhid||'').trim(),
+      patientName: String(patientName||'').trim()
+    };
+
+    try{
+      const execUrl = sanitizeExecUrl(url);
+      const data = await (async function(urlX, body, signal){
+        let res, text;
+        res = await fetch(urlX, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body), mode:'cors', credentials:'omit', signal });
+        text = await res.text();
+        const j = text ? JSON.parse(text) : null;
+        if(!res.ok) throw new Error((j && (j.error||j.message)) || ('HTTP '+res.status));
+        return j;
+      })(execUrl, payload, dupAbort.signal);
+
+      if(data && data.ok && (data.status==='duplicate_entry' || data.duplicate===true)){
+        // Minimal, non-blocking warning toast
+        toast('Possible duplicate entry found!', true, 'warn');
+      }
+      if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
+    }catch(e){
+      if(e && e.name==='AbortError') return; // silently ignore aborted request
+      // do not spam the user—only log
+      console.warn('[duplicate-check] warn:', e && e.message ? e.message : e);
+    }
+  }
+
+  function scheduleDuplicateCheck(){
+    clearTimeout(dupCheckTimer);
+    dupCheckTimer = setTimeout(()=>{
+      const uhid = valStr('uhid');
+      const name = valStr('patientName');
+      if(uhid && name) checkDuplicateNow(uhid, name);
+    }, 350);
+  }
+
+  // fire on both mini and main inputs (typing should remain smooth)
+  ['patientName','uhid','patientNameMini','uhidMini'].forEach(id=>{
+    const el=$(id);
+    if(!el) return;
+    el.addEventListener('input', scheduleDuplicateCheck);
+    el.addEventListener('blur', scheduleDuplicateCheck);
+  });
 
   // ---------- Init ----------
   document.addEventListener('DOMContentLoaded', ()=>{
