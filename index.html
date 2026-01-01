@@ -144,7 +144,6 @@
     *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   }
 
-  /* tiny footer */
   .tiny-footer{font-size:12px;color:#64748b;text-align:center;padding:8px 0 14px 0}
 </style>
 </head>
@@ -783,7 +782,7 @@
     return data;
   }
 
-  // Sanitize /dev → /exec (fix typo)
+  // Sanitize /dev → /exec
   function sanitizeExecUrl(u){
     try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
     catch(_){ return u; }
@@ -804,36 +803,21 @@
     return data;
   }
 
-  // ---------- Robust CSV download (Chrome mobile/desktop safe) ----------
-  function submitHiddenFormToNewTab(actionUrl, params){
-    const form = document.createElement('form');
-    form.method = 'GET';
-    form.action = actionUrl;
-    form.target = '_blank';
-    form.rel = 'noopener';
-    Object.entries(params).forEach(([k,v])=>{
-      const input = document.createElement('input');
-      input.type = 'hidden'; input.name = k; input.value = v;
-      form.appendChild(input);
-    });
-    document.body.appendChild(form);
-    form.submit();
-    setTimeout(()=>{ form.remove(); }, 1000);
-  }
-  function buildDownloadParams(ym, secret){
-    const p = { action:'download', month: ym, mode:'redirect' };
-    if (secret && secret.trim()){ p.authToken = secret.trim(); }
-    return p;
+  // ---------- Robust CSV download (raw CSV for Chrome-safe path) ----------
+  function buildDownloadParams(ym){
+    // Raw CSV: omit mode=redirect to receive CSV body directly.
+    return { action:'download', month: ym };
   }
   async function blobFallbackDownload(url, fileName){
     try{
       console.log('[download] blob fallback →', url);
-      const res = await fetch(url, { method:'GET', mode:'cors', credentials:'include' });
+      const res = await fetch(url, { method:'GET', mode:'cors', credentials:'omit' });
+      if(!res.ok) throw new Error('HTTP '+res.status);
       const blob = await res.blob();
       const a = document.createElement('a');
       const obj = URL.createObjectURL(blob);
       a.href = obj;
-      a.download = fileName || ('apache-'+istMonthYYYYMM()+'.csv');
+      a.download = fileName || ('APACHE-'+istMonthYYYYMM()+'.csv');
       document.body.appendChild(a);
       a.click();
       setTimeout(()=>{ URL.revokeObjectURL(obj); a.remove(); }, 1500);
@@ -845,33 +829,30 @@
   }
 
   $('btnDownload').addEventListener('click', async ()=>{
-    const { url, secret } = currentConn();
+    const { url } = currentConn();
     if(!url){ toast('Online URL missing.', false); return; }
     const ym = istMonthYYYYMM();
+
     let exec;
     try { exec = new URL(sanitizeExecUrl(url)).toString(); }
     catch(_){ exec = sanitizeExecUrl(url); }
 
-    const params = buildDownloadParams(ym, secret||'');
+    const params = buildDownloadParams(ym);
     const qs = new URLSearchParams(params).toString();
     const full = exec + (exec.includes('?')?'&':'?') + qs;
 
-    // Attempt 1: user-gesture navigation by GET form (works on many UAs)
-    console.log('[download] attempt#1 form GET →', full);
-    submitHiddenFormToNewTab(exec, params);
+    // Attempt 1: top-level open (raw CSV) – Chrome-friendly
+    console.log('[download] attempt#1 window.open →', full);
+    const win = window.open(full, '_blank', 'noopener');
 
-    // Attempt 2: direct window.open()
-    setTimeout(()=> {
-      const popup = window.open(full, '_blank', 'noopener');
-      console.log('[download] attempt#2 window.open →', popup ? 'opened' : 'blocked/null');
-    }, 50);
-
-    // Attempt 3: blob fallback with credentials (handles Chrome desktop cookie/redirect quirks)
+    // Attempt 2: blob fallback
     setTimeout(async ()=>{
-      const ok = await blobFallbackDownload(full, 'APACHE-'+ym+'.csv');
-      if(ok){ toast('Download started'); }
-      else { toast('Download may be blocked. Check popup/Downloads.', false); }
-    }, 400);
+      if(!win || win.closed){
+        const ok = await blobFallbackDownload(full, 'APACHE-'+ym+'.csv');
+        if(ok){ toast('Download started'); }
+        else { toast('Download may be blocked. Check browser downloads.', false); }
+      }
+    }, 350);
   });
 
   // ---------- Submit ----------
@@ -918,7 +899,7 @@
   });
   $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
 
-  // ---------- Duplicate-check (blur-triggered, cancelable, inline status, center warning) ----------
+  // ---------- Duplicate-check (GET, blur-triggered, cancelable, inline status, center warning) ----------
   let dupAbort = null;
   const dupEl = $('dupIndicator');
 
@@ -929,11 +910,11 @@
       dupEl.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>'+(text||'Looking for duplicates…')+'</span>';
       dupEl.style.display = 'inline-flex';
     }else if(state === 'none'){
-      dupEl.innerHTML = '<span>✓</span><span>'+(text||'No duplicates')</span>';
+      dupEl.innerHTML = '<span>✓</span><span>'+(text||'No duplicates')+'</span>';
       dupEl.style.display = 'inline-flex';
       setTimeout(()=>{ dupEl.style.display='none'; }, 1600);
     }else if(state === 'error'){
-      dupEl.innerHTML = '<span>!</span><span>'+(text||'Check failed')</span>';
+      dupEl.innerHTML = '<span>!</span><span>'+(text||'Check failed')+'</span>';
       dupEl.style.display = 'inline-flex';
       setTimeout(()=>{ dupEl.style.display='none'; }, 2000);
     }else{
@@ -956,30 +937,29 @@
     const uhid = valStr('uhid');
     if(!name || !uhid){ return; }
 
-    const { url, secret, clientId } = currentConn();
+    const { url } = currentConn();
     if(!url){ return; }
 
     cancelDupRequest();
     dupAbort = new AbortController();
     setDupStatus('checking', 'Looking for duplicates…');
 
-    const payload = {
-      action: 'check',              // matches Apps Script expectation
-      clientId,                     // forwarded as-is
-      authToken: secret || '',
-      month: istMonthYYYYMM(),
+    // Apps Script expects: action=check & uhid=... & name=... & month=YYYY-MM
+    const execUrl = sanitizeExecUrl(url);
+    const ym = istMonthYYYYMM();
+    const qs = new URLSearchParams({
+      action:'check',
       uhid: String(uhid).trim(),
-      patientName: String(name).trim()
-    };
+      name: String(name).trim(),
+      month: ym
+    }).toString();
 
-    console.log('[duplicate-check] sending ('+reason+') →', payload);
+    const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
+    console.log('[duplicate-check] GET ('+reason+') →', full);
 
     try{
-      const execUrl = sanitizeExecUrl(url);
-      const res = await fetch(execUrl, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify(payload),
+      const res = await fetch(full, {
+        method:'GET',
         mode:'cors',
         credentials:'omit',
         signal: dupAbort.signal
@@ -994,8 +974,8 @@
         return;
       }
 
-      // Expected: { ok: true, status: 'duplicate_entry' } OR { ok:true, duplicate:true } when found
-      const isDup = (data && (data.status==='duplicate_entry' || data.duplicate===true));
+      // Expected from script: { ok:true, matches:n, tag:'duplicate_entry'|'no_duplicate' }
+      const isDup = !!(data && (data.tag === 'duplicate_entry' || (data.matches|0) > 0));
       if(isDup){
         setDupStatus('', ''); // hide the inline badge
         toastCenter('Possible duplicate entry found!');
