@@ -51,8 +51,7 @@
   .mini-field span{font-size:16px}
   .mini-field input{border:0;background:transparent;font-size:14px;outline:none;min-width:110px}
 
-  /* Reduced bottom padding now that the action bar is not fixed */
-  .workspace-wrapper{flex:1;padding:0 clamp(18px,7vw,64px) clamp(28px,6vw,52px)}
+  .workspace-wrapper{flex:1;padding:0 clamp(18px,7vw,64px) clamp(180px,12vw,220px)}
   .workspace{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:grid;gap:clamp(20px,4vw,36px)}
   .cards-flow{display:grid;gap:clamp(18px,3vw,28px)}
   .panel{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--outline);padding:clamp(18px,3vw,28px);box-shadow:var(--shadow-soft);backdrop-filter:blur(14px);display:grid;gap:clamp(16px,2.5vw,26px)}
@@ -80,34 +79,22 @@
   .tab-panel{display:none}
   .tab-panel.active{display:block}
 
-  /* Action dock now flows with the document (not fixed) */
-  .action-dock{
-    position:static;
-    padding:18px 0 6px 0;
-    margin:0 clamp(18px,7vw,64px) clamp(22px,6vw,48px);
-    background:transparent;
-    border-top:1px solid rgba(148,163,184,.35);
-    box-shadow:none;
-    z-index:auto;
-  }
-  .action-dock__inner{max-width:var(--max-width);margin:0 auto;display:grid;gap:8px}
+  .action-dock{position:fixed;left:0;right:0;bottom:0;padding:18px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,24px),28px);background:rgba(255,255,255,.96);border-top:1px solid rgba(148,163,184,.35);box-shadow:0 -18px 42px -24px rgba(15,23,42,.45);backdrop-filter:blur(16px)}
+  .action-dock__inner{max-width:var(--max-width);margin:0 auto;display:grid;gap:12px}
   .btn{border-radius:var(--radius-md);border:1px solid transparent;padding:16px;font-weight:600;font-size:16px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
-  .btn.primary{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;box-shadow:0 20px 40px -18px rgba(37,99,235,.25)}
+  .btn.primary{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;box-shadow:0 20px 40px -18px rgba(37,99,235,.55)}
   .btn.primary:hover:not([disabled]){transform:translateY(-1px)}
   .btn.secondary{background:rgba(37,99,235,.08);color:var(--accent-dark);border:1px solid rgba(37,99,235,.18)}
   .btn.ghost{background:transparent;border:1px solid rgba(148,163,184,.35);color:var(--muted)}
-  .btn[disabled]{opacity:.6;cursor:not-allowed}
+  .btn[disabled]{opacity:.6;cursor:progress}
 
-  .incomplete-note{display:none;font-size:12px;color:#dc2626;font-weight:700}
-  .incomplete-note[data-visible="true"]{display:block}
-
-  /* Toasts remain floating so feedback is visible even when dock is at page bottom */
-  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:24px;min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:220}
+  /* Toasts */
+  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:120}
   .toast.err{border-left-color:#dc2626;color:#dc2626}
   .toast.warn{border-left-color:#f59e0b;color:#92400e}
   .toast.center{left:50%;top:50%;transform:translate(-50%,-50%);right:auto;bottom:auto;min-width:min(460px,calc(100vw - 48px));text-align:center}
 
-  .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:230}
+  .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:130}
   .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
   .dev-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
   .dev-panel{display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
@@ -136,10 +123,11 @@
   }
   .results-card[data-visible="true"]{display:block}
   .results-title{margin:0 0 8px 0;font-weight:700}
-  .results-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .metric{padding:12px 14px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:700}
   .metric small{display:block;font-weight:600;color:var(--muted)}
 
+  /* Inline duplicate indicator beside UHID */
   .inline-wrap{display:flex;align-items:center;gap:8px}
   .dup-indicator{display:none;font-size:12px;color:#64748b;white-space:nowrap}
   .dup-indicator[data-state="checking"],
@@ -157,14 +145,12 @@
   }
 
   .tiny-footer{font-size:12px;color:#64748b;text-align:center;padding:8px 0 14px 0}
+
+  /* --- added: small developer credit above Online mode --- */
   .dev-credit{font-size:12px;color:#64748b;font-weight:600;margin-bottom:2px}
 </style>
 </head>
 <body>
-  <noscript style="padding:12px 16px;background:#fee2e2;color:#7f1d1d;border-bottom:1px solid #fecaca;font-weight:700">
-    JavaScript is required for APACHE II calculations and Google Sheets submission.
-  </noscript>
-
   <header class="masthead" role="banner">
     <div class="masthead__inner">
       <div class="topline">
@@ -246,8 +232,8 @@
           </div>
           <div class="grid-2">
             <div>
-              <label for="gcs">GCS (3–15)*</label>
-              <input id="gcs" class="input" type="number" min="3" max="15" step="1" required placeholder="e.g., 12">
+              <label for="gcs">GCS (3–15)</label>
+              <input id="gcs" class="input" type="number" min="3" max="15" step="1" placeholder="e.g., 12">
             </div>
           </div>
         </section>
@@ -289,22 +275,22 @@
           <div id="tab-vitals" class="tab-panel active" role="tabpanel">
             <div class="grid-3">
               <div>
-                <label for="tempF">Temperature (°F)*</label>
-                <input id="tempF" class="input" type="number" step="0.1" required>
+                <label for="tempF">Temperature (°F)</label>
+                <input id="tempF" class="input" type="number" step="0.1">
               </div>
               <div>
-                <label for="map">Mean Arterial Pressure (mmHg)*</label>
-                <input id="map" class="input" type="number" step="1" required>
+                <label for="map">Mean Arterial Pressure (mmHg)</label>
+                <input id="map" class="input" type="number" step="1">
               </div>
               <div>
-                <label for="hr">Heart Rate (bpm)*</label>
-                <input id="hr" class="input" type="number" step="1" required>
+                <label for="hr">Heart Rate (bpm)</label>
+                <input id="hr" class="input" type="number" step="1">
               </div>
             </div>
             <div class="grid-2">
               <div>
-                <label for="rr">Respiratory Rate (breaths/min)*</label>
-                <input id="rr" class="input" type="number" step="1" required>
+                <label for="rr">Respiratory Rate (breaths/min)</label>
+                <input id="rr" class="input" type="number" step="1">
               </div>
             </div>
           </div>
@@ -319,13 +305,13 @@
             </div>
 
             <div id="po2Wrap">
-              <label for="pao2">PaO₂ (mmHg)*</label>
-              <input id="pao2" class="input" type="number" step="1" placeholder="e.g., 80" autocomplete="off" required>
+              <label for="pao2">PaO₂ (mmHg)</label>
+              <input id="pao2" class="input" type="number" step="1" placeholder="e.g., 80" autocomplete="off">
               <p class="hint">If FiO₂ &lt; 50% → provide PaO₂.</p>
             </div>
 
             <div id="aagradWrap" style="display:none">
-              <label for="aagrad">A–a gradient (mmHg)*</label>
+              <label for="aagrad">A–a gradient (mmHg)</label>
               <input id="aagrad" class="input" type="number" step="1" placeholder="e.g., 220" autocomplete="off">
               <p class="hint">If FiO₂ ≥ 50% → provide A–a gradient.</p>
             </div>
@@ -334,36 +320,36 @@
           <div id="tab-labs" class="tab-panel" role="tabpanel">
             <div class="grid-3">
               <div>
-                <label for="ph">pH (arterial)*</label>
-                <input id="ph" class="input" type="number" step="0.01" min="6.8" max="7.8" required>
+                <label for="ph">pH (arterial)</label>
+                <input id="ph" class="input" type="number" step="0.01" min="6.8" max="7.8">
               </div>
               <div>
-                <label for="hco3">HCO₃⁻ (mEq/L)*</label>
-                <input id="hco3" class="input" type="number" step="0.1" required>
+                <label for="hco3">HCO₃⁻ (mEq/L) <span class="hint">(use if pH unavailable)</span></label>
+                <input id="hco3" class="input" type="number" step="0.1">
               </div>
               <div>
-                <label for="na">Na⁺ (mEq/L)*</label>
-                <input id="na" class="input" type="number" step="1" required>
+                <label for="na">Na⁺ (mEq/L)</label>
+                <input id="na" class="input" type="number" step="1">
               </div>
             </div>
             <div class="grid-3">
               <div>
-                <label for="k">K⁺ (mEq/L)*</label>
-                <input id="k" class="input" type="number" step="0.1" required>
+                <label for="k">K⁺ (mEq/L)</label>
+                <input id="k" class="input" type="number" step="0.1">
               </div>
               <div>
-                <label for="cr">Creatinine (mg/dL)*</label>
-                <input id="cr" class="input" type="number" step="0.1" required>
+                <label for="cr">Creatinine (mg/dL)</label>
+                <input id="cr" class="input" type="number" step="0.1">
               </div>
               <div>
-                <label for="wbc">WBC (×10³/mm³)*</label>
-                <input id="wbc" class="input" type="number" step="0.1" required>
+                <label for="wbc">WBC (×10³/mm³)</label>
+                <input id="wbc" class="input" type="number" step="0.1">
               </div>
             </div>
             <div class="grid-2">
               <div>
-                <label for="hct">Hematocrit (%)*</label>
-                <input id="hct" class="input" type="number" step="0.1" required>
+                <label for="hct">Hematocrit (%)</label>
+                <input id="hct" class="input" type="number" step="0.1">
               </div>
               <div>
                 <label>Acute Renal Failure</label>
@@ -395,20 +381,17 @@
           <h4 class="results-title">Computed Result</h4>
           <div class="results-grid">
             <div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
-            <div class="metric"><small>Mortality (Non-op)</small><span id="resMortNon">—</span></div>
-            <div class="metric"><small>Mortality (Post-op)</small><span id="resMortPost">—</span></div>
+            <div class="metric"><small>Estimated mortality</small><span id="resMort">—</span></div>
           </div>
         </aside>
       </div>
     </main>
   </div>
 
-  <!-- Action dock now at the bottom of the page flow -->
   <div class="action-dock" role="contentinfo">
     <div class="action-dock__inner">
-      <div id="incompleteNote" class="incomplete-note" aria-live="polite">Form incomplete: please fill all required items.</div>
       <button id="btnDownload" class="btn ghost" type="button">Download current month</button>
-      <button id="btnSubmit" class="btn primary" type="button" disabled>Submit to Google Sheets</button>
+      <button id="btnSubmit" class="btn primary" type="button">Submit to Google Sheets</button>
     </div>
   </div>
 
@@ -457,11 +440,11 @@
   <div class="tiny-footer">© @ JSFDev</div>
 
 <script>
-  // ---------- helpers ----------
+  // ---------- small helper & UX ----------
   const $ = (id) => document.getElementById(id);
   const q = (sel) => document.querySelector(sel);
-  function valNum(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:Number(v); }
-  function valStr(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:v; }
+  function valNum(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:Number(v); }
+  function valStr(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:v; }
   function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
   function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
   function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
@@ -476,17 +459,17 @@
     const t=$('toastCenter');
     t.textContent=msg; t.style.display='block';
     clearTimeout(toastCenter._timer);
-    toastCenter._timer=setTimeout(()=>{ t.style.display='none'); }, 5200);
+    toastCenter._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
   }
   function vlog(groupLabel, info){
     try{ console.groupCollapsed(groupLabel); if(typeof info === 'object') console.debug(info); else console.debug(String(info)); console.groupEnd(); }catch(_){}
   }
 
   function detectDesktop(){
-    const ua=(navigator.userAgent||"");
+    const ua=navigator.userAgent||"";
     const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
-    const pointerFine=(window.matchMedia?matchMedia('(pointer: fine)').matches:false);
-    const wideEnough=(window.matchMedia?matchMedia('(min-width:1024px)').matches:false);
+    const pointerFine=matchMedia('(pointer: fine)').matches;
+    const wideEnough=matchMedia('(min-width:1024px)').matches;
     return looksDesktop||(pointerFine&&wideEnough);
   }
   function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
@@ -519,7 +502,7 @@
       onlineSecret:$('onlineSecret')?.value.trim()||'',
       clientId:$('clientId')?.value.trim()||'NURSING-STATION-01'
     };
-    try{ localStorage.setItem('apacheMobileDev', JSON.stringify(overrides)); }catch(_){}
+    localStorage.setItem('apacheMobileDev', JSON.stringify(overrides));
   }
   function loadDevOverrides(){
     try{
@@ -532,6 +515,7 @@
     }catch(_){}
   }
 
+  // Use hardcoded defaults first; Dev overrides only if present.
   function currentConn(){
     let url = ONLINE_WEBHOOK_URL;
     let secret = ONLINE_SECRET;
@@ -548,7 +532,7 @@
     return { url, secret, clientId };
   }
 
-  // Cosmetic: Z Fold 6
+  // Z Fold cosmetic
   (function(){ const ua=(navigator.userAgent||'').toUpperCase(); const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6'); if(isFold6) document.body.classList.add('fold6'); })();
 
   // Chronic toggle
@@ -586,203 +570,51 @@
   let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
   loadDevOverrides();
 
-  // === APACHE II scoring (MDCalc-exact binning) ===
+  // === APACHE II scoring ===
   function fToC(f){ return (f-32)*(5/9); }
-  // Rectal temperature, °C
-  function ptsTempC(c){
-    if(c==null) return 0;
-    if(c>=41) return 4;
-    if(c>=39 && c<41) return 3;
-    if(c>=38.5 && c<39) return 1;
-    if(c>=36 && c<38.5) return 0;
-    if(c>=34 && c<36) return 1;
-    if(c>=32 && c<34) return 2;
-    if(c>=30 && c<32) return 3;
-    return 4; // <30
-  }
-  // MAP (mmHg)
-  function ptsMAP(v){
-    if(v==null) return 0;
-    if(v>=160) return 4;
-    if(v>=130) return 3;
-    if(v>=110) return 2;
-    if(v>=70)  return 0;
-    if(v>=50)  return 2;
-    return 4; // <50
-  }
-  // Heart rate (bpm)
-  function ptsHR(v){
-    if(v==null) return 0;
-    if(v>=180) return 4;
-    if(v>=140) return 3;
-    if(v>=110) return 2;
-    if(v>=70)  return 0;
-    if(v>=55)  return 2;
-    if(v>=40)  return 3;
-    return 4; // <40
-  }
-  // Respiratory rate (bpm)
-  function ptsRR(v){
-    if(v==null) return 0;
-    if(v>=50) return 4;
-    if(v>=35) return 3;
-    if(v>=25) return 1;
-    if(v>=12) return 0;
-    if(v>=10) return 1;
-    if(v>=6)  return 2;
-    return 4; // <6
-  }
-  // Oxygenation: PaO2 if FiO2<50%; else A–a gradient
+  function ptsTempC(c){ if(c==null) return 0; if(c>=41) return 4; if(c>=39 && c<=40.9) return 3; if(c>=38.5 && c<=38.9) return 1; if(c>=36 && c<=38.4) return 0; if(c>=34 && c<=35.9) return 1; if(c>=32 && c<=33.9) return 2; if(c>=30 && c<=31.9) return 3; return 4; }
+  function ptsMAP(v){ if(v==null) return 0; if(v>=160) return 4; if(v>=130) return 3; if(v>=110) return 2; if(v>=70) return 0; if(v>=50) return 2; return 4; }
+  function ptsHR(v){ if(v==null) return 0; if(v>=180) return 4; if(v>=140) return 3; if(v>=110) return 2; if(v>=70) return 0; if(v>=55) return 2; if(v>=40) return 3; return 4; }
+  function ptsRR(v){ if(v==null) return 0; if(v>=50) return 4; if(v>=35) return 3; if(v>=25) return 1; if(v>=12) return 0; if(v>=10) return 1; if(v>=6) return 2; return 4; }
   function ptsOxygen(fio2Cat,pao2,aagrad){
     if(fio2Cat==='>=50%'){
       if(aagrad==null) return 0;
-      if(aagrad>=500) return 4;
-      if(aagrad>=350) return 3;
-      if(aagrad>=200) return 2;
-      return 0;
+      if(aagrad>=500) return 4; if(aagrad>=350) return 3; if(aagrad>=200) return 2; return 0;
     } else {
       if(pao2==null) return 0;
-      if(pao2>70)    return 0;
-      if(pao2>=61)   return 1;
-      if(pao2>=55)   return 3;
-      return 4; // <55
+      if(pao2>70) return 0; if(pao2>=61) return 1; if(pao2>=55) return 3; return 4;
     }
   }
-  // Acid–base
-  function ptsPH(ph){
-    if(ph==null) return 0;
-    if(ph>=7.70) return 4;
-    if(ph>=7.60) return 3;
-    if(ph>=7.50) return 1;
-    if(ph>=7.33) return 0;
-    if(ph>=7.25) return 2;
-    if(ph>=7.15) return 3;
-    return 4; // <7.15
-  }
-  function ptsHCO3(h){
-    if(h==null) return 0;
-    if(h>=52) return 4;
-    if(h>=41) return 3;
-    if(h>=32) return 1;
-    if(h>=22) return 0;
-    if(h>=18) return 2;
-    if(h>=15) return 3;
-    return 4; // <15
-  }
-  function acidBasePoints(ph, hco3){
-    if(ph!=null) return ptsPH(ph);
-    if(hco3!=null) return ptsHCO3(hco3);
-    return 0;
-  }
-  // Electrolytes
-  function ptsNa(v){
-    if(v==null) return 0;
-    if(v>=180) return 4;
-    if(v>=160) return 3;
-    if(v>=155) return 2;
-    if(v>=150) return 1;
-    if(v>=130) return 0;
-    if(v>=120) return 2;
-    if(v>=111) return 3;
-    return 4; // <111
-  }
-  function ptsK(v){
-    if(v==null) return 0;
-    if(v>=7.0) return 4;
-    if(v>=6.0) return 3;
-    if(v>=5.5) return 1;
-    if(v>=3.5) return 0;
-    if(v>=3.0) return 1;
-    if(v>=2.5) return 2;
-    return 4; // <2.5
-  }
-  // Creatinine (mg/dL); ARF doubles points
-  function ptsCreatinine(v,arf){
-    if(v==null) return 0;
-    let pts=0;
-    if(v>=3.5) pts=4;
-    else if(v>=2.0) pts=3;
-    else if(v>=1.5) pts=2;
-    else if(v<0.6) pts=2;
-    else pts=0;
-    if(arf) pts*=2;
-    return pts;
-  }
-  // Hematocrit / WBC
-  function ptsHct(v){
-    if(v==null) return 0;
-    if(v>=60) return 4;
-    if(v>=50) return 2;
-    if(v>=46) return 1;
-    if(v>=30) return 0;
-    if(v>=20) return 2;
-    return 4; // <20
-  }
-  function ptsWBC(v){
-    if(v==null) return 0;
-    if(v>=40) return 4;
-    if(v>=20) return 2;
-    if(v>=15) return 1;
-    if(v>=3)  return 0;
-    if(v>=1)  return 2;
-    return 4; // <1
-  }
-  // GCS
-  function ptsGCS(g){ if(g==null) return 0; const d=15-g; return d<0?0:d; }
-  // Age
-  function agePoints(age){
-    if(age==null) return 0;
-    if(age<=44) return 0;
-    if(age<=54) return 2;
-    if(age<=64) return 3;
-    if(age<=74) return 5;
-    return 6; // ≥75
-  }
-  // Chronic health
-  function chronicPoints(chronic,surgtype){
-    if(chronic!=='Yes') return 0;
-    if(surgtype==='Elective') return 2;
-    return 5;
-  }
+  function ptsPH(ph){ if(ph==null) return null; if(ph>=7.70) return 4; if(ph>=7.60) return 3; if(ph>=7.50) return 1; if(ph>=7.33) return 0; if(ph>=7.25) return 2; if(ph>=7.15) return 3; return 4; }
+  function ptsHCO3(h){ if(h==null) return 0; if(h>=52) return 4; if(h>=41) return 3; if(h>=32) return 1; if(h>=22) return 0; if(h>=18) return 2; if(h>=15) return 3; return 4; }
+  function ptsNa(v){ if(v==null) return 0; if(v>=180) return 4; if(v>=160) return 3; if(v>=155) return 2; if(v>=150) return 1; if(v>=130) return 0; if(v>=120) return 2; if(v>=111) return 3; return 4; }
+  function ptsK(v){ if(v==null) return 0; if(v>=7.0) return 4; if(v>=6.0) return 3; if(v>=5.5) return 1; if(v>=3.5) return 0; if(v>=3.0) return 1; if(v>=2.5) return 2; return 4; }
+  function ptsCreatinine(v,arf){ if(v==null) return 0; let pts=0; if(v>=3.5) pts=4; else if(v>=2.0) pts=3; else if(v>=1.5) pts=2; else if(v<0.6) pts=2; else pts=0; if(arf) pts*=2; return pts; }
+  function ptsHct(v){ if(v==null) return 0; if(v>=60) return 4; if(v>=50) return 2; if(v>=46) return 1; if(v>=30) return 0; if(v>=20) return 2; return 4; }
+  function ptsWBC(v){ if(v==null) return 0; if(v>=40) return 4; if(v>=20) return 2; if(v>=15) return 1; if(v>=3) return 0; if(v>=1) return 2; return 4; }
+  function ptsGCS(g){ if(g==null) return 0; const diff=15-g; return diff<0?0:diff; }
+  function agePoints(age){ if(age==null) return 0; if(age<=44) return 0; if(age<=54) return 2; if(age<=64) return 3; if(age<=74) return 5; return 6; }
+  function chronicPoints(chronic,surgtype){ if(chronic!=='Yes') return 0; if(surgtype==='Elective') return 2; return 5; }
 
-  // Mortality bands (approximate)
-  function mortalityBands(score){
-    const s = Number(score||0);
-    if(s<=4)  return { nonop:4,  postop:1 };
-    if(s<=9)  return { nonop:8,  postop:3 };
-    if(s<=14) return { nonop:15, postop:7 };
-    if(s<=19) return { nonop:25, postop:12 };
-    if(s<=24) return { nonop:40, postop:30 };
-    if(s<=29) return { nonop:55, postop:35 };
-    if(s<=34) return { nonop:73, postop:73 };
-    return { nonop:85, postop:88 };
-  }
-
-  function computeApache(inputs, meta){
+  function computeApacheAndMortality(inputs, meta){
     const tempC = inputs.Temperature_F!=null ? fToC(inputs.Temperature_F) : null;
-    const aps = ptsTempC(tempC)+
-                ptsMAP(inputs.MAP_mmHg)+
-                ptsHR(inputs.HeartRate_bpm)+
-                ptsRR(inputs.RespRate_bpm)+
-                ptsOxygen(inputs.FiO2_Category, inputs.PaO2_mmHg, inputs.AaGradient_mmHg)+
-                acidBasePoints(inputs.pH, inputs.HCO3_mEqL)+
-                ptsNa(inputs.Na_mEqL)+
-                ptsK(inputs.K_mEqL)+
-                ptsCreatinine(inputs.Creatinine_mgdl, inputs.AcuteRenalFailure===true)+
-                ptsHct(inputs.Hematocrit_pct)+
-                ptsWBC(inputs.WBC_10e3uL)+
-                ptsGCS(inputs.GCS);
+    const acidBasePts = (function(){ const phPts=ptsPH(inputs.pH); return (phPts!=null)?phPts:ptsHCO3(inputs.HCO3_mEqL); })();
+    const aps = ptsTempC(tempC)+ptsMAP(inputs.MAP_mmHg)+ptsHR(inputs.HeartRate_bpm)+ptsRR(inputs.RespRate_bpm)+
+                ptsOxygen(inputs.FiO2_Category, inputs.PaO2_mmHg, inputs.AaGradient_mmHg)+acidBasePts+
+                ptsNa(inputs.Na_mEqL)+ptsK(inputs.K_mEqL)+ptsCreatinine(inputs.Creatinine_mgdl, inputs.AcuteRenalFailure===true)+
+                ptsHct(inputs.Hematocrit_pct)+ptsWBC(inputs.WBC_10e3uL)+ptsGCS(inputs.GCS!=null?inputs.GCS:null);
     const agePts=agePoints(meta.age);
     const chronicPts=chronicPoints(inputs.ChronicHealth, inputs.SurgeryType);
     const apacheII=aps+agePts+chronicPts;
-    const mort = mortalityBands(apacheII);
-    return { apacheII, mortNon: mort.nonop, mortPost: mort.postop };
+    const logit=-3.517 + 0.146*apacheII;
+    const mortProb=1/(1+Math.exp(-logit));
+    return { apacheII, mortProb };
   }
 
   function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
-  function istMonthYYYYMM(){ try{ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }catch(_){ return (new Date().toISOString()).slice(0,7); } }
+  function istMonthYYYYMM(){ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }
 
-  // Build payload — strict completeness gate
+  // Build payload (+ sheet row)
   function buildPayload(){
     const patientName=valStr('patientName');
     const uhid=valStr('uhid');
@@ -805,58 +637,38 @@
     const chronic=radioVal('chronic');
     const surgtype=chronic==='Yes' ? radioVal('surgtype') : null;
 
-    // Required vitals
-    const tempF = valNum('tempF'); if(tempF===null) throw new Error('Temperature is required');
-    const map   = valNum('map');   if(map===null)   throw new Error('MAP is required');
-    const hr    = valNum('hr');    if(hr===null)    throw new Error('Heart Rate is required');
-    const rr    = valNum('rr');    if(rr===null)    throw new Error('Respiratory Rate is required');
-
-    // Oxygenation
     const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
     const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
     if(fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
     if(fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
 
-    // Acid-base (pH + HCO3 required; pH drives points)
-    const phVal = valNum('ph');   if(phVal===null)  throw new Error('Arterial pH is required');
-    const hco3Val = valNum('hco3'); if(hco3Val===null) throw new Error('HCO₃⁻ is required');
-
-    // Labs
-    const na = valNum('na'); if(na===null) throw new Error('Sodium is required');
-    const k  = valNum('k');  if(k===null)  throw new Error('Potassium is required');
-    const cr = valNum('cr'); if(cr===null) throw new Error('Creatinine is required');
-    const wbc= valNum('wbc');if(wbc===null)throw new Error('WBC is required');
-    const hct= valNum('hct');if(hct===null)throw new Error('Hematocrit is required');
-
-    // Neuro
-    const gcs = valNum('gcs'); if(gcs===null) throw new Error('GCS is required');
-
     const inputs={
       Age_years: age,
-      GCS: gcs,
-      Temperature_F: tempF,
-      MAP_mmHg: map,
-      HeartRate_bpm: hr,
-      RespRate_bpm: rr,
+      GCS: valNum('gcs'),
+      Temperature_F: valNum('tempF'),
+      MAP_mmHg: valNum('map'),
+      HeartRate_bpm: valNum('hr'),
+      RespRate_bpm: valNum('rr'),
       FiO2_Category: fio2,
       PaO2_mmHg: pao2,
       AaGradient_mmHg: aagrad,
-      pH: phVal,
-      HCO3_mEqL: hco3Val,
-      Na_mEqL: na,
-      K_mEqL: k,
-      Creatinine_mgdl: cr,
+      pH: valNum('ph'),
+      HCO3_mEqL: valNum('hco3'),
+      Na_mEqL: valNum('na'),
+      K_mEqL: valNum('k'),
+      Creatinine_mgdl: valNum('cr'),
       AcuteRenalFailure: radioVal('arf')==='Yes',
-      Hematocrit_pct: hct,
-      WBC_10e3uL: wbc,
+      Hematocrit_pct: valNum('hct'),
+      WBC_10e3uL: valNum('wbc'),
       ChronicHealth: chronic==='Yes' ? 'Yes' : 'No',
       SurgeryType: surgtype
     };
 
     const nowIso=new Date().toISOString();
-    const { apacheII, mortNon, mortPost } = computeApache(inputs,{ age });
+    const { apacheII, mortProb } = computeApacheAndMortality(inputs,{ age });
+    const mortPct=Math.round(mortProb*1000)/10;
 
-    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, `${mortNon}% / ${mortPost}%`, mortYN ];
+    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, mortPct, mortYN ];
 
     return {
       clientId: 'NURSING-STATION-01',
@@ -867,40 +679,25 @@
       submissionId: uuidv4(),
       apacheInputs: inputs,
       apacheScore: apacheII,
-      predictedMortalityNonOpPct: mortNon,
-      predictedMortalityPostOpPct: mortPost,
+      predictedMortalityPct: mortPct,
       mortalityYN: mortYN,
       sheetRow: row
     };
   }
 
   function formIsComplete(){ try{ buildPayload(); return true; }catch(_){ return false; } }
-
-  function updateCompletenessUI(){
-    const complete = formIsComplete();
-    const note = $('incompleteNote');
-    const submit = $('btnSubmit');
-    if(note) note.setAttribute('data-visible', complete ? 'false' : 'true');
-    if(submit) submit.disabled = !complete;
-    if(!complete){
-      const card=$('resultsCard');
-      if(card) card.setAttribute('data-visible','false');
-    }
-  }
-
   function maybeShowResults(){
-    updateCompletenessUI();
+    const card=$('resultsCard');
+    const copyBtn=$('btnCopyExcelRow');
     if(!formIsComplete()){
-      const copyBtn=$('btnCopyExcelRow');
+      if(card) card.setAttribute('data-visible','false');
       if(copyBtn) copyBtn.disabled=true;
       return;
     }
     const payload = buildPayload();
     $('resApache').textContent = String(payload.apacheScore) + ' pts';
-    $('resMortNon').textContent = String(payload.predictedMortalityNonOpPct) + '%';
-    $('resMortPost').textContent = String(payload.predictedMortalityPostOpPct) + '%';
-    $('resultsCard').setAttribute('data-visible','true');
-    const copyBtn=$('btnCopyExcelRow');
+    $('resMort').textContent = String(payload.predictedMortalityPct.toFixed(1)) + '%';
+    if(card) card.setAttribute('data-visible','true');
     if(copyBtn) copyBtn.disabled=false;
   }
 
@@ -914,24 +711,6 @@
   function buildExcelRowText(){
     const p = buildPayload();
     return p.sheetRow.join('\t');
-  }
-
-  function copyToClipboardSafe(text){
-    try{
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        return navigator.clipboard.writeText(text);
-      }
-    }catch(_){}
-    return new Promise((resolve,reject)=>{
-      try{
-        const ta=document.createElement('textarea');
-        ta.value=text; ta.style.position='fixed'; ta.style.top='-1000px';
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        const ok=document.execCommand('copy');
-        document.body.removeChild(ta);
-        if(ok) resolve(); else reject(new Error('execCommand failed'));
-      }catch(e){ reject(e); }
-    });
   }
 
   function dummyFill(){
@@ -977,64 +756,43 @@
     toast('Dummy data filled');
   }
 
-  // ---------- network helpers (with timeout + safer handling) ----------
-  function withTimeout(promise, ms, label){
-    const ctrl=new AbortController();
-    const t=setTimeout(()=>ctrl.abort(), ms);
-    const race = (async()=>{
-      try{
-        const res = await promise(ctrl.signal);
-        clearTimeout(t);
-        return res;
-      }catch(e){
-        clearTimeout(t);
-        if(e && e.name==='AbortError') throw new Error((label||'Request')+' timed out');
-        throw e;
-      }
-    })();
-    race.abort = ()=>{ try{ ctrl.abort(); }catch(_){ } };
-    return race;
-  }
-
+  // ---------- network helpers ----------
   async function sendJson(url, payload, label){
     let res, text;
-    const execFetch = (signal)=>fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-      mode: 'cors',
-      credentials: 'omit',
-      signal
-    });
     try{
-      vlog('[fetch] '+(label||'POST')+' →', { url, preview: JSON.stringify(payload).slice(0,300) });
-      res = await withTimeout(execFetch, 15000, label||'POST'); // 15s timeout
+      vlog('[fetch] '+label+' → POST', { url, payloadPreview: JSON.stringify(payload).slice(0,300) });
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+        mode: 'cors',
+        credentials: 'omit'
+      });
     }catch(netErr){
       console.error('[NET] '+label+' network error:', netErr);
-      throw new Error((label||'POST')+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
+      throw new Error(label+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
     }
     try{ text = await res.text(); }catch(_){ text=''; }
     let data=null;
     try{ data = text ? JSON.parse(text) : null; }catch(parseErr){
       console.error('[PARSE] Non-JSON body:', text);
-      throw new Error((label||'POST')+' returned non-JSON: '+(text ? text.slice(0,200) : 'empty body'));
+      throw new Error(label+' returned non-JSON: '+(text ? text.slice(0,200) : 'empty body'));
     }
-    vlog('[fetch] '+(label||'POST')+' ← response', { status: res.status, data });
+    vlog('[fetch] '+label+' ← response', { status: res.status, data });
     if(!res.ok){
       const msg=(data && (data.error||data.message)) || ('HTTP '+res.status);
-      throw new Error((label||'POST')+' HTTP error: '+msg);
+      throw new Error(label+' HTTP error: '+msg);
     }
     return data;
   }
 
+  // Sanitize /dev → /exec
   function sanitizeExecUrl(u){
-    try{
-      const x=new URL(u, window.location.href);
-      x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec');
-      return x.toString();
-    }catch(_){ return String(u||''); }
+    try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
+    catch(_){ return u; }
   }
 
+  // Submit using constants first; Dev values only override if present
   async function postOnline(payload){
     const { url, secret, clientId } = currentConn();
     if(!url){ throw new Error('Online Webhook URL not configured.'); }
@@ -1049,9 +807,14 @@
     return data;
   }
 
-  function buildDownloadParams(ym){ return { action:'download', month: ym }; }
+  // ---------- Robust CSV download (raw CSV for Chrome-safe path) ----------
+  function buildDownloadParams(ym){
+    // Raw CSV: omit mode=redirect to receive CSV body directly.
+    return { action:'download', month: ym };
+  }
   async function blobFallbackDownload(url, fileName){
     try{
+      console.log('[download] blob fallback →', url);
       const res = await fetch(url, { method:'GET', mode:'cors', credentials:'omit' });
       if(!res.ok) throw new Error('HTTP '+res.status);
       const blob = await res.blob();
@@ -1082,10 +845,13 @@
     const qs = new URLSearchParams(params).toString();
     const full = exec + (exec.includes('?')?'&':'?') + qs;
 
-    let win = null;
-    try{ win = window.open(full, '_blank', 'noopener'); }catch(_){}
+    // Attempt 1: top-level open (raw CSV) – Chrome-friendly
+    console.log('[download] attempt#1 window.open →', full);
+    const win = window.open(full, '_blank', 'noopener');
+
+    // Attempt 2: blob fallback
     setTimeout(async ()=>{
-      if(!win || win.closed || typeof win.closed==='undefined'){
+      if(!win || win.closed){
         const ok = await blobFallbackDownload(full, 'APACHE-'+ym+'.csv');
         if(ok){ toast('Download started'); }
         else { toast('Download may be blocked. Check browser downloads.', false); }
@@ -1111,7 +877,7 @@
       toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
       console.error('[submit] error:', e);
     }finally{
-      updateCompletenessUI();
+      button.disabled=false;
     }
   });
 
@@ -1127,17 +893,17 @@
       console.error('[preview] error:', e);
     }
   });
-  $('btnCopyPreview').addEventListener('click', async ()=>{
-    try{ await copyToClipboardSafe($('debugPreview').textContent||''); toast('Copied JSON'); }
+  $('btnCopyPreview').addEventListener('click', ()=>{
+    try{ navigator.clipboard.writeText($('debugPreview').textContent||''); toast('Copied JSON'); }
     catch(_){ toast('Copy failed', false); }
   });
-  $('btnCopyExcelRow').addEventListener('click', async ()=>{
-    try{ await copyToClipboardSafe(buildExcelRowText()); toast('Row copied (tab-separated). Paste into Excel/Sheets.'); }
+  $('btnCopyExcelRow').addEventListener('click', ()=>{
+    try{ navigator.clipboard.writeText(buildExcelRowText()); toast('Row copied (tab-separated). Paste into Excel/Sheets.'); }
     catch(e){ toast('Copy failed: '+(e && e.message ? e.message : String(e)), false); }
   });
   $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
 
-  // ---------- Duplicate-check ----------
+  // ---------- Duplicate-check (GET, blur-triggered, cancelable, inline status, center warning) ----------
   let dupAbort = null;
   const dupEl = $('dupIndicator');
 
@@ -1159,12 +925,18 @@
       dupEl.style.display='none';
     }
   }
+
   function cancelDupRequest(){
     if(dupAbort){ try{ dupAbort.abort(); }catch(_){ } dupAbort=null; }
   }
-  function bothFilled(){ const name = valStr('patientName'); const uhid = valStr('uhid'); return !!(name && uhid); }
 
-  async function checkDuplicateNow(){
+  function bothFilled(){
+    const name = valStr('patientName');
+    const uhid = valStr('uhid');
+    return !!(name && uhid);
+  }
+
+  async function checkDuplicateNow(reason){
     const name = valStr('patientName');
     const uhid = valStr('uhid');
     if(!name || !uhid){ return; }
@@ -1173,26 +945,43 @@
     if(!url){ return; }
 
     cancelDupRequest();
-    const controller = new AbortController();
-    dupAbort = controller;
+    dupAbort = new AbortController();
     setDupStatus('checking', 'Looking for duplicates…');
 
+    // Apps Script expects: action=check & uhid=... & name=... & month=YYYY-MM
     const execUrl = sanitizeExecUrl(url);
     const ym = istMonthYYYYMM();
-    const qs = new URLSearchParams({ action:'check', uhid: String(uhid).trim(), name: String(name).trim(), month: ym }).toString();
+    const qs = new URLSearchParams({
+      action:'check',
+      uhid: String(uhid).trim(),
+      name: String(name).trim(),
+      month: ym
+    }).toString();
+
     const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
+    console.log('[duplicate-check] GET ('+reason+') →', full);
 
     try{
-      const res = await withTimeout((signal)=>fetch(full, { method:'GET', mode:'cors', credentials:'omit', signal }), 10000, 'Duplicate check');
+      const res = await fetch(full, {
+        method:'GET',
+        mode:'cors',
+        credentials:'omit',
+        signal: dupAbort.signal
+      });
       const text = await res.text();
       let data = {};
       try{ data = text ? JSON.parse(text) : {}; }catch(_){ data={}; }
+      console.log('[duplicate-check] response status=', res.status, 'body=', data);
 
-      if(!res.ok){ setDupStatus('error','Check failed'); return; }
+      if(!res.ok){
+        setDupStatus('error','Check failed');
+        return;
+      }
 
+      // Expected from script: { ok:true, matches:n, tag:'duplicate_entry'|'no_duplicate' }
       const isDup = !!(data && (data.tag === 'duplicate_entry' || (data.matches|0) > 0));
       if(isDup){
-        setDupStatus('', ''); // hide inline badge
+        setDupStatus('', ''); // hide the inline badge
         toastCenter('Possible duplicate entry found!');
       }else{
         setDupStatus('none','No duplicates');
@@ -1200,13 +989,24 @@
 
       if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
     }catch(e){
-      if(e && e.name==='AbortError'){ return; }
+      if(e && e.name==='AbortError'){
+        console.log('[duplicate-check] aborted (new edit/focus)'); 
+        return;
+      }
+      console.warn('[duplicate-check] error:', e && e.message ? e.message : e);
       setDupStatus('error','Check failed');
     }
   }
 
-  function onBlurTrigger(ev){ if(bothFilled()){ checkDuplicateNow(); } }
-  function onFocusCancel(){ cancelDupRequest(); setDupStatus('', ''); }
+  // send when either field loses focus AND both are filled
+  function onBlurTrigger(ev){
+    if(bothFilled()){ checkDuplicateNow('blur from '+ev.target.id); }
+  }
+  // quash old request when user focuses to edit either identifier
+  function onFocusCancel(){
+    cancelDupRequest();
+    setDupStatus('', '');
+  }
 
   ['patientName','uhid','patientNameMini','uhidMini'].forEach(id=>{
     const el=$(id);
@@ -1218,7 +1018,6 @@
   // ---------- Init ----------
   document.addEventListener('DOMContentLoaded', ()=>{
     updateOxygenUI();
-    updateCompletenessUI();
     maybeShowResults();
     if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = !formIsComplete();
     setDupStatus('', '');
