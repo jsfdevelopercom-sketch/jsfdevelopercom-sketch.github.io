@@ -79,7 +79,16 @@
   .tab-panel{display:none}
   .tab-panel.active{display:block}
 
-  .action-dock{position:fixed;left:0;right:0;bottom:0;padding:18px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,24px),28px);background:rgba(255,255,255,.96);border-top:1px solid rgba(148,163,184,.35);box-shadow:0 -18px 42px -24px rgba(15,23,42,.45);backdrop-filter:blur(16px);z-index:150}
+  /* CHANGED: action dock is now non-fixed so it only appears at the bottom of the form */
+  .action-dock{
+    position:static;
+    padding:18px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,24px),28px);
+    background:rgba(255,255,255,.96);
+    border-top:1px solid rgba(148,163,184,.35);
+    box-shadow:0 -18px 42px -24px rgba(15,23,42,.45);
+    backdrop-filter:blur(16px);
+    z-index:150
+  }
   .action-dock__inner{max-width:var(--max-width);margin:0 auto;display:grid;gap:12px}
   .btn{border-radius:var(--radius-md);border:1px solid transparent;padding:16px;font-weight:600;font-size:16px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
   .btn.primary{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;box-shadow:0 20px 40px -18px rgba(37,99,235,.55)}
@@ -835,7 +844,10 @@
     const nowIso=new Date().toISOString();
     const { apacheII, mortNon, mortPost } = computeApache(inputs,{ age });
 
-    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, `${mortNon}% / ${mortPost}%`, mortYN ];
+    // choose single mortality for sending/row: postop if Emergency/Elective, else non-op
+    const selectedMortality = (surgtype==='Emergency' || surgtype==='Elective') ? mortPost : mortNon;
+
+    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, selectedMortality, mortYN ];
 
     return {
       clientId: 'NURSING-STATION-01',
@@ -846,6 +858,7 @@
       submissionId: uuidv4(),
       apacheInputs: inputs,
       apacheScore: apacheII,
+      // keep both below for on-screen preview; they will be stripped before sending
       predictedMortalityNonOpPct: mortNon,
       predictedMortalityPostOpPct: mortPost,
       mortalityYN: mortYN,
@@ -975,10 +988,23 @@
   async function postOnline(payload){
     const { url, secret, clientId } = currentConn();
     if(!url){ throw new Error('Online Webhook URL not configured.'); }
-    payload.clientId  = clientId;
-    payload.authToken = secret || '';
+
+    // Build a copy for sending: include ONLY a single numeric mortality
+    const out = JSON.parse(JSON.stringify(payload));
+    const surgType = out.apacheInputs && out.apacheInputs.SurgeryType;
+    const isPostOp = (surgType === 'Emergency' || surgType === 'Elective');
+    const selectedMort = isPostOp ? Number(out.predictedMortalityPostOpPct) : Number(out.predictedMortalityNonOpPct);
+
+    // strip dual fields, send single numeric one
+    delete out.predictedMortalityNonOpPct;
+    delete out.predictedMortalityPostOpPct;
+    out.predictedMortalityPct = selectedMort;
+
+    out.clientId  = clientId;
+    out.authToken = secret || '';
+
     const execUrl = sanitizeExecUrl(url);
-    const data = await sendJson(execUrl, payload, 'Google Sheets webhook');
+    const data = await sendJson(execUrl, out, 'Google Sheets webhook');
     if(!data || data.ok !== true){
       const detail = data && (data.error || JSON.stringify(data).slice(0,200));
       throw new Error('Sheets webhook did not confirm success' + (detail?': '+detail:''));
