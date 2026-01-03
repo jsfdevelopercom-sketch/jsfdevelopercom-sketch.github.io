@@ -840,7 +840,11 @@
     const nowIso=new Date().toISOString();
     const { apacheII, mortNon, mortPost } = computeApache(inputs,{ age });
 
-    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, `${mortNon}% / ${mortPost}%`, mortYN ];
+    // ----- Single mortality value for Excel row (based on surgical status) -----
+    const isOperative = (surgtype === 'Elective' || surgtype === 'Emergency');
+    const selectedMortalityPct = isOperative ? mortPost : mortNon;
+
+    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, `${selectedMortalityPct}%`, mortYN ];
 
     return {
       clientId: 'NURSING-STATION-01',
@@ -853,6 +857,7 @@
       apacheScore: apacheII,
       predictedMortalityNonOpPct: mortNon,
       predictedMortalityPostOpPct: mortPost,
+      selectedMortalityPct,   // single value used for sheetRow
       mortalityYN: mortYN,
       sheetRow: row
     };
@@ -1097,7 +1102,7 @@
     }else if(state === 'error'){
       dupEl.innerHTML = '<span>!</span><span>'+(text||'Check failed')+'</span>';
       dupEl.style.display = 'inline-flex';
-      setTimeout(()=>{ dupEl.style.display='none'; }, 2000);
+      setTimeout(()=>{ dupEl.style.display='none'); }, 2000);
     }else{
       dupEl.style.display='none';
     }
