@@ -51,7 +51,8 @@
   .mini-field span{font-size:16px}
   .mini-field input{border:0;background:transparent;font-size:14px;outline:none;min-width:110px}
 
-  .workspace-wrapper{flex:1;padding:0 clamp(18px,7vw,64px) clamp(180px,12vw,220px)}
+  /* Reduced bottom padding now that the action bar is not fixed */
+  .workspace-wrapper{flex:1;padding:0 clamp(18px,7vw,64px) clamp(28px,6vw,52px)}
   .workspace{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:grid;gap:clamp(20px,4vw,36px)}
   .cards-flow{display:grid;gap:clamp(18px,3vw,28px)}
   .panel{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--outline);padding:clamp(18px,3vw,28px);box-shadow:var(--shadow-soft);backdrop-filter:blur(14px);display:grid;gap:clamp(16px,2.5vw,26px)}
@@ -79,10 +80,19 @@
   .tab-panel{display:none}
   .tab-panel.active{display:block}
 
-  .action-dock{position:fixed;left:0;right:0;bottom:0;padding:18px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,24px),28px);background:rgba(255,255,255,.96);border-top:1px solid rgba(148,163,184,.35);box-shadow:0 -18px 42px -24px rgba(15,23,42,.45);backdrop-filter:blur(16px);z-index:200}
+  /* Action dock now flows with the document (not fixed) */
+  .action-dock{
+    position:static;
+    padding:18px 0 6px 0;
+    margin:0 clamp(18px,7vw,64px) clamp(22px,6vw,48px);
+    background:transparent;
+    border-top:1px solid rgba(148,163,184,.35);
+    box-shadow:none;
+    z-index:auto;
+  }
   .action-dock__inner{max-width:var(--max-width);margin:0 auto;display:grid;gap:8px}
   .btn{border-radius:var(--radius-md);border:1px solid transparent;padding:16px;font-weight:600;font-size:16px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
-  .btn.primary{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;box-shadow:0 20px 40px -18px rgba(37,99,235,.55)}
+  .btn.primary{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;box-shadow:0 20px 40px -18px rgba(37,99,235,.25)}
   .btn.primary:hover:not([disabled]){transform:translateY(-1px)}
   .btn.secondary{background:rgba(37,99,235,.08);color:var(--accent-dark);border:1px solid rgba(37,99,235,.18)}
   .btn.ghost{background:transparent;border:1px solid rgba(148,163,184,.35);color:var(--muted)}
@@ -91,7 +101,8 @@
   .incomplete-note{display:none;font-size:12px;color:#dc2626;font-weight:700}
   .incomplete-note[data-visible="true"]{display:block}
 
-  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:220}
+  /* Toasts remain floating so feedback is visible even when dock is at page bottom */
+  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:24px;min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:220}
   .toast.err{border-left-color:#dc2626;color:#dc2626}
   .toast.warn{border-left-color:#f59e0b;color:#92400e}
   .toast.center{left:50%;top:50%;transform:translate(-50%,-50%);right:auto;bottom:auto;min-width:min(460px,calc(100vw - 48px));text-align:center}
@@ -150,6 +161,10 @@
 </style>
 </head>
 <body>
+  <noscript style="padding:12px 16px;background:#fee2e2;color:#7f1d1d;border-bottom:1px solid #fecaca;font-weight:700">
+    JavaScript is required for APACHE II calculations and Google Sheets submission.
+  </noscript>
+
   <header class="masthead" role="banner">
     <div class="masthead__inner">
       <div class="topline">
@@ -388,6 +403,7 @@
     </main>
   </div>
 
+  <!-- Action dock now at the bottom of the page flow -->
   <div class="action-dock" role="contentinfo">
     <div class="action-dock__inner">
       <div id="incompleteNote" class="incomplete-note" aria-live="polite">Form incomplete: please fill all required items.</div>
@@ -444,8 +460,8 @@
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
   const q = (sel) => document.querySelector(sel);
-  function valNum(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:Number(v); }
-  function valStr(id){ const el=$(id); if(!el) return null; const v=el.value.trim(); return v===''?null:v; }
+  function valNum(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:Number(v); }
+  function valStr(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:v; }
   function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
   function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
   function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
@@ -460,17 +476,17 @@
     const t=$('toastCenter');
     t.textContent=msg; t.style.display='block';
     clearTimeout(toastCenter._timer);
-    toastCenter._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
+    toastCenter._timer=setTimeout(()=>{ t.style.display='none'); }, 5200);
   }
   function vlog(groupLabel, info){
     try{ console.groupCollapsed(groupLabel); if(typeof info === 'object') console.debug(info); else console.debug(String(info)); console.groupEnd(); }catch(_){}
   }
 
   function detectDesktop(){
-    const ua=navigator.userAgent||"";
+    const ua=(navigator.userAgent||"");
     const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
-    const pointerFine=matchMedia('(pointer: fine)').matches;
-    const wideEnough=matchMedia('(min-width:1024px)').matches;
+    const pointerFine=(window.matchMedia?matchMedia('(pointer: fine)').matches:false);
+    const wideEnough=(window.matchMedia?matchMedia('(min-width:1024px)').matches:false);
     return looksDesktop||(pointerFine&&wideEnough);
   }
   function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
@@ -503,7 +519,7 @@
       onlineSecret:$('onlineSecret')?.value.trim()||'',
       clientId:$('clientId')?.value.trim()||'NURSING-STATION-01'
     };
-    localStorage.setItem('apacheMobileDev', JSON.stringify(overrides));
+    try{ localStorage.setItem('apacheMobileDev', JSON.stringify(overrides)); }catch(_){}
   }
   function loadDevOverrides(){
     try{
@@ -632,7 +648,7 @@
       return 4; // <55
     }
   }
-  // Acid–base: MDCalc uses pH; if ABG absent, use HCO3. We require both; pH drives points.
+  // Acid–base
   function ptsPH(ph){
     if(ph==null) return 0;
     if(ph>=7.70) return 4;
@@ -722,14 +738,14 @@
     if(age<=74) return 5;
     return 6; // ≥75
   }
-  // Chronic health (only if severe organ insufficiency/immunocompromise)
+  // Chronic health
   function chronicPoints(chronic,surgtype){
     if(chronic!=='Yes') return 0;
     if(surgtype==='Elective') return 2;
-    return 5; // Emergency or Non-operative
+    return 5;
   }
 
-  // Mortality bands from Knaus/MDCalc (approximate; table display on MDCalc)
+  // Mortality bands (approximate)
   function mortalityBands(score){
     const s = Number(score||0);
     if(s<=4)  return { nonop:4,  postop:1 };
@@ -739,7 +755,7 @@
     if(s<=24) return { nonop:40, postop:30 };
     if(s<=29) return { nonop:55, postop:35 };
     if(s<=34) return { nonop:73, postop:73 };
-    return { nonop:85, postop:88 }; // ≥35
+    return { nonop:85, postop:88 };
   }
 
   function computeApache(inputs, meta){
@@ -764,9 +780,9 @@
   }
 
   function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
-  function istMonthYYYYMM(){ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }
+  function istMonthYYYYMM(){ try{ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }catch(_){ return (new Date().toISOString()).slice(0,7); } }
 
-  // Build payload — strict completeness gate (ALL APACHE inputs required)
+  // Build payload — strict completeness gate
   function buildPayload(){
     const patientName=valStr('patientName');
     const uhid=valStr('uhid');
@@ -801,7 +817,7 @@
     if(fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
     if(fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
 
-    // Acid-base — both required (pH used for points to mirror MDCalc)
+    // Acid-base (pH + HCO3 required; pH drives points)
     const phVal = valNum('ph');   if(phVal===null)  throw new Error('Arterial pH is required');
     const hco3Val = valNum('hco3'); if(hco3Val===null) throw new Error('HCO₃⁻ is required');
 
@@ -840,11 +856,7 @@
     const nowIso=new Date().toISOString();
     const { apacheII, mortNon, mortPost } = computeApache(inputs,{ age });
 
-    // ----- Single mortality value for Excel row (based on surgical status) -----
-    const isOperative = (surgtype === 'Elective' || surgtype === 'Emergency');
-    const selectedMortalityPct = isOperative ? mortPost : mortNon;
-
-    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, `${selectedMortalityPct}%`, mortYN ];
+    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, `${mortNon}% / ${mortPost}%`, mortYN ];
 
     return {
       clientId: 'NURSING-STATION-01',
@@ -857,7 +869,6 @@
       apacheScore: apacheII,
       predictedMortalityNonOpPct: mortNon,
       predictedMortalityPostOpPct: mortPost,
-      selectedMortalityPct,   // single value used for sheetRow
       mortalityYN: mortYN,
       sheetRow: row
     };
@@ -905,6 +916,24 @@
     return p.sheetRow.join('\t');
   }
 
+  function copyToClipboardSafe(text){
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        return navigator.clipboard.writeText(text);
+      }
+    }catch(_){}
+    return new Promise((resolve,reject)=>{
+      try{
+        const ta=document.createElement('textarea');
+        ta.value=text; ta.style.position='fixed'; ta.style.top='-1000px';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        const ok=document.execCommand('copy');
+        document.body.removeChild(ta);
+        if(ok) resolve(); else reject(new Error('execCommand failed'));
+      }catch(e){ reject(e); }
+    });
+  }
+
   function dummyFill(){
     const age = randInt(45,70);
     $('patientName').value = 'Jane Doe';
@@ -948,39 +977,62 @@
     toast('Dummy data filled');
   }
 
-  // ---------- network helpers ----------
+  // ---------- network helpers (with timeout + safer handling) ----------
+  function withTimeout(promise, ms, label){
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(), ms);
+    const race = (async()=>{
+      try{
+        const res = await promise(ctrl.signal);
+        clearTimeout(t);
+        return res;
+      }catch(e){
+        clearTimeout(t);
+        if(e && e.name==='AbortError') throw new Error((label||'Request')+' timed out');
+        throw e;
+      }
+    })();
+    race.abort = ()=>{ try{ ctrl.abort(); }catch(_){ } };
+    return race;
+  }
+
   async function sendJson(url, payload, label){
     let res, text;
+    const execFetch = (signal)=>fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      mode: 'cors',
+      credentials: 'omit',
+      signal
+    });
     try{
-      vlog('[fetch] '+label+' → POST', { url, payloadPreview: JSON.stringify(payload).slice(0,300) });
-      res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload),
-        mode: 'cors',
-        credentials: 'omit'
-      });
+      vlog('[fetch] '+(label||'POST')+' →', { url, preview: JSON.stringify(payload).slice(0,300) });
+      res = await withTimeout(execFetch, 15000, label||'POST'); // 15s timeout
     }catch(netErr){
       console.error('[NET] '+label+' network error:', netErr);
-      throw new Error(label+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
+      throw new Error((label||'POST')+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
     }
     try{ text = await res.text(); }catch(_){ text=''; }
     let data=null;
     try{ data = text ? JSON.parse(text) : null; }catch(parseErr){
       console.error('[PARSE] Non-JSON body:', text);
-      throw new Error(label+' returned non-JSON: '+(text ? text.slice(0,200) : 'empty body'));
+      throw new Error((label||'POST')+' returned non-JSON: '+(text ? text.slice(0,200) : 'empty body'));
     }
-    vlog('[fetch] '+label+' ← response', { status: res.status, data });
+    vlog('[fetch] '+(label||'POST')+' ← response', { status: res.status, data });
     if(!res.ok){
       const msg=(data && (data.error||data.message)) || ('HTTP '+res.status);
-      throw new Error(label+' HTTP error: '+msg);
+      throw new Error((label||'POST')+' HTTP error: '+msg);
     }
     return data;
   }
 
   function sanitizeExecUrl(u){
-    try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
-    catch(_){ return u; }
+    try{
+      const x=new URL(u, window.location.href);
+      x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec');
+      return x.toString();
+    }catch(_){ return String(u||''); }
   }
 
   async function postOnline(payload){
@@ -1000,7 +1052,6 @@
   function buildDownloadParams(ym){ return { action:'download', month: ym }; }
   async function blobFallbackDownload(url, fileName){
     try{
-      console.log('[download] blob fallback →', url);
       const res = await fetch(url, { method:'GET', mode:'cors', credentials:'omit' });
       if(!res.ok) throw new Error('HTTP '+res.status);
       const blob = await res.blob();
@@ -1031,9 +1082,10 @@
     const qs = new URLSearchParams(params).toString();
     const full = exec + (exec.includes('?')?'&':'?') + qs;
 
-    const win = window.open(full, '_blank', 'noopener');
+    let win = null;
+    try{ win = window.open(full, '_blank', 'noopener'); }catch(_){}
     setTimeout(async ()=>{
-      if(!win || win.closed){
+      if(!win || win.closed || typeof win.closed==='undefined'){
         const ok = await blobFallbackDownload(full, 'APACHE-'+ym+'.csv');
         if(ok){ toast('Download started'); }
         else { toast('Download may be blocked. Check browser downloads.', false); }
@@ -1075,12 +1127,12 @@
       console.error('[preview] error:', e);
     }
   });
-  $('btnCopyPreview').addEventListener('click', ()=>{
-    try{ navigator.clipboard.writeText($('debugPreview').textContent||''); toast('Copied JSON'); }
+  $('btnCopyPreview').addEventListener('click', async ()=>{
+    try{ await copyToClipboardSafe($('debugPreview').textContent||''); toast('Copied JSON'); }
     catch(_){ toast('Copy failed', false); }
   });
-  $('btnCopyExcelRow').addEventListener('click', ()=>{
-    try{ navigator.clipboard.writeText(buildExcelRowText()); toast('Row copied (tab-separated). Paste into Excel/Sheets.'); }
+  $('btnCopyExcelRow').addEventListener('click', async ()=>{
+    try{ await copyToClipboardSafe(buildExcelRowText()); toast('Row copied (tab-separated). Paste into Excel/Sheets.'); }
     catch(e){ toast('Copy failed: '+(e && e.message ? e.message : String(e)), false); }
   });
   $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
@@ -1102,7 +1154,7 @@
     }else if(state === 'error'){
       dupEl.innerHTML = '<span>!</span><span>'+(text||'Check failed')+'</span>';
       dupEl.style.display = 'inline-flex';
-      setTimeout(()=>{ dupEl.style.display='none'); }, 2000);
+      setTimeout(()=>{ dupEl.style.display='none'; }, 2000);
     }else{
       dupEl.style.display='none';
     }
@@ -1112,7 +1164,7 @@
   }
   function bothFilled(){ const name = valStr('patientName'); const uhid = valStr('uhid'); return !!(name && uhid); }
 
-  async function checkDuplicateNow(reason){
+  async function checkDuplicateNow(){
     const name = valStr('patientName');
     const uhid = valStr('uhid');
     if(!name || !uhid){ return; }
@@ -1121,7 +1173,8 @@
     if(!url){ return; }
 
     cancelDupRequest();
-    dupAbort = new AbortController();
+    const controller = new AbortController();
+    dupAbort = controller;
     setDupStatus('checking', 'Looking for duplicates…');
 
     const execUrl = sanitizeExecUrl(url);
@@ -1130,7 +1183,7 @@
     const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
 
     try{
-      const res = await fetch(full, { method:'GET', mode:'cors', credentials:'omit', signal: dupAbort.signal });
+      const res = await withTimeout((signal)=>fetch(full, { method:'GET', mode:'cors', credentials:'omit', signal }), 10000, 'Duplicate check');
       const text = await res.text();
       let data = {};
       try{ data = text ? JSON.parse(text) : {}; }catch(_){ data={}; }
@@ -1152,7 +1205,7 @@
     }
   }
 
-  function onBlurTrigger(ev){ if(bothFilled()){ checkDuplicateNow('blur from '+ev.target.id); } }
+  function onBlurTrigger(ev){ if(bothFilled()){ checkDuplicateNow(); } }
   function onFocusCancel(){ cancelDupRequest(); setDupStatus('', ''); }
 
   ['patientName','uhid','patientNameMini','uhidMini'].forEach(id=>{
