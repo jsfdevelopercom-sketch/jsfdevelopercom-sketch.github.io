@@ -4,9 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>APACHE II Bedside Entry</title>
+
+<!--
+  PERFORMANCE NOTES (client-side):
+  1) Preconnect to Apps Script origin to reduce DNS + TLS handshake time.
+  2) Debounce compute/validation to avoid expensive work on every keystroke.
+  3) Cache computed APACHE result for identical inputs.
+  4) Keep payload-building ONLY for submit/preview (not for every input event).
+  5) Use keepalive fetch so the POST isn’t canceled by a navigation/back gesture.
+-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+
 <style>
   :root{
     color-scheme: light;
@@ -79,7 +89,6 @@
   .tab-panel{display:none}
   .tab-panel.active{display:block}
 
-  /* CHANGED: action dock is now non-fixed so it only appears at the bottom of the form */
   .action-dock{
     position:static;
     padding:18px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,24px),28px);
@@ -100,21 +109,11 @@
   .incomplete-note{display:none;font-size:12px;color:#dc2626;font-weight:700}
   .incomplete-note[data-visible="true"]{display:block}
 
-  /* Toasts */
   .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:220}
   .toast.err{border-left-color:#dc2626;color:#dc2626}
   .toast.warn{border-left-color:#f59e0b;color:#92400e}
   .toast.center{left:50%;top:50%;transform:translate(-50%,-50%);right:auto;bottom:auto;min-width:min(460px,calc(100vw - 48px));text-align:center}
 
-  /* ===========================
-     ADMIN (NEW) SETTINGS PANEL
-     ===========================
-     This overlays when user taps the ⚙️ bubble.
-     Contains:
-     1) LIST of current UHIDs + Names (scroll both axes)
-     2) Update Mortality (queue UHID + Y/N, then Update → KP tag)
-     3) "Dev Settings" button → opens the original Dev/Connection modal
-  */
   .admin-panel,.admin-backdrop{position:fixed;inset:0;z-index:235}
   .admin-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
   .admin-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
@@ -127,7 +126,7 @@
     border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);
     padding:18px;display:grid;gap:14px;pointer-events:auto;
     max-height:min(84vh, 760px);
-    overflow:hidden; /* internal sections manage scroll */
+    overflow:hidden;
   }
   .admin-top{
     display:flex;justify-content:space-between;align-items:center;gap:12px;
@@ -140,13 +139,11 @@
     border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;
     padding:8px 14px;cursor:pointer;font-weight:700
   }
-
   .admin-body{
     display:grid;gap:12px;
     overflow:auto;
     padding:0 6px 6px 6px;
   }
-
   .admin-card{
     border:1px solid rgba(148,163,184,.28);
     background:rgba(2,6,23,.35);
@@ -162,7 +159,7 @@
     border:1px solid rgba(148,163,184,.22);
     border-radius:14px;
     background:rgba(2,6,23,.35);
-    overflow:auto; /* BOTH AXES scroll */
+    overflow:auto;
     max-height:320px;
   }
   table.admin-table{
@@ -264,7 +261,6 @@
   .metric{padding:12px 14px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:700}
   .metric small{display:block;font-weight:600;color:var(--muted)}
 
-  /* Inline duplicate indicator beside UHID */
   .inline-wrap{display:flex;align-items:center;gap:8px}
   .dup-indicator{display:none;font-size:12px;color:#64748b;white-space:nowrap}
   .dup-indicator[data-state="checking"],
@@ -285,1640 +281,1744 @@
   .dev-credit{font-size:12px;color:#64748b;font-weight:600;margin-bottom:2px}
 </style>
 </head>
+
 <body>
-  <noscript style="padding:12px 16px;background:#fee2e2;color:#7f1d1d;border-bottom:1px solid #fecaca;font-weight:700">
-    JavaScript is required for APACHE II calculations and Google Sheets submission.
-  </noscript>
+<noscript style="padding:12px 16px;background:#fee2e2;color:#7f1d1d;border-bottom:1px solid #fecaca;font-weight:700">
+  JavaScript is required for APACHE II calculations and Google Sheets submission.
+</noscript>
 
-  <header class="masthead" role="banner">
-    <div class="masthead__inner">
-      <div class="topline">
-        <div class="brand">
-          <div class="brand__mark" aria-hidden="true">AI</div>
-          <div class="brand__copy">
-            <h1>APACHE II bedside console</h1>
-            <p>Direct to Google Sheets. One shared sheet per month. All doctors, one source of truth.</p>
-          </div>
+<header class="masthead" role="banner">
+  <div class="masthead__inner">
+    <div class="topline">
+      <div class="brand">
+        <div class="brand__mark" aria-hidden="true">AI</div>
+        <div class="brand__copy">
+          <h1>APACHE II bedside console</h1>
+          <p>Direct to Google Sheets. One shared sheet per month. All doctors, one source of truth.</p>
         </div>
-        <!-- IMPORTANT:
-             ⚙️ now opens the NEW Admin overlay (patient list + KP update queue).
-             The original Dev/Connection modal is still available INSIDE that overlay via "Dev Settings". -->
-        <button id="devToggle" class="dev-bubble" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false">⚙️</button>
       </div>
+      <button id="devToggle" class="dev-bubble" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false">⚙️</button>
+    </div>
 
-      <div class="mode-switcher" aria-label="Submission mode">
-        <div class="dev-credit">@JSF Developer 2026</div>
-        <div class="mode-pills" role="group">
-          <button id="modeOnline" type="button" class="mode active" disabled>Online (Google Sheets)</button>
-        </div>
-        <div id="modeHint" class="mode-hint">Data go straight to the shared ICU Google Sheet (one tab per month). “Download current month” opens a CSV in a new tab.</div>
-        <div class="patient-mini" aria-label="Quick patient entry">
-          <div class="mini-field"><span>👤</span><input id="patientNameMini" type="text" placeholder="Patient name" autocomplete="off"></div>
-          <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID" autocomplete="off"></div>
-        </div>
+    <div class="mode-switcher" aria-label="Submission mode">
+      <div class="dev-credit">@JSF Developer 2026</div>
+      <div class="mode-pills" role="group">
+        <button id="modeOnline" type="button" class="mode active" disabled>Online (Google Sheets)</button>
+      </div>
+      <div id="modeHint" class="mode-hint">
+        Data go straight to the shared ICU Google Sheet (one tab per month). Download current month uses the Apps Script download endpoint.
+      </div>
+      <div class="patient-mini" aria-label="Quick patient entry">
+        <div class="mini-field"><span>👤</span><input id="patientNameMini" type="text" placeholder="Patient name" autocomplete="off"></div>
+        <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID" autocomplete="off"></div>
       </div>
     </div>
-  </header>
+  </div>
+</header>
 
-  <div class="workspace-wrapper">
-    <main class="workspace" id="formContent">
-      <div class="cards-flow">
-        <!-- Patient -->
-        <section class="panel" data-span="full" aria-labelledby="patient-h">
-          <header>
-            <h2 id="patient-h">Patient</h2>
-            <p class="hint">Enter the patient’s full name as per hospital record and their UHID (the hospital’s unique health identifier).</p>
-          </header>
-          <div class="grid-2">
-            <div>
-              <label for="patientName">Patient Name*</label>
-              <input id="patientName" class="input" type="text" required placeholder="e.g., Jane Doe" autocomplete="off">
-            </div>
-            <div>
-              <label for="uhid">UHID* <span id="dupIndicator" class="dup-indicator"><span class="spinner" aria-hidden="true"></span><span>Looking for duplicates…</span></span></label>
-              <div class="inline-wrap">
-                <input id="uhid" class="input" type="text" required placeholder="Hospital unique ID" autocomplete="off" aria-describedby="dupIndicator">
-              </div>
+<div class="workspace-wrapper">
+  <main class="workspace" id="formContent">
+    <div class="cards-flow">
+
+      <section class="panel" data-span="full" aria-labelledby="patient-h">
+        <header>
+          <h2 id="patient-h">Patient</h2>
+          <p class="hint">Enter the patient’s full name as per hospital record and their UHID.</p>
+        </header>
+        <div class="grid-2">
+          <div>
+            <label for="patientName">Patient Name*</label>
+            <input id="patientName" class="input" type="text" required placeholder="e.g., Jane Doe" autocomplete="off">
+          </div>
+          <div>
+            <label for="uhid">
+              UHID*
+              <span id="dupIndicator" class="dup-indicator">
+                <span class="spinner" aria-hidden="true"></span><span>Looking for duplicates…</span>
+              </span>
+            </label>
+            <div class="inline-wrap">
+              <input id="uhid" class="input" type="text" required placeholder="Hospital unique ID" autocomplete="off" aria-describedby="dupIndicator">
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <!-- Demographics -->
-        <section class="panel" aria-labelledby="demo-h">
-          <header>
-            <h2 id="demo-h">Demographics & Admission</h2>
-            <p class="hint">Age in years, biological sex, and the date of ICU admission. “Diagnosis” is the primary working diagnosis at ICU admission.</p>
-          </header>
+      <section class="panel" aria-labelledby="demo-h">
+        <header>
+          <h2 id="demo-h">Demographics & Admission</h2>
+          <p class="hint">Age in years, sex, ICU admission date, diagnosis. GCS is required.</p>
+        </header>
+        <div class="grid-3">
+          <div>
+            <label for="age">Age (years)*</label>
+            <input id="age" class="input" type="number" min="0" max="120" step="1" required placeholder="Years">
+          </div>
+          <div>
+            <label for="sex">Sex*</label>
+            <select id="sex" class="input" required>
+              <option value="" selected disabled>Select</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label for="admitDate">Admission Date*</label>
+            <input id="admitDate" class="input" type="date" required>
+          </div>
+        </div>
+        <div>
+          <label for="diagnosis">Diagnosis*</label>
+          <input id="diagnosis" class="input" type="text" required placeholder="Primary diagnosis at ICU admission">
+        </div>
+        <div class="grid-2">
+          <div>
+            <label for="gcs">GCS (3–15)*</label>
+            <input id="gcs" class="input" type="number" min="3" max="15" step="1" required placeholder="e.g., 12">
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="chronic-h">
+        <header>
+          <h2 id="chronic-h">Chronic health</h2>
+          <p class="hint">Mark severe chronic organ failure/immunocompromise. If present, specify surgical context.</p>
+        </header>
+        <div class="chip-row" id="chronicGrp">
+          <label class="chip"><input type="radio" name="chronic" value="No" checked> No</label>
+          <label class="chip"><input type="radio" name="chronic" value="Yes"> Yes – severe organ failure / immunocompromise</label>
+        </div>
+        <div id="surgTypeWrap" class="grid-2" style="display:none">
+          <div>
+            <label>Type of surgery (if chronic = Yes)</label>
+            <div class="chip-row">
+              <label class="chip"><input type="radio" name="surgtype" value="Emergency" checked> Emergency</label>
+              <label class="chip"><input type="radio" name="surgtype" value="Elective"> Elective</label>
+              <label class="chip"><input type="radio" name="surgtype" value="Nonoperative"> Non-operative</label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" data-span="full" aria-labelledby="inputs-h">
+        <header>
+          <h2 id="inputs-h">Clinical inputs</h2>
+          <p class="hint">Vitals, oxygenation branch (PaO₂ vs A–a gradient based on FiO₂), labs.</p>
+        </header>
+        <div class="tab-bar" role="tablist">
+          <button class="tab active" type="button" data-tab="vitals">Vitals</button>
+          <button class="tab" type="button" data-tab="oxygen">Oxygenation</button>
+          <button class="tab" type="button" data-tab="labs">Labs</button>
+        </div>
+
+        <div id="tab-vitals" class="tab-panel active" role="tabpanel">
           <div class="grid-3">
             <div>
-              <label for="age">Age (years)*</label>
-              <input id="age" class="input" type="number" min="0" max="120" step="1" required placeholder="Years">
+              <label for="tempF">Temperature (°F)*</label>
+              <input id="tempF" class="input" type="number" step="0.1" required>
             </div>
             <div>
-              <label for="sex">Sex*</label>
-              <select id="sex" class="input" required>
-                <option value="" selected disabled>Select</option>
-                <option>Male</option>
-                <option>Female</option>
-                <option>Other</option>
-              </select>
+              <label for="map">Mean Arterial Pressure (mmHg)*</label>
+              <input id="map" class="input" type="number" step="1" required>
             </div>
             <div>
-              <label for="admitDate">Admission Date*</label>
-              <input id="admitDate" class="input" type="date" required>
+              <label for="hr">Heart Rate (bpm)*</label>
+              <input id="hr" class="input" type="number" step="1" required>
             </div>
-          </div>
-          <div>
-            <label for="diagnosis">Diagnosis*</label>
-            <input id="diagnosis" class="input" type="text" required placeholder="Primary diagnosis at ICU admission">
           </div>
           <div class="grid-2">
             <div>
-              <label for="gcs">GCS (3–15)*</label>
-              <input id="gcs" class="input" type="number" min="3" max="15" step="1" required placeholder="e.g., 12">
+              <label for="rr">Respiratory Rate (breaths/min)*</label>
+              <input id="rr" class="input" type="number" step="1" required>
             </div>
           </div>
-        </section>
+        </div>
 
-        <!-- Chronic -->
-        <section class="panel" aria-labelledby="chronic-h">
-          <header>
-            <h2 id="chronic-h">Chronic health</h2>
-            <p class="hint">Mark severe chronic organ failure/immunocompromise. If present, specify surgical context for this admission.</p>
-          </header>
-          <div class="chip-row" id="chronicGrp">
-            <label class="chip"><input type="radio" name="chronic" value="No" checked> No</label>
-            <label class="chip"><input type="radio" name="chronic" value="Yes"> Yes – severe organ failure / immunocompromise</label>
-          </div>
-          <div id="surgTypeWrap" class="grid-2" style="display:none">
-            <div>
-              <label>Type of surgery (if chronic = Yes)</label>
-              <div class="chip-row">
-                <label class="chip"><input type="radio" name="surgtype" value="Emergency" checked> Emergency</label>
-                <label class="chip"><input type="radio" name="surgtype" value="Elective"> Elective</label>
-                <label class="chip"><input type="radio" name="surgtype" value="Nonoperative"> Non-operative</label>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Inputs -->
-        <section class="panel" data-span="full" aria-labelledby="inputs-h">
-          <header>
-            <h2 id="inputs-h">Clinical inputs</h2>
-            <p class="hint">Vitals, oxygenation choice (PaO₂ vs A–a gradient based on FiO₂), and key labs for APACHE II calculation.</p>
-          </header>
-          <div class="tab-bar" role="tablist">
-            <button class="tab active" type="button" data-tab="vitals">Vitals</button>
-            <button class="tab" type="button" data-tab="oxygen">Oxygenation</button>
-            <button class="tab" type="button" data-tab="labs">Labs</button>
-          </div>
-
-          <div id="tab-vitals" class="tab-panel active" role="tabpanel">
-            <div class="grid-3">
-              <div>
-                <label for="tempF">Temperature (°F)*</label>
-                <input id="tempF" class="input" type="number" step="0.1" required>
-              </div>
-              <div>
-                <label for="map">Mean Arterial Pressure (mmHg)*</label>
-                <input id="map" class="input" type="number" step="1" required>
-              </div>
-              <div>
-                <label for="hr">Heart Rate (bpm)*</label>
-                <input id="hr" class="input" type="number" step="1" required>
-              </div>
-            </div>
-            <div class="grid-2">
-              <div>
-                <label for="rr">Respiratory Rate (breaths/min)*</label>
-                <input id="rr" class="input" type="number" step="1" required>
-              </div>
-            </div>
-          </div>
-
-          <div id="tab-oxygen" class="tab-panel" role="tabpanel">
-            <div>
-              <label>FiO₂ category*</label>
-              <div class="chip-row" id="fio2Grp">
-                <label class="chip"><input type="radio" name="fio2" value="<50%" checked> &lt; 50% (or non-intubated)</label>
-                <label class="chip"><input type="radio" name="fio2" value=">=50%"> ≥ 50%</label>
-              </div>
-            </div>
-
-            <div id="po2Wrap">
-              <label for="pao2">PaO₂ (mmHg)*</label>
-              <input id="pao2" class="input" type="number" step="1" placeholder="e.g., 80" autocomplete="off" required>
-              <p class="hint">If FiO₂ &lt; 50% → provide PaO₂.</p>
-            </div>
-
-            <div id="aagradWrap" style="display:none">
-              <label for="aagrad">A–a gradient (mmHg)*</label>
-              <input id="aagrad" class="input" type="number" step="1" placeholder="e.g., 220" autocomplete="off">
-              <p class="hint">If FiO₂ ≥ 50% → provide A–a gradient.</p>
-            </div>
-          </div>
-
-          <div id="tab-labs" class="tab-panel" role="tabpanel">
-            <div class="grid-3">
-              <div>
-                <label for="ph">pH (arterial)</label>
-                <input id="ph" class="input" type="number" step="0.01" min="6.8" max="7.8">
-              </div>
-              <div>
-                <label for="hco3">HCO₃⁻ (mEq/L)</label>
-                <input id="hco3" class="input" type="number" step="0.1">
-              </div>
-              <div>
-                <label for="na">Na⁺ (mEq/L)*</label>
-                <input id="na" class="input" type="number" step="1" required>
-              </div>
-            </div>
-            <div class="grid-3">
-              <div>
-                <label for="k">K⁺ (mEq/L)*</label>
-                <input id="k" class="input" type="number" step="0.1" required>
-              </div>
-              <div>
-                <label for="cr">Creatinine (mg/dL)*</label>
-                <input id="cr" class="input" type="number" step="0.1" required>
-              </div>
-              <div>
-                <label for="wbc">WBC (×10³/mm³)*</label>
-                <input id="wbc" class="input" type="number" step="0.1" required>
-              </div>
-            </div>
-            <div class="grid-2">
-              <div>
-                <label for="hct">Hematocrit (%)*</label>
-                <input id="hct" class="input" type="number" step="0.1" required>
-              </div>
-              <div>
-                <label>Acute Renal Failure</label>
-                <div class="chip-row" id="arfGrp">
-                  <label class="chip"><input type="radio" name="arf" value="No" checked> No</label>
-                  <label class="chip"><input type="radio" name="arf" value="Yes"> Yes</label>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Outcome -->
-        <section class="panel" aria-labelledby="outcome-h">
-          <header>
-            <h2 id="outcome-h">Outcome</h2>
-          </header>
+        <div id="tab-oxygen" class="tab-panel" role="tabpanel">
           <div>
-            <label>Mortality (Y/N)*</label>
-            <div class="chip-row" role="group" aria-label="Mortality yes/no" id="mortalityGrp">
-              <label class="chip"><input type="radio" name="mortality" value="Y" required> Y</label>
-              <label class="chip"><input type="radio" name="mortality" value="N" required> N</label>
+            <label>FiO₂ category*</label>
+            <div class="chip-row" id="fio2Grp">
+              <label class="chip"><input type="radio" name="fio2" value="<50%" checked> &lt; 50% (or non-intubated)</label>
+              <label class="chip"><input type="radio" name="fio2" value=">=50%"> ≥ 50%</label>
             </div>
           </div>
-        </section>
 
-        <!-- Results -->
-        <aside id="resultsCard" class="results-card" aria-live="polite" aria-atomic="true">
-          <h4 class="results-title">Computed Result</h4>
-          <div class="results-grid">
-            <div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
-            <div class="metric"><small>Mortality (Non-op)</small><span id="resMortNon">—</span></div>
-            <div class="metric"><small>Mortality (Post-op)</small><span id="resMortPost">—</span></div>
+          <div id="po2Wrap">
+            <label for="pao2">PaO₂ (mmHg)*</label>
+            <input id="pao2" class="input" type="number" step="1" placeholder="e.g., 80" autocomplete="off" required>
+            <p class="hint">If FiO₂ &lt; 50% → provide PaO₂.</p>
           </div>
-        </aside>
-      </div>
-    </main>
-  </div>
 
-  <div class="action-dock" role="contentinfo">
-    <div class="action-dock__inner">
-      <div id="incompleteNote" class="incomplete-note" aria-live="polite">Form incomplete: please fill all required items.</div>
-      <button id="btnDownload" class="btn ghost" type="button">Download current month</button>
-      <button id="btnSubmit" class="btn primary" type="button" disabled>Submit to Google Sheets</button>
+          <div id="aagradWrap" style="display:none">
+            <label for="aagrad">A–a gradient (mmHg)*</label>
+            <input id="aagrad" class="input" type="number" step="1" placeholder="e.g., 220" autocomplete="off">
+            <p class="hint">If FiO₂ ≥ 50% → provide A–a gradient.</p>
+          </div>
+        </div>
+
+        <div id="tab-labs" class="tab-panel" role="tabpanel">
+          <div class="grid-3">
+            <div>
+              <label for="ph">pH (arterial)</label>
+              <input id="ph" class="input" type="number" step="0.01" min="6.8" max="7.8">
+            </div>
+            <div>
+              <label for="hco3">HCO₃⁻ (mEq/L)</label>
+              <input id="hco3" class="input" type="number" step="0.1">
+            </div>
+            <div>
+              <label for="na">Na⁺ (mEq/L)*</label>
+              <input id="na" class="input" type="number" step="1" required>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div>
+              <label for="k">K⁺ (mEq/L)*</label>
+              <input id="k" class="input" type="number" step="0.1" required>
+            </div>
+            <div>
+              <label for="cr">Creatinine (mg/dL)*</label>
+              <input id="cr" class="input" type="number" step="0.1" required>
+            </div>
+            <div>
+              <label for="wbc">WBC (×10³/mm³)*</label>
+              <input id="wbc" class="input" type="number" step="0.1" required>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div>
+              <label for="hct">Hematocrit (%)*</label>
+              <input id="hct" class="input" type="number" step="0.1" required>
+            </div>
+            <div>
+              <label>Acute Renal Failure</label>
+              <div class="chip-row" id="arfGrp">
+                <label class="chip"><input type="radio" name="arf" value="No" checked> No</label>
+                <label class="chip"><input type="radio" name="arf" value="Yes"> Yes</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="outcome-h">
+        <header><h2 id="outcome-h">Outcome</h2></header>
+        <div>
+          <label>Mortality (Y/N)*</label>
+          <div class="chip-row" role="group" aria-label="Mortality yes/no" id="mortalityGrp">
+            <label class="chip"><input type="radio" name="mortality" value="Y" required> Y</label>
+            <label class="chip"><input type="radio" name="mortality" value="N" required> N</label>
+          </div>
+        </div>
+      </section>
+
+      <aside id="resultsCard" class="results-card" aria-live="polite" aria-atomic="true">
+        <h4 class="results-title">Computed Result</h4>
+        <div class="results-grid">
+          <div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
+          <div class="metric"><small>Mortality (Non-op)</small><span id="resMortNon">—</span></div>
+          <div class="metric"><small>Mortality (Post-op)</small><span id="resMortPost">—</span></div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+</div>
+
+<div class="action-dock" role="contentinfo">
+  <div class="action-dock__inner">
+    <div id="incompleteNote" class="incomplete-note" aria-live="polite">Form incomplete: please fill all required items.</div>
+    <button id="btnDownload" class="btn ghost" type="button">Download current month</button>
+    <button id="btnSubmit" class="btn primary" type="button" disabled>Submit to Google Sheets</button>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="toastCenter" class="toast center warn" role="status" aria-live="assertive"></div>
+
+<!-- ADMIN OVERLAY -->
+<div id="adminBackdrop" class="admin-backdrop" aria-hidden="true"></div>
+<div id="adminPanel" class="admin-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+  <div class="admin-sheet">
+    <div class="admin-top">
+      <div class="admin-title-wrap">
+        <h3 id="adminTitle" class="admin-title">Quick Admin Console</h3>
+        <p class="admin-sub">Patient list (current month) + Update Mortality (KP). Fast, non-blocking.</p>
+      </div>
+      <button id="adminClose" class="admin-close" type="button">Close</button>
+    </div>
+
+    <div class="admin-body">
+      <div class="admin-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="display:grid;gap:4px">
+            <h4 style="margin:0">Current UHIDs &amp; Names</h4>
+            <p class="minihelp">Pulled from MAIN sheet using tag=LIST. Scroll both directions.</p>
+          </div>
+          <div class="admin-actions">
+            <span id="adminMonthPill" class="pill">Month: —</span>
+            <button id="btnAdminRefresh" class="btn ghost" type="button" style="padding:10px 12px">Refresh</button>
+          </div>
+        </div>
+
+        <div class="table-wrap" aria-label="Patient list table container">
+          <table class="admin-table" aria-label="Patient list table">
+            <thead>
+              <tr>
+                <th style="width:180px">UHID</th>
+                <th style="min-width:320px">Patient Name</th>
+              </tr>
+            </thead>
+            <tbody id="adminPatientsTbody">
+              <tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="danger-note" id="adminListNote">
+          Tip: If Dev URL/Secret are wrong, LIST won’t load. Use “Dev Settings” below.
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="display:grid;gap:4px">
+            <h4 style="margin:0">Update Mortality</h4>
+            <p class="minihelp">Queue UHID + Y/N. Update sends KP for all “Y”. (Backend KP currently sets Y only.)</p>
+          </div>
+          <span class="pill" id="adminQueuePill">Queued: 0</span>
+        </div>
+
+        <div class="admin-inputs">
+          <div>
+            <label for="kpUhid">UHID</label>
+            <input id="kpUhid" class="input" type="text" placeholder="Enter UHID" autocomplete="off">
+          </div>
+          <div>
+            <label for="kpYN">Y/N</label>
+            <select id="kpYN" class="input">
+              <option value="Y" selected>Y</option>
+              <option value="N">N</option>
+            </select>
+          </div>
+          <div>
+            <button id="btnKpAdd" class="btn secondary" type="button" style="padding:12px 14px">Add</button>
+          </div>
+        </div>
+
+        <div class="table-wrap" aria-label="KP queue table container" style="max-height:240px">
+          <table class="admin-table" aria-label="KP queue table">
+            <thead>
+              <tr>
+                <th style="width:200px">UHID</th>
+                <th style="width:90px">Y/N</th>
+                <th style="min-width:220px">Action</th>
+              </tr>
+            </thead>
+            <tbody id="kpQueueTbody">
+              <tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="admin-actions" style="justify-content:space-between">
+          <button id="btnKpClear" class="btn ghost" type="button" style="padding:10px 12px">Clear</button>
+          <button id="btnKpUpdate" class="btn primary" type="button" disabled style="padding:12px 14px">Update</button>
+        </div>
+      </div>
+
+      <div class="dev-entry">
+        <div class="danger-note">Developer controls (URL / Secret / ClientId). Use only if needed.</div>
+        <div id="btnOpenDevFromAdmin" class="dev-cta" role="button" tabindex="0" aria-label="Open Dev Settings">
+          <div class="dev-ico" aria-hidden="true">🧰</div>
+          <div>Dev Settings<small>Open connection panel</small></div>
+        </div>
+      </div>
+
     </div>
   </div>
+</div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <div id="toastCenter" class="toast center warn" role="status" aria-live="assertive"></div>
-
-  <!-- ===========================
-       ADMIN OVERLAY (NEW)
-       ===========================
-       Shows patient list + mortality update queue.
-  -->
-  <div id="adminBackdrop" class="admin-backdrop" aria-hidden="true"></div>
-  <div id="adminPanel" class="admin-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
-    <div class="admin-sheet">
-      <div class="admin-top">
-        <div class="admin-title-wrap">
-          <h3 id="adminTitle" class="admin-title">Quick Admin Console</h3>
-          <p class="admin-sub">Patient list (current month) + Update Mortality (KP). Fast, non-blocking.</p>
-        </div>
-        <button id="adminClose" class="admin-close" type="button">Close</button>
-      </div>
-
-      <div class="admin-body">
-        <!-- Patient List -->
-        <div class="admin-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-            <div style="display:grid;gap:4px">
-              <h4 style="margin:0">Current UHIDs &amp; Names</h4>
-              <p class="minihelp">Pulled from MAIN sheet using tag=LIST (month = IST current month). Scroll both directions.</p>
-            </div>
-            <div class="admin-actions">
-              <span id="adminMonthPill" class="pill">Month: —</span>
-              <button id="btnAdminRefresh" class="btn ghost" type="button" style="padding:10px 12px">Refresh</button>
-            </div>
-          </div>
-
-          <div class="table-wrap" aria-label="Patient list table container">
-            <table class="admin-table" aria-label="Patient list table">
-              <thead>
-                <tr>
-                  <th style="width:180px">UHID</th>
-                  <th style="min-width:320px">Patient Name</th>
-                </tr>
-              </thead>
-              <tbody id="adminPatientsTbody">
-                <tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="danger-note" id="adminListNote">
-            Tip: If Dev URL/Secret are wrong, LIST won’t load. Use “Dev Settings” below to fix connection.
-          </div>
-        </div>
-
-        <!-- Update Mortality (KP) -->
-        <div class="admin-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-            <div style="display:grid;gap:4px">
-              <h4 style="margin:0">Update Mortality</h4>
-              <p class="minihelp">Queue UHID + Y/N. Update sends KP for all “Y”. (Backend KP currently sets Y only.)</p>
-            </div>
-            <span class="pill" id="adminQueuePill">Queued: 0</span>
-          </div>
-
-          <div class="admin-inputs">
-            <div>
-              <label for="kpUhid">UHID</label>
-              <input id="kpUhid" class="input" type="text" placeholder="Enter UHID" autocomplete="off">
-            </div>
-            <div>
-              <label for="kpYN">Y/N</label>
-              <select id="kpYN" class="input">
-                <option value="Y" selected>Y</option>
-                <option value="N">N</option>
-              </select>
-            </div>
-            <div>
-              <button id="btnKpAdd" class="btn secondary" type="button" style="padding:12px 14px">Add</button>
-            </div>
-          </div>
-
-          <div class="table-wrap" aria-label="KP queue table container" style="max-height:240px">
-            <table class="admin-table" aria-label="KP queue table">
-              <thead>
-                <tr>
-                  <th style="width:200px">UHID</th>
-                  <th style="width:90px">Y/N</th>
-                  <th style="min-width:220px">Action</th>
-                </tr>
-              </thead>
-              <tbody id="kpQueueTbody">
-                <tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="admin-actions" style="justify-content:space-between">
-            <button id="btnKpClear" class="btn ghost" type="button" style="padding:10px 12px">Clear</button>
-            <button id="btnKpUpdate" class="btn primary" type="button" disabled style="padding:12px 14px">Update</button>
-          </div>
-        </div>
-
-        <!-- Dev Settings entry -->
-        <div class="dev-entry">
-          <div class="danger-note">
-            Developer controls (URL / Secret / ClientId). Use only if needed.
-          </div>
-          <div id="btnOpenDevFromAdmin" class="dev-cta" role="button" tabindex="0" aria-label="Open Dev Settings">
-            <div class="dev-ico" aria-hidden="true">🧰</div>
-            <div>
-              Dev Settings
-              <small>Open connection panel</small>
-            </div>
-          </div>
-        </div>
-      </div>
+<!-- DEV MODAL -->
+<div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
+<div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
+  <div class="dev-sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
+      <h3 id="devTitle">Developer / Connection</h3>
+      <button id="devClose" class="close" type="button">Close</button>
     </div>
-  </div>
-
-  <!-- Dev modal (original) -->
-  <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
-  <div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
-    <div class="dev-sheet">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
-        <h3 id="devTitle">Developer / Connection</h3>
-        <button id="devClose" class="close" type="button">Close</button>
-      </div>
-      <p class="dev-tip">Values persist per device. Leave blank to fall back to defaults.</p>
-      <div>
-        <label for="onlineUrl">Online Webhook URL</label>
-        <input id="onlineUrl" class="input" type="url" placeholder="https://script.google.com/.../exec">
-      </div>
-      <div>
-        <label for="onlineSecret">Online Secret</label>
-        <input id="onlineSecret" class="input" type="text" placeholder="Shared secret for Sheets webhook">
-      </div>
-      <div>
-        <label for="clientId">Client ID</label>
-        <input id="clientId" class="input" type="text" value="NURSING-STATION-01">
-      </div>
-
-      <div style="border-top:1px solid rgba(148,163,184,.35);padding-top:12px">
-        <h3 style="margin:0 0 8px 0;font-size:16px">Debug &amp; Tools</h3>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="btnBuildPreview" class="btn secondary" type="button">Build &amp; show payload</button>
-          <button id="btnCopyPreview" class="btn ghost" type="button">Copy JSON</button>
-          <button id="btnCopyExcelRow" class="btn ghost" type="button" disabled>Copy APACHE row (Excel)</button>
-          <button id="btnDummyFill" class="btn secondary" type="button">Dummy fill</button>
-        </div>
-        <pre id="debugPreview" style="margin-top:10px;max-height:260px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">No payload yet</pre>
-
-        <h3 style="margin:8px 0;font-size:16px">Last server response</h3>
-        <pre id="lastResp" style="max-height:180px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">None</pre>
-      </div>
-      <div class="dev-tip">The app is locked to Online (Google Sheets) mode.</div>
+    <p class="dev-tip">Values persist per device. Leave blank to fall back to defaults.</p>
+    <div>
+      <label for="onlineUrl">Online Webhook URL</label>
+      <input id="onlineUrl" class="input" type="url" placeholder="https://script.google.com/.../exec">
     </div>
-  </div>
+    <div>
+      <label for="onlineSecret">Online Secret</label>
+      <input id="onlineSecret" class="input" type="text" placeholder="Shared secret for Sheets webhook">
+    </div>
+    <div>
+      <label for="clientId">Client ID</label>
+      <input id="clientId" class="input" type="text" value="NURSING-STATION-01">
+    </div>
 
-  <div class="tiny-footer">© @ JSFDev</div>
+    <div style="border-top:1px solid rgba(148,163,184,.35);padding-top:12px">
+      <h3 style="margin:0 0 8px 0;font-size:16px">Debug &amp; Tools</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="btnBuildPreview" class="btn secondary" type="button">Build &amp; show payload</button>
+        <button id="btnCopyPreview" class="btn ghost" type="button">Copy JSON</button>
+        <button id="btnCopyExcelRow" class="btn ghost" type="button" disabled>Copy APACHE row (Excel)</button>
+        <button id="btnDummyFill" class="btn secondary" type="button">Dummy fill</button>
+      </div>
+      <pre id="debugPreview" style="margin-top:10px;max-height:260px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">No payload yet</pre>
+
+      <h3 style="margin:8px 0;font-size:16px">Last server response</h3>
+      <pre id="lastResp" style="max-height:180px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">None</pre>
+    </div>
+    <div class="dev-tip">The app is locked to Online (Google Sheets) mode.</div>
+  </div>
+</div>
+
+<div class="tiny-footer">© @ JSFDev</div>
 
 <script>
-  // ============================================================================
-  //  APACHE II Bedside UI
-  //  Goals:
-  //   - Tight sync with latest Apps Script (submit/check/download + NEW tags LIST/KP)
-  //   - FAST UX: non-blocking overlays, aggressive caching, abortable requests
-  //   - Professional robustness: clear sections, multi-line comments, safe defaults
-  // ============================================================================
+/* ============================================================================
+   APACHE II Bedside UI — FAST EDITION
+   ----------------------------------------------------------------------------
+   Your request: "Make it MUCH faster using professional techniques"
+   This version targets the *browser-side bottlenecks*:
 
-  // ---------- small helper & UX ----------
-  const $ = (id) => document.getElementById(id);
-  const q = (sel) => document.querySelector(sel);
-  function valNum(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:Number(v); }
-  function valStr(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:v; }
-  function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
-  function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
-  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
-  function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); const k=new Date(d.getTime()-off*60000); return k.toISOString().slice(0,10); }
+   ✅ UI Performance (biggest win):
+      - Replaced global document 'input/change' handler (too chatty)
+      - Debounced compute/validation (no heavy work per keystroke)
+      - Cached computed score by a stable signature hash
+      - Lightweight validation for enabling submit button
 
-  function toast(msg, ok=true, klass=''){
-    const t=$('toast');
-    t.textContent=msg; t.className='toast'+(ok?'':' err')+(klass?(' '+klass):''); t.style.display='block';
-    clearTimeout(toast._timer);
-    toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
-  }
-  function toastCenter(msg){
-    const t=$('toastCenter');
-    t.textContent=msg; t.style.display='block';
-    clearTimeout(toastCenter._timer);
-    toastCenter._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
-  }
-  function vlog(groupLabel, info){
-    try{ console.groupCollapsed(groupLabel); if(typeof info === 'object') console.debug(info); else console.debug(String(info)); console.groupEnd(); }catch(_){}
-  }
+   ✅ Network Responsiveness:
+      - fetch(..., { keepalive:true }) for POST to reduce cancellation risk
+      - Preconnect to Apps Script origin
+      - Short critical timeouts + clear "accepted vs confirmed" UX
+      - Robust download handler: JSON dataUri OR blob response
 
-  // ---------- desktop detection ----------
-  function detectDesktop(){
-    const ua=navigator.userAgent||"";
-    const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
-    const pointerFine=matchMedia('(pointer: fine)').matches;
-    const wideEnough=matchMedia('(min-width:1024px)').matches;
-    return looksDesktop||(pointerFine&&wideEnough);
-  }
-  function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
-  applyDesktopClass(); addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
+   ✅ Script Sync:
+      - POST JSON: { authToken, clientId, month, sheetRow[9], ... }
+      - GET check: action=check&month&uhid&name&auth
+      - GET download: action=download&month&auth (supports JSON or file)
+      - GET LIST: tag=LIST&month&auth
+      - POST KP: { tag:'KP', uhids:[...], authToken }
+============================================================================ */
 
-  // ---------- mini <-> main sync ----------
-  ['patientName','uhid'].forEach((id)=>{ const main=$(id); if(!main) return; main.addEventListener('input',()=>{ const mini=$(id+'Mini'); if(mini && mini.value!==main.value) mini.value=main.value; }); });
-  ['patientNameMini','uhidMini'].forEach((id)=>{ const mini=$(id); if(!mini) return; mini.addEventListener('input',()=>{ const main=$(id.replace('Mini','')); if(main && main.value!==mini.value) main.value=mini.value; }); });
+/* ----------------------------- DOM helpers ------------------------------ */
+const $ = (id) => document.getElementById(id);
+function valStr(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:v; }
+function valNum(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:Number(v); }
+function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
+function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); const k=new Date(d.getTime()-off*60000); return k.toISOString().slice(0,10); }
+function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 
-  // ============================================================================
-  //  ORIGINAL DEV / CONNECTION MODAL (kept)
-  // ============================================================================
-  const devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
-  devPanel.setAttribute('aria-hidden','true'); devBackdrop.setAttribute('data-visible','false');
+function toast(msg, ok=true, klass=''){
+  const t=$('toast');
+  t.textContent=msg;
+  t.className='toast'+(ok?'':' err')+(klass?(' '+klass):'');
+  t.style.display='block';
+  clearTimeout(toast._timer);
+  toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
+}
+function toastCenter(msg){
+  const t=$('toastCenter');
+  t.textContent=msg;
+  t.style.display='block';
+  clearTimeout(toastCenter._timer);
+  toastCenter._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
+}
 
-  function setDevPanel(open){
-    const wasOpen=devPanel.getAttribute('aria-hidden')==='false';
-    devPanel.setAttribute('aria-hidden', open?'false':'true');
-    devBackdrop.setAttribute('data-visible', open?'true':'false');
-    devBackdrop.setAttribute('aria-hidden', open?'false':'true');
-    // aria-expanded is handled on devToggle (now admin open); keep it clean
-    if(wasOpen&&!open) saveDevOverrides();
-  }
-  devClose.addEventListener('click',()=>setDevPanel(false));
-  devBackdrop.addEventListener('click',()=>setDevPanel(false));
+/* ------------------------ Desktop detection ----------------------------- */
+function detectDesktop(){
+  const ua=navigator.userAgent||"";
+  const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
+  const pointerFine=matchMedia('(pointer: fine)').matches;
+  const wideEnough=matchMedia('(min-width:1024px)').matches;
+  return looksDesktop||(pointerFine&&wideEnough);
+}
+function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
+applyDesktopClass();
+addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
 
-  // ============================================================================
-  //  NEW ADMIN OVERLAY (⚙️ opens this)
-  // ============================================================================
-  const devToggle=$('devToggle');
-  const adminPanel=$('adminPanel'), adminBackdrop=$('adminBackdrop'), adminClose=$('adminClose');
-  const btnOpenDevFromAdmin=$('btnOpenDevFromAdmin');
-  const btnAdminRefresh=$('btnAdminRefresh');
-  const adminPatientsTbody=$('adminPatientsTbody');
-  const adminMonthPill=$('adminMonthPill');
-  const adminQueuePill=$('adminQueuePill');
-
-  adminPanel.setAttribute('aria-hidden','true'); adminBackdrop.setAttribute('data-visible','false');
-
-  function setAdminPanel(open){
-    const wasOpen = adminPanel.getAttribute('aria-hidden')==='false';
-    adminPanel.setAttribute('aria-hidden', open?'false':'true');
-    adminBackdrop.setAttribute('data-visible', open?'true':'false');
-    adminBackdrop.setAttribute('aria-hidden', open?'false':'true');
-    devToggle.setAttribute('aria-expanded', open?'true':'false');
-
-    // If we close, cancel in-flight list fetch to keep UI snappy.
-    if(wasOpen && !open){
-      cancelAdminListFetch();
-      cancelKpFetch();
-    }
-  }
-
-  devToggle.addEventListener('click', ()=>{
-    const isHidden = adminPanel.getAttribute('aria-hidden')!=='false';
-    setAdminPanel(isHidden);
-    if(isHidden){
-      // Load list immediately (non-blocking, abortable, cached)
-      adminEnsureListLoaded(true);
-    }
+/* ---------------------- Mini <-> Main sync ------------------------------ */
+['patientName','uhid'].forEach((id)=>{
+  const main=$(id); if(!main) return;
+  main.addEventListener('input',()=>{
+    const mini=$(id+'Mini');
+    if(mini && mini.value!==main.value) mini.value=main.value;
+    scheduleCompute(); // patientName/UHID affects dup-check UX, submit enable, etc.
   });
+});
+['patientNameMini','uhidMini'].forEach((id)=>{
+  const mini=$(id); if(!mini) return;
+  mini.addEventListener('input',()=>{
+    const main=$(id.replace('Mini',''));
+    if(main && main.value!==mini.value) main.value=mini.value;
+    scheduleCompute();
+  });
+});
 
-  adminClose.addEventListener('click', ()=>setAdminPanel(false));
-  adminBackdrop.addEventListener('click', ()=>setAdminPanel(false));
+/* =========================================================================
+   DEV / CONNECTION: persist per device
+   ========================================================================= */
+function saveDevOverrides(){
+  const overrides={
+    onlineUrl:$('onlineUrl')?.value.trim()||'',
+    onlineSecret:$('onlineSecret')?.value.trim()||'',
+    clientId:$('clientId')?.value.trim()||'NURSING-STATION-01'
+  };
+  try{ localStorage.setItem('apacheMobileDev', JSON.stringify(overrides)); }catch(_){}
+}
+function loadDevOverrides(){
+  try{
+    const raw=localStorage.getItem('apacheMobileDev');
+    if(!raw) return;
+    const o=JSON.parse(raw);
+    if($('onlineUrl')) $('onlineUrl').value=o.onlineUrl||'';
+    if($('onlineSecret')) $('onlineSecret').value=o.onlineSecret||'';
+    if($('clientId')) $('clientId').value=o.clientId||'NURSING-STATION-01';
+  }catch(_){}
+}
 
-  btnOpenDevFromAdmin.addEventListener('click', ()=>{
-    // Close admin overlay, open original dev modal.
+/* =========================================================================
+   ONLINE DEFAULTS (fallback when no dev overrides)
+   ========================================================================= */
+let ONLINE_WEBHOOK_URL='https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
+let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
+
+function currentConn(){
+  let url = ONLINE_WEBHOOK_URL;
+  let secret = ONLINE_SECRET;
+  let clientId = 'NURSING-STATION-01';
+  try{
+    const raw = localStorage.getItem('apacheMobileDev');
+    if(raw){
+      const o = JSON.parse(raw);
+      if(o.clientId && o.clientId.trim()) clientId = o.clientId.trim();
+      if(o.onlineUrl && o.onlineUrl.trim()) url = o.onlineUrl.trim();
+      if(o.onlineSecret && o.onlineSecret.trim()) secret = o.onlineSecret.trim();
+    }
+  }catch(_){}
+  return { url, secret, clientId };
+}
+
+/* Google Apps Script links sometimes come as /dev instead of /exec */
+function sanitizeExecUrl(u){
+  try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
+  catch(_){ return u; }
+}
+
+/* Preconnect to the Apps Script ORIGIN (DNS + TLS warmup) */
+function ensurePreconnectForUrl(u){
+  try{
+    const origin = new URL(sanitizeExecUrl(u)).origin;
+    const ensure = (rel) => {
+      if(document.querySelector('link[rel="'+rel+'"][href="'+origin+'"]')) return;
+      const l=document.createElement('link');
+      l.rel=rel; l.href=origin;
+      document.head.appendChild(l);
+    };
+    ensure('dns-prefetch');
+    ensure('preconnect');
+  }catch(_){}
+}
+
+/* =========================================================================
+   MODALS: DEV + ADMIN
+   ========================================================================= */
+const devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
+devPanel.setAttribute('aria-hidden','true'); devBackdrop.setAttribute('data-visible','false');
+
+function setDevPanel(open){
+  const wasOpen=devPanel.getAttribute('aria-hidden')==='false';
+  devPanel.setAttribute('aria-hidden', open?'false':'true');
+  devBackdrop.setAttribute('data-visible', open?'true':'false');
+  devBackdrop.setAttribute('aria-hidden', open?'false':'true');
+  if(wasOpen&&!open) saveDevOverrides();
+}
+devClose.addEventListener('click',()=>setDevPanel(false));
+devBackdrop.addEventListener('click',()=>setDevPanel(false));
+
+const devToggle=$('devToggle');
+const adminPanel=$('adminPanel'), adminBackdrop=$('adminBackdrop'), adminClose=$('adminClose');
+const btnOpenDevFromAdmin=$('btnOpenDevFromAdmin');
+const btnAdminRefresh=$('btnAdminRefresh');
+const adminPatientsTbody=$('adminPatientsTbody');
+const adminMonthPill=$('adminMonthPill');
+const adminQueuePill=$('adminQueuePill');
+
+adminPanel.setAttribute('aria-hidden','true'); adminBackdrop.setAttribute('data-visible','false');
+
+function cancelAdminListFetch(){ if(adminListAbort){ try{ adminListAbort.abort(); }catch(_){ } adminListAbort=null; } }
+function cancelKpFetch(){ if(kpAbort){ try{ kpAbort.abort(); }catch(_){ } kpAbort=null; } }
+
+function setAdminPanel(open){
+  const wasOpen = adminPanel.getAttribute('aria-hidden')==='false';
+  adminPanel.setAttribute('aria-hidden', open?'false':'true');
+  adminBackdrop.setAttribute('data-visible', open?'true':'false');
+  adminBackdrop.setAttribute('aria-hidden', open?'false':'true');
+  devToggle.setAttribute('aria-expanded', open?'true':'false');
+  if(wasOpen && !open){
+    cancelAdminListFetch();
+    cancelKpFetch();
+  }
+}
+devToggle.addEventListener('click', ()=>{
+  const isHidden = adminPanel.getAttribute('aria-hidden')!=='false';
+  setAdminPanel(isHidden);
+  if(isHidden) adminEnsureListLoaded(true, true);
+});
+adminClose.addEventListener('click', ()=>setAdminPanel(false));
+adminBackdrop.addEventListener('click', ()=>setAdminPanel(false));
+
+btnOpenDevFromAdmin.addEventListener('click', ()=>{
+  setAdminPanel(false);
+  setDevPanel(true);
+});
+btnOpenDevFromAdmin.addEventListener('keydown', (ev)=>{
+  if(ev.key==='Enter' || ev.key===' '){
+    ev.preventDefault();
     setAdminPanel(false);
     setDevPanel(true);
+  }
+});
+
+btnAdminRefresh.addEventListener('click', ()=>adminEnsureListLoaded(false, true));
+
+addEventListener('keydown',(ev)=>{
+  if(ev.key!=='Escape') return;
+  if(adminPanel.getAttribute('aria-hidden')==='false'){ setAdminPanel(false); return; }
+  if(devPanel.getAttribute('aria-hidden')==='false'){ setDevPanel(false); return; }
+});
+
+/* =========================================================================
+   Chronic toggle + Oxygen toggle + Tabs
+   ========================================================================= */
+$('chronicGrp').addEventListener('change',()=>{
+  $('surgTypeWrap').style.display = (radioVal('chronic')==='Yes') ? 'grid' : 'none';
+  scheduleCompute();
+});
+
+function updateOxygenUI(){
+  const v = radioVal('fio2');
+  const po2=$('po2Wrap'), aagrad=$('aagradWrap'), pao2El=$('pao2'), aagradEl=$('aagrad');
+  if(v === '<50%'){
+    po2.style.display='block'; aagrad.style.display='none';
+    if(aagradEl){ aagradEl.value=''; aagradEl.removeAttribute('required'); }
+    if(pao2El){ pao2El.setAttribute('required','required'); }
+  } else {
+    po2.style.display='none'; aagrad.style.display='block';
+    if(pao2El){ pao2El.value=''; pao2El.removeAttribute('required'); }
+    if(aagradEl){ aagradEl.setAttribute('required','required'); }
+  }
+}
+document.querySelectorAll('input[name="fio2"]').forEach(r=>r.addEventListener('change',()=>{ updateOxygenUI(); scheduleCompute(); }));
+
+document.querySelectorAll('.tab').forEach((btn)=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach((p)=>p.classList.remove('active'));
+    btn.classList.add('active');
+    const target=$('tab-'+btn.dataset.tab);
+    if(target) target.classList.add('active');
   });
-  btnOpenDevFromAdmin.addEventListener('keydown', (ev)=>{
-    if(ev.key==='Enter' || ev.key===' '){
-      ev.preventDefault();
-      setAdminPanel(false);
-      setDevPanel(true);
-    }
-  });
+});
 
-  btnAdminRefresh.addEventListener('click', ()=>{
-    adminEnsureListLoaded(true, /*force*/true);
-  });
-
-  // Unified Escape behavior
-  addEventListener('keydown',(ev)=>{
-    if(ev.key!=='Escape') return;
-    if(adminPanel.getAttribute('aria-hidden')==='false'){ setAdminPanel(false); return; }
-    if(devPanel.getAttribute('aria-hidden')==='false'){ setDevPanel(false); return; }
-  });
-
-  // ============================================================================
-  //  Persist Dev values
-  //  NOTE: You had loadDevOverrides() commented out; enabling it is safe because:
-  //   - defaults remain if no localStorage exists
-  //   - it only fills the Dev modal inputs (not changing behavior unless user saved)
-  // ============================================================================
-  function saveDevOverrides(){
-    const overrides={
-      onlineUrl:$('onlineUrl')?.value.trim()||'',
-      onlineSecret:$('onlineSecret')?.value.trim()||'',
-      clientId:$('clientId')?.value.trim()||'NURSING-STATION-01'
-    };
-    try{ localStorage.setItem('apacheMobileDev', JSON.stringify(overrides)); }catch(_){}
-  }
-  function loadDevOverrides(){
-    try{
-      const raw=localStorage.getItem('apacheMobileDev');
-      if(!raw) return;
-      const o=JSON.parse(raw);
-      if($('onlineUrl')) $('onlineUrl').value=o.onlineUrl||'';
-      if($('onlineSecret')) $('onlineSecret').value=o.onlineSecret||'';
-      if($('clientId')) $('clientId').value=o.clientId||'NURSING-STATION-01';
-    }catch(_){}
-  }
-
-  // ============================================================================
-  //  Connection selection (defaults first; dev overrides only if present)
-  // ============================================================================
-  function currentConn(){
-    let url = ONLINE_WEBHOOK_URL;
-    let secret = ONLINE_SECRET;
-    let clientId = 'NURSING-STATION-01';
-    try{
-      const raw = localStorage.getItem('apacheMobileDev');
-      if(raw){
-        const o = JSON.parse(raw);
-        if(o.clientId && o.clientId.trim()) clientId = o.clientId.trim();
-        if(o.onlineUrl && o.onlineUrl.trim()) url = o.onlineUrl.trim();
-        if(o.onlineSecret && o.onlineSecret.trim()) secret = o.onlineSecret.trim();
-      }
-    }catch(_){}
-    return { url, secret, clientId };
-  }
-
-  // Sanitize /dev → /exec (Google Apps Script links sometimes come as /dev)
-  function sanitizeExecUrl(u){
-    try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
-    catch(_){ return u; }
-  }
-
-  // ============================================================================
-  //  Cosmetic (Fold)
-  // ============================================================================
-  (function(){
-    const ua=(navigator.userAgent||'').toUpperCase();
-    const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6');
-    if(isFold6) document.body.classList.add('fold6');
-  })();
-
-  // ============================================================================
-  //  Chronic toggle
-  // ============================================================================
-  $('chronicGrp').addEventListener('change',()=>{ $('surgTypeWrap').style.display = (radioVal('chronic')==='Yes') ? 'grid' : 'none'; });
-
-  // ============================================================================
-  //  FiO2 toggle + init
-  // ============================================================================
-  function updateOxygenUI(){
-    const v = radioVal('fio2');
-    const po2=$('po2Wrap'), aagrad=$('aagradWrap'), pao2El=$('pao2'), aagradEl=$('aagrad');
-    if(v === '<50%'){
-      po2.style.display='block'; aagrad.style.display='none';
-      if(aagradEl){ aagradEl.value=''; aagradEl.removeAttribute('required'); }
-      if(pao2El){ pao2El.setAttribute('required','required'); }
-    } else {
-      po2.style.display='none'; aagrad.style.display='block';
-      if(pao2El){ pao2El.value=''; pao2El.removeAttribute('required'); }
-      if(aagradEl){ aagradEl.setAttribute('required','required'); }
-    }
-  }
-  document.querySelectorAll('input[name="fio2"]').forEach(r=>r.addEventListener('change',()=>{ updateOxygenUI(); maybeShowResults(); }));
-
-  // ============================================================================
-  //  Tabs
-  // ============================================================================
-  document.querySelectorAll('.tab').forEach((btn)=>{
-    btn.addEventListener('click',()=>{
-      document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach((p)=>p.classList.remove('active'));
-      btn.classList.add('active');
-      const target=$('tab-'+btn.dataset.tab);
-      if(target) target.classList.add('active');
-    });
-  });
-
-  // ============================================================================
-  //  ONLINE ONLY (defaults first)
-  // ============================================================================
-  let ONLINE_WEBHOOK_URL='https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
-  let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
-
-  // ============================================================================
-  //  APACHE II scoring (MDCalc-exact binning) + mortality bands
-  // ============================================================================
-  function fToC(f){ return (f-32)*(5/9); }
-  function ptsTempC(c){
-    if(c==null) return 0;
-    if(c>=41) return 4;
-    if(c>=39 && c<41) return 3;
-    if(c>=38.5 && c<39) return 1;
-    if(c>=36 && c<38.5) return 0;
-    if(c>=34 && c<36) return 1;
-    if(c>=32 && c<34) return 2;
-    if(c>=30 && c<32) return 3;
-    return 4;
-  }
-  function ptsMAP(v){
-    if(v==null) return 0;
-    if(v>=160) return 4;
-    if(v>=130) return 3;
-    if(v>=110) return 2;
-    if(v>=70)  return 0;
-    if(v>=50)  return 2;
-    return 4;
-  }
-  function ptsHR(v){
-    if(v==null) return 0;
-    if(v>=180) return 4;
-    if(v>=140) return 3;
-    if(v>=110) return 2;
-    if(v>=70)  return 0;
-    if(v>=55)  return 2;
-    if(v>=40)  return 3;
-    return 4;
-  }
-  function ptsRR(v){
-    if(v==null) return 0;
-    if(v>=50) return 4;
-    if(v>=35) return 3;
-    if(v>=25) return 1;
-    if(v>=12) return 0;
-    if(v>=10) return 1;
-    if(v>=6)  return 2;
-    return 4;
-  }
-  function ptsOxygen(fio2Cat,pao2,aagrad){
-    if(fio2Cat==='>=50%'){
-      if(aagrad==null) return 0;
-      if(aagrad>=500) return 4;
-      if(aagrad>=350) return 3;
-      if(aagrad>=200) return 2;
-      return 0;
-    } else {
-      if(pao2==null) return 0;
-      if(pao2>70)    return 0;
-      if(pao2>=61)   return 1;
-      if(pao2>=55)   return 3;
-      return 4;
-    }
-  }
-  function ptsPH(ph){
-    if(ph==null) return 0;
-    if(ph>=7.70) return 4;
-    if(ph>=7.60) return 3;
-    if(ph>=7.50) return 1;
-    if(ph>=7.33) return 0;
-    if(ph>=7.25) return 2;
-    if(ph>=7.15) return 3;
-    return 4;
-  }
-  function ptsHCO3(h){
-    if(h==null) return 0;
-    if(h>=52) return 4;
-    if(h>=41) return 3;
-    if(h>=32) return 1;
-    if(h>=22) return 0;
-    if(h>=18) return 2;
-    if(h>=15) return 3;
-    return 4;
-  }
-  function acidBasePoints(ph, hco3){
-    if(ph!=null) return ptsPH(ph);
-    if(hco3!=null) return ptsHCO3(hco3);
+/* =========================================================================
+   APACHE II scoring — binning as in your current build
+   ========================================================================= */
+function fToC(f){ return (f-32)*(5/9); }
+function ptsTempC(c){
+  if(c==null) return 0;
+  if(c>=41) return 4;
+  if(c>=39 && c<41) return 3;
+  if(c>=38.5 && c<39) return 1;
+  if(c>=36 && c<38.5) return 0;
+  if(c>=34 && c<36) return 1;
+  if(c>=32 && c<34) return 2;
+  if(c>=30 && c<32) return 3;
+  return 4;
+}
+function ptsMAP(v){
+  if(v==null) return 0;
+  if(v>=160) return 4;
+  if(v>=130) return 3;
+  if(v>=110) return 2;
+  if(v>=70)  return 0;
+  if(v>=50)  return 2;
+  return 4;
+}
+function ptsHR(v){
+  if(v==null) return 0;
+  if(v>=180) return 4;
+  if(v>=140) return 3;
+  if(v>=110) return 2;
+  if(v>=70)  return 0;
+  if(v>=55)  return 2;
+  if(v>=40)  return 3;
+  return 4;
+}
+function ptsRR(v){
+  if(v==null) return 0;
+  if(v>=50) return 4;
+  if(v>=35) return 3;
+  if(v>=25) return 1;
+  if(v>=12) return 0;
+  if(v>=10) return 1;
+  if(v>=6)  return 2;
+  return 4;
+}
+function ptsOxygen(fio2Cat,pao2,aagrad){
+  if(fio2Cat==='>=50%'){
+    if(aagrad==null) return 0;
+    if(aagrad>=500) return 4;
+    if(aagrad>=350) return 3;
+    if(aagrad>=200) return 2;
     return 0;
-  }
-  function ptsNa(v){
-    if(v==null) return 0;
-    if(v>=180) return 4;
-    if(v>=160) return 3;
-    if(v>=155) return 2;
-    if(v>=150) return 1;
-    if(v>=130) return 0;
-    if(v>=120) return 2;
-    if(v>=111) return 3;
+  } else {
+    if(pao2==null) return 0;
+    if(pao2>70)    return 0;
+    if(pao2>=61)   return 1;
+    if(pao2>=55)   return 3;
     return 4;
   }
-  function ptsK(v){
-    if(v==null) return 0;
-    if(v>=7.0) return 4;
-    if(v>=6.0) return 3;
-    if(v>=5.5) return 1;
-    if(v>=3.5) return 0;
-    if(v>=3.0) return 1;
-    if(v>=2.5) return 2;
-    return 4;
-  }
-  function ptsCreatinine(v,arf){
-    if(v==null) return 0;
-    let pts=0;
-    if(v>=3.5) pts=4;
-    else if(v>=2.0) pts=3;
-    else if(v>=1.5) pts=2;
-    else if(v<0.6) pts=2;
-    else pts=0;
-    if(arf) pts*=2;
-    return pts;
-  }
-  function ptsHct(v){
-    if(v==null) return 0;
-    if(v>=60) return 4;
-    if(v>=50) return 2;
-    if(v>=46) return 1;
-    if(v>=30) return 0;
-    if(v>=20) return 2;
-    return 4;
-  }
-  function ptsWBC(v){
-    if(v==null) return 0;
-    if(v>=40) return 4;
-    if(v>=20) return 2;
-    if(v>=15) return 1;
-    if(v>=3)  return 0;
-    if(v>=1)  return 2;
-    return 4;
-  }
-  function ptsGCS(g){ if(g==null) return 0; const diff=15-g; return diff<0?0:diff; }
-  function agePoints(age){
-    if(age==null) return 0;
-    if(age<=44) return 0;
-    if(age<=54) return 2;
-    if(age<=64) return 3;
-    if(age<=74) return 5;
-    return 6;
-  }
-  function chronicPoints(chronic,surgtype){
-    if(chronic!=='Yes') return 0;
-    if(surgtype==='Elective') return 2;
-    return 5;
-  }
-  // Mortality bands (approximate, non-op vs post-op)
-  function mortalityBands(score){
-    const s = Number(score||0);
-    if(s<=4)  return { nonop:4,  postop:1 };
-    if(s<=9)  return { nonop:8,  postop:3 };
-    if(s<=14) return { nonop:15, postop:7 };
-    if(s<=19) return { nonop:25, postop:12 };
-    if(s<=24) return { nonop:40, postop:30 };
-    if(s<=29) return { nonop:55, postop:35 };
-    if(s<=34) return { nonop:73, postop:73 };
-    return { nonop:85, postop:88 };
-  }
+}
+function ptsPH(ph){
+  if(ph==null) return 0;
+  if(ph>=7.70) return 4;
+  if(ph>=7.60) return 3;
+  if(ph>=7.50) return 1;
+  if(ph>=7.33) return 0;
+  if(ph>=7.25) return 2;
+  if(ph>=7.15) return 3;
+  return 4;
+}
+function ptsHCO3(h){
+  if(h==null) return 0;
+  if(h>=52) return 4;
+  if(h>=41) return 3;
+  if(h>=32) return 1;
+  if(h>=22) return 0;
+  if(h>=18) return 2;
+  if(h>=15) return 3;
+  return 4;
+}
+function acidBasePoints(ph, hco3){
+  if(ph!=null) return ptsPH(ph);
+  if(hco3!=null) return ptsHCO3(hco3);
+  return 0;
+}
+function ptsNa(v){
+  if(v==null) return 0;
+  if(v>=180) return 4;
+  if(v>=160) return 3;
+  if(v>=155) return 2;
+  if(v>=150) return 1;
+  if(v>=130) return 0;
+  if(v>=120) return 2;
+  if(v>=111) return 3;
+  return 4;
+}
+function ptsK(v){
+  if(v==null) return 0;
+  if(v>=7.0) return 4;
+  if(v>=6.0) return 3;
+  if(v>=5.5) return 1;
+  if(v>=3.5) return 0;
+  if(v>=3.0) return 1;
+  if(v>=2.5) return 2;
+  return 4;
+}
+function ptsCreatinine(v,arf){
+  if(v==null) return 0;
+  let pts=0;
+  if(v>=3.5) pts=4;
+  else if(v>=2.0) pts=3;
+  else if(v>=1.5) pts=2;
+  else if(v<0.6) pts=2;
+  else pts=0;
+  if(arf) pts*=2;
+  return pts;
+}
+function ptsHct(v){
+  if(v==null) return 0;
+  if(v>=60) return 4;
+  if(v>=50) return 2;
+  if(v>=46) return 1;
+  if(v>=30) return 0;
+  if(v>=20) return 2;
+  return 4;
+}
+function ptsWBC(v){
+  if(v==null) return 0;
+  if(v>=40) return 4;
+  if(v>=20) return 2;
+  if(v>=15) return 1;
+  if(v>=3)  return 0;
+  if(v>=1)  return 2;
+  return 4;
+}
+function ptsGCS(g){ if(g==null) return 0; const diff=15-g; return diff<0?0:diff; }
+function agePoints(age){
+  if(age==null) return 0;
+  if(age<=44) return 0;
+  if(age<=54) return 2;
+  if(age<=64) return 3;
+  if(age<=74) return 5;
+  return 6;
+}
+function chronicPoints(chronic,surgtype){
+  if(chronic!=='Yes') return 0;
+  if(surgtype==='Elective') return 2;
+  return 5;
+}
+function mortalityBands(score){
+  const s = Number(score||0);
+  if(s<=4)  return { nonop:4,  postop:1 };
+  if(s<=9)  return { nonop:8,  postop:3 };
+  if(s<=14) return { nonop:15, postop:7 };
+  if(s<=19) return { nonop:25, postop:12 };
+  if(s<=24) return { nonop:40, postop:30 };
+  if(s<=29) return { nonop:55, postop:35 };
+  if(s<=34) return { nonop:73, postop:73 };
+  return { nonop:85, postop:88 };
+}
 
-  function computeApache(inputs, meta){
-    const tempC = inputs.Temperature_F!=null ? fToC(inputs.Temperature_F) : null;
-    const aps = ptsTempC(tempC)+
-                ptsMAP(inputs.MAP_mmHg)+
-                ptsHR(inputs.HeartRate_bpm)+
-                ptsRR(inputs.RespRate_bpm)+
-                ptsOxygen(inputs.FiO2_Category, inputs.PaO2_mmHg, inputs.AaGradient_mmHg)+
-                acidBasePoints(inputs.pH, inputs.HCO3_mEqL)+
-                ptsNa(inputs.Na_mEqL)+
-                ptsK(inputs.K_mEqL)+
-                ptsCreatinine(inputs.Creatinine_mgdl, inputs.AcuteRenalFailure===true)+
-                ptsHct(inputs.Hematocrit_pct)+
-                ptsWBC(inputs.WBC_10e3uL)+
-                ptsGCS(inputs.GCS!=null?inputs.GCS:null);
-    const agePts=agePoints(meta.age);
-    const chronicPts=chronicPoints(inputs.ChronicHealth, inputs.SurgeryType);
-    const apacheII=aps+agePts+chronicPts;
-    const mort = mortalityBands(apacheII);
-    return { apacheII, mortNon: mort.nonop, mortPost: mort.postop };
-  }
+/* =========================================================================
+   FAST COMPUTE PIPELINE (debounce + cache)
+   =========================================================================
+   Problem in your prior build:
+     - buildPayload() was being called extremely often (document-wide listener).
+     - buildPayload() is strict, does lots of parsing/validation, creates objects.
+     - This can stutter on mid-range phones.
 
-  function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
-  function istMonthYYYYMM(){
-    try{ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }
-    catch(_){ return (new Date().toISOString()).slice(0,7); }
-  }
+   Fix here:
+     - validateLight(): only checks what's needed to enable Submit + show results.
+     - snapshotInputs(): only reads essential numeric inputs for scoring.
+     - computeCached(): caches by stable signature string.
+     - scheduleCompute(): debounced runner (120ms).
+   ========================================================================= */
 
-  // ============================================================================
-  //  Build payload — strict completeness (requires all marked * and oxygen branch; pH OR HCO3)
-  //  Tight script sync:
-  //   - authToken must equal ONLINE_SECRET
-  //   - month must be YYYY-MM
-  //   - sheetRow must be EXACTLY 9 columns (EXPECTED_COLS=9)
-  // ============================================================================
-  function buildPayload(){
-    const patientName=valStr('patientName');
-    const uhid=valStr('uhid');
-    const age=valNum('age');
-    const sexSel=$('sex'); const sex=sexSel?sexSel.value:'';
-    const diagnosis=valStr('diagnosis');
-    const admitDate=valStr('admitDate');
-    const fio2=radioVal('fio2');
-    const mortYN=radioVal('mortality');
+function istMonthYYYYMM(){
+  try{ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }
+  catch(_){ return (new Date().toISOString()).slice(0,7); }
+}
+function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
 
-    if(!patientName) throw new Error('Patient Name is required');
-    if(!uhid) throw new Error('UHID is required');
-    if(age===null) throw new Error('Age is required');
-    if(!sex) throw new Error('Sex is required');
-    if(!diagnosis) throw new Error('Diagnosis is required');
-    if(!admitDate) throw new Error('Admission Date is required');
-    if(!fio2) throw new Error('FiO₂ category is required');
-    if(!mortYN) throw new Error('Mortality (Y/N) is required');
+/* Lightweight completeness check (FAST). */
+function validateLight(){
+  // required text fields
+  const patientName = valStr('patientName');
+  const uhid = valStr('uhid');
+  const diagnosis = valStr('diagnosis');
+  const admitDate = valStr('admitDate');
 
-    const chronic=radioVal('chronic');
-    const surgtype=chronic==='Yes' ? radioVal('surgtype') : null;
+  // required selects
+  const sex = $('sex')?.value || '';
 
-    // Required vitals
-    const tempF = valNum('tempF'); if(tempF===null) throw new Error('Temperature is required');
-    const map   = valNum('map');   if(map===null)   throw new Error('MAP is required');
-    const hr    = valNum('hr');    if(hr===null)    throw new Error('Heart Rate is required');
-    const rr    = valNum('rr');    if(rr===null)    throw new Error('Respiratory Rate is required');
+  // required numbers
+  const age = valNum('age');
+  const gcs = valNum('gcs');
+  const tempF = valNum('tempF');
+  const map = valNum('map');
+  const hr = valNum('hr');
+  const rr = valNum('rr');
+  const na = valNum('na');
+  const k = valNum('k');
+  const cr = valNum('cr');
+  const wbc = valNum('wbc');
+  const hct = valNum('hct');
 
-    // Oxygenation
-    const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
-    const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
-    if(fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
-    if(fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
+  // radio requirements
+  const fio2 = radioVal('fio2');
+  const mortYN = radioVal('mortality');
 
-    // Acid-base: require at least one (pH preferred)
-    const phVal = valNum('ph');
-    const hco3Val = valNum('hco3');
-    if(phVal===null && hco3Val===null) throw new Error('Provide arterial pH or HCO₃⁻');
+  if(!patientName || !uhid || !diagnosis || !admitDate) return { ok:false, why:'Missing required identity/admission fields' };
+  if(!sex) return { ok:false, why:'Sex required' };
+  if(age==null || gcs==null) return { ok:false, why:'Age/GCS required' };
+  if(tempF==null || map==null || hr==null || rr==null) return { ok:false, why:'Vitals incomplete' };
+  if(na==null || k==null || cr==null || wbc==null || hct==null) return { ok:false, why:'Labs incomplete' };
+  if(!fio2) return { ok:false, why:'FiO2 required' };
+  if(!mortYN) return { ok:false, why:'Mortality Y/N required' };
 
-    // Labs
-    const na = valNum('na'); if(na===null) throw new Error('Sodium is required');
-    const k  = valNum('k');  if(k===null)  throw new Error('Potassium is required');
-    const cr = valNum('cr'); if(cr===null) throw new Error('Creatinine is required');
-    const wbc= valNum('wbc');if(wbc===null)throw new Error('WBC is required');
-    const hct= valNum('hct');if(hct===null)throw new Error('Hematocrit is required');
-
-    // Neuro
-    const gcs = valNum('gcs'); if(gcs===null) throw new Error('GCS is required');
-
-    const inputs={
-      Age_years: age,
-      GCS: gcs,
-      Temperature_F: tempF,
-      MAP_mmHg: map,
-      HeartRate_bpm: hr,
-      RespRate_bpm: rr,
-      FiO2_Category: fio2,
-      PaO2_mmHg: pao2,
-      AaGradient_mmHg: aagrad,
-      pH: phVal,
-      HCO3_mEqL: hco3Val,
-      Na_mEqL: na,
-      K_mEqL: k,
-      Creatinine_mgdl: cr,
-      AcuteRenalFailure: radioVal('arf')==='Yes',
-      Hematocrit_pct: hct,
-      WBC_10e3uL: wbc,
-      ChronicHealth: chronic==='Yes' ? 'Yes' : 'No',
-      SurgeryType: surgtype
-    };
-
-    const nowIso=new Date().toISOString();
-    const { apacheII, mortNon, mortPost } = computeApache(inputs,{ age });
-
-    // choose single mortality for sending/row: postop if Emergency/Elective, else non-op
-    const selectedMortality = (surgtype==='Emergency' || surgtype==='Elective') ? mortPost : mortNon;
-
-    // EXACT 9 columns, must match Apps Script EXPECTED_COLS
-    const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, selectedMortality, mortYN ];
-
-    return {
-      clientId: 'NURSING-STATION-01',
-      authToken: '',
-      patientName, uhid, age, sex, diagnosis, admitDate,
-      timestamp: nowIso,
-      month: monthKeyFromISO(nowIso),
-      submissionId: uuidv4(),
-      apacheInputs: inputs,
-      apacheScore: apacheII,
-
-      // preview-only fields (will be stripped before sending)
-      predictedMortalityNonOpPct: mortNon,
-      predictedMortalityPostOpPct: mortPost,
-
-      mortalityYN: mortYN,
-      sheetRow: row
-    };
+  // oxygen branch
+  if(fio2 === '<50%'){
+    const pao2 = valNum('pao2');
+    if(pao2==null) return { ok:false, why:'PaO2 required for FiO2 <50%' };
+  }else{
+    const aagrad = valNum('aagrad');
+    if(aagrad==null) return { ok:false, why:'A-a gradient required for FiO2 >=50%' };
   }
 
-  function formIsComplete(){ try{ buildPayload(); return true; }catch(_){ return false; } }
-  function updateCompletenessUI(){
-    const complete = formIsComplete();
-    const note = $('incompleteNote');
-    const submit = $('btnSubmit');
-    if(note) note.setAttribute('data-visible', complete ? 'false' : 'true');
-    if(submit) submit.disabled = !complete;
-    if(!complete){
-      const card=$('resultsCard');
-      if(card) card.setAttribute('data-visible','false');
-    }
+  // acid-base: require at least one
+  const phVal = valNum('ph');
+  const hco3Val = valNum('hco3');
+  if(phVal==null && hco3Val==null) return { ok:false, why:'pH or HCO3 required' };
+
+  return { ok:true };
+}
+
+function snapshotInputsForCompute(){
+  // Keep this minimal: only what scoring needs.
+  const age = valNum('age');
+
+  const fio2 = radioVal('fio2');
+  const tempF = valNum('tempF');
+  const map = valNum('map');
+  const hr = valNum('hr');
+  const rr = valNum('rr');
+  const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
+  const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
+
+  const phVal = valNum('ph');
+  const hco3Val = valNum('hco3');
+
+  const na = valNum('na');
+  const k = valNum('k');
+  const cr = valNum('cr');
+  const wbc = valNum('wbc');
+  const hct = valNum('hct');
+
+  const gcs = valNum('gcs');
+  const arf = (radioVal('arf')==='Yes');
+  const chronic = radioVal('chronic')==='Yes' ? 'Yes' : 'No';
+  const surgtype = chronic==='Yes' ? radioVal('surgtype') : null;
+
+  return {
+    age, fio2, tempF, map, hr, rr, pao2, aagrad, phVal, hco3Val, na, k, cr, wbc, hct, gcs, arf, chronic, surgtype
+  };
+}
+
+function signatureKey(s){
+  // Stable string key for caching.
+  // NOTE: Avoid JSON stringify of nested objects; just join primitives.
+  return [
+    s.age, s.fio2, s.tempF, s.map, s.hr, s.rr, s.pao2, s.aagrad,
+    s.phVal, s.hco3Val, s.na, s.k, s.cr, s.wbc, s.hct, s.gcs,
+    s.arf?1:0, s.chronic, s.surgtype||''
+  ].join('|');
+}
+
+let COMPUTE_CACHE = { key:null, value:null };
+
+function computeApacheFast(snap){
+  // Build the exact scoring values used in your previous build.
+  const tempC = snap.tempF!=null ? fToC(snap.tempF) : null;
+
+  const aps = ptsTempC(tempC)+
+              ptsMAP(snap.map)+
+              ptsHR(snap.hr)+
+              ptsRR(snap.rr)+
+              ptsOxygen(snap.fio2, snap.pao2, snap.aagrad)+
+              acidBasePoints(snap.phVal, snap.hco3Val)+
+              ptsNa(snap.na)+
+              ptsK(snap.k)+
+              ptsCreatinine(snap.cr, snap.arf)+
+              ptsHct(snap.hct)+
+              ptsWBC(snap.wbc)+
+              ptsGCS(snap.gcs);
+
+  const agePts = agePoints(snap.age);
+  const chronicPts = chronicPoints(snap.chronic, snap.surgtype);
+  const apacheII = aps + agePts + chronicPts;
+
+  const mort = mortalityBands(apacheII);
+  return { apacheII, mortNon: mort.nonop, mortPost: mort.postop };
+}
+
+function computeCached(){
+  const snap = snapshotInputsForCompute();
+  const key = signatureKey(snap);
+  if(COMPUTE_CACHE.key === key && COMPUTE_CACHE.value) return COMPUTE_CACHE.value;
+  const out = computeApacheFast(snap);
+  COMPUTE_CACHE = { key, value: out };
+  return out;
+}
+
+/* Debounced compute scheduler */
+let computeTimer = null;
+function scheduleCompute(){
+  clearTimeout(computeTimer);
+  computeTimer = setTimeout(runComputeAndUI, 120);
+}
+
+function runComputeAndUI(){
+  const v = validateLight();
+
+  const submit = $('btnSubmit');
+  const note = $('incompleteNote');
+  const card = $('resultsCard');
+
+  if(!v.ok){
+    if(submit) submit.disabled = true;
+    if(note) note.setAttribute('data-visible','true');
+    if(card) card.setAttribute('data-visible','false');
+    if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = true;
+    return;
   }
 
-  function maybeShowResults(){
-    updateCompletenessUI();
-    if(!formIsComplete()){
-      if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled=true;
-      return;
-    }
-    const payload = buildPayload();
-    $('resApache').textContent = String(payload.apacheScore) + ' pts';
-    $('resMortNon').textContent = String(payload.predictedMortalityNonOpPct) + '%';
-    $('resMortPost').textContent = String(payload.predictedMortalityPostOpPct) + '%';
-    $('resultsCard').setAttribute('data-visible','true');
-    if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled=false;
-  }
+  if(submit) submit.disabled = false;
+  if(note) note.setAttribute('data-visible','false');
 
-  ['input','change'].forEach(evt=>{
-    document.addEventListener(evt, (e)=>{
-      if(e.target && e.target.closest('.panel')) maybeShowResults();
-    });
-  });
+  const res = computeCached();
+  $('resApache').textContent = String(res.apacheII) + ' pts';
+  $('resMortNon').textContent = String(res.mortNon) + '%';
+  $('resMortPost').textContent = String(res.mortPost) + '%';
+  if(card) card.setAttribute('data-visible','true');
+  if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = false;
+}
 
-  // ---------- helpers for dev tools ----------
-  function buildExcelRowText(){
-    const p = buildPayload();
-    return p.sheetRow.join('\t');
-  }
-
-  function dummyFill(){
-    const age = randInt(45,70);
-    $('patientName').value = 'Jane Doe';
-    $('patientNameMini').value = 'Jane Doe';
-    $('uhid').value = '2010' + String(randInt(1000,9999));
-    $('uhidMini').value = $('uhid').value;
-
-    $('age').value = String(age);
-    $('sex').value = 'Female';
-    $('admitDate').value = todayISO();
-    $('diagnosis').value = 'CKD on HTN; Community-acquired pneumonia; on oxygen';
-
-    $('tempF').value = '99.1';
-    $('map').value = '78';
-    $('hr').value = '96';
-    $('rr').value = '22';
-    $('gcs').value = '14';
-
-    document.querySelector('input[name="fio2"][value="<50%"]').checked = true;
-    updateOxygenUI();
-    $('pao2').value = '72';
-    $('aagrad').value = '';
-
-    $('ph').value = '7.36';
-    $('hco3').value = '22';
-    $('na').value = '138';
-    $('k').value = '4.8';
-    $('cr').value = '2.6';
-    $('wbc').value = '13.2';
-    $('hct').value = '33';
-
-    document.querySelector('input[name="arf"][value="Yes"]').checked = true;
-
-    document.querySelector('input[name="chronic"][value="Yes"]').checked = true;
-    $('surgTypeWrap').style.display = 'grid';
-    document.querySelector('input[name="surgtype"][value="Nonoperative"]').checked = true;
-
-    document.querySelector('input[name="mortality"][value="N"]').checked = true;
-
-    maybeShowResults();
-    toast('Dummy data filled');
-  }
-
-  // ============================================================================
-  //  NETWORK HELPERS (FAST + CANCELABLE)
-  // ============================================================================
-  function withTimeout(ms){
-    const ctrl = new AbortController();
-    const timer = setTimeout(()=>ctrl.abort(), ms);
-    return { ctrl, cancel: ()=>clearTimeout(timer) };
-  }
-
-  async function sendJson(url, payload, label, timeoutMs=12000){
-    // Professional: abortable + explicit parsing + detailed errors
-    let res, text;
-    const { ctrl, cancel } = withTimeout(timeoutMs);
-
-    try{
-      vlog('[fetch] '+label+' → POST', { url, payloadPreview: JSON.stringify(payload).slice(0,300) });
-      res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload),
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'no-store',
-        signal: ctrl.signal
-      });
-    }catch(netErr){
-      cancel();
-      if(netErr && netErr.name === 'AbortError'){
-        throw new Error(label+' timed out (>'+timeoutMs+'ms). Check network or server load.');
-      }
-      console.error('[NET] '+label+' network error:', netErr);
-      throw new Error(label+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
-    }
-
-    cancel();
-    try{ text = await res.text(); }catch(_){ text=''; }
-
-    let data=null;
-    try{ data = text ? JSON.parse(text) : null; }catch(parseErr){
-      console.error('[PARSE] Non-JSON body:', text);
-      throw new Error(label+' returned non-JSON: '+(text ? text.slice(0,200) : 'empty body'));
-    }
-
-    vlog('[fetch] '+label+' ← response', { status: res.status, data });
-    if(!res.ok){
-      const msg=(data && (data.error||data.message)) || ('HTTP '+res.status);
-      throw new Error(label+' HTTP error: '+msg);
-    }
-    return data;
-  }
-
-  // ============================================================================
-  //  Submit (FAST)
-  //   - Backend already returns OK immediately after MAIN write (your script rule).
-  //   - UI: show quick status, tight success detection: { ok:true }
-  // ============================================================================
-  async function postOnline(payload){
-    const { url, secret, clientId } = currentConn();
-    if(!url){ throw new Error('Online Webhook URL not configured.'); }
-
-    // Build a copy for sending:
-    // - Keep sheetRow EXACT (9)
-    // - Provide authToken = secret
-    // - Provide predictedMortalityPct single numeric (backend validation uses sheetRow only, but keep consistent)
-    const out = JSON.parse(JSON.stringify(payload));
-    const surgType = out.apacheInputs && out.apacheInputs.SurgeryType;
-    const isPostOp = (surgType === 'Emergency' || surgType === 'Elective');
-    const selectedMort = isPostOp ? Number(out.predictedMortalityPostOpPct) : Number(out.predictedMortalityNonOpPct);
-
-    delete out.predictedMortalityNonOpPct;
-    delete out.predictedMortalityPostOpPct;
-    out.predictedMortalityPct = selectedMort;
-
-    out.clientId  = clientId;
-    out.authToken = secret || '';
-
-    const execUrl = sanitizeExecUrl(url);
-
-    // Short-ish timeout; no one should wait forever on bedside UI.
-    const data = await sendJson(execUrl, out, 'Google Sheets webhook', 12000);
-    if(!data || data.ok !== true){
-      const detail = data && (data.error || JSON.stringify(data).slice(0,200));
-      throw new Error('Sheets webhook did not confirm success' + (detail?': '+detail:''));
-    }
-    return data;
-  }
-
-  // ============================================================================
-  //  Robust CSV download (raw CSV for Chrome-safe path)
-  // ============================================================================
-  function buildDownloadParams(ym){
-    return { action:'download', month: ym };
-  }
-  async function blobFallbackDownload(url, fileName){
-    try{
-      console.log('[download] blob fallback →', url);
-      const res = await fetch(url, { method:'GET', mode:'cors', credentials:'omit', cache:'no-store' });
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const blob = await res.blob();
-      const a = document.createElement('a');
-      const obj = URL.createObjectURL(blob);
-      a.href = obj;
-      a.download = fileName || ('APACHE-'+istMonthYYYYMM()+'.csv');
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(()=>{ URL.revokeObjectURL(obj); a.remove(); }, 1500);
-      return true;
-    }catch(e){
-      console.warn('[download] blob fallback failed:', e);
-      return false;
-    }
-  }
-
-  $('btnDownload').addEventListener('click', async ()=>{
-    const { url } = currentConn();
-    if(!url){ toast('Online URL missing.', false); return; }
-    const ym = istMonthYYYYMM();
-
-    let exec;
-    try { exec = new URL(sanitizeExecUrl(url)).toString(); }
-    catch(_){ exec = sanitizeExecUrl(url); }
-
-    const params = buildDownloadParams(ym);
-    const qs = new URLSearchParams(params).toString();
-    const full = exec + (exec.includes('?')?'&':'?') + qs;
-
-    // Attempt 1: top-level open (raw CSV) – Chrome-friendly
-    console.log('[download] attempt#1 window.open →', full);
-    const win = window.open(full, '_blank', 'noopener');
-
-    // Attempt 2: blob fallback
-    setTimeout(async ()=>{
-      if(!win || win.closed){
-        const ok = await blobFallbackDownload(full, 'APACHE-'+ym+'.csv');
-        if(ok){ toast('Download started'); }
-        else { toast('Download may be blocked. Check browser downloads.', false); }
-      }
-    }, 350);
-  });
-
-  // ============================================================================
-  //  Submit button handler
-  // ============================================================================
-  $('btnSubmit').addEventListener('click', async (ev)=>{
-    ev.preventDefault();
-    const button=$('btnSubmit'); button.disabled=true;
-
-    // Non-blocking UX: if server is slow, show center warning quickly.
-    const slowTimer = setTimeout(()=>toastCenter('Still sending… network may be slow.'), 1800);
-
-    try{
-      saveDevOverrides();
-      const payload=buildPayload();
-      vlog('[submit] Built payload', payload);
-      toast('Sending to Google Sheets…');
-
-      const resp = await postOnline(payload);
-
-      clearTimeout(slowTimer);
-      if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
-
-      // FAST confirmation: server OK means MAIN entry is written (per script).
-      toast('Saved to Google Sheets ✅');
-
-      maybeShowResults();
-    }catch(e){
-      clearTimeout(slowTimer);
-      if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
-      toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
-      console.error('[submit] error:', e);
-    }finally{
-      button.disabled=false;
-      updateCompletenessUI();
-    }
-  });
-
-  // ============================================================================
-  //  Dev tools (unchanged)
-  // ============================================================================
-  $('btnBuildPreview').addEventListener('click', ()=>{
-    try{
-      const payload=buildPayload();
-      $('debugPreview').textContent = JSON.stringify(payload, null, 2);
-      toast('Payload built');
-    }catch(e){
-      $('debugPreview').textContent = 'Error: '+e.message;
-      toast(e.message, false);
-      console.error('[preview] error:', e);
-    }
-  });
-  $('btnCopyPreview').addEventListener('click', ()=>{
-    try{ navigator.clipboard.writeText($('debugPreview').textContent||''); toast('Copied JSON'); }
-    catch(_){ toast('Copy failed', false); }
-  });
-  $('btnCopyExcelRow').addEventListener('click', ()=>{
-    try{ navigator.clipboard.writeText(buildExcelRowText()); toast('Row copied (tab-separated). Paste into Excel/Sheets.'); }
-    catch(e){ toast('Copy failed: '+(e && e.message ? e.message : String(e)), false); }
-  });
-  $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
-
-  // ============================================================================
-  //  Duplicate-check (GET, blur-triggered, cancelable, inline status, center warning)
-  //  Script accepts: action=check & month=YYYY-MM & uhid & (patientName or name)
-  // ============================================================================
-  let dupAbort = null;
-  const dupEl = $('dupIndicator');
-
-  function setDupStatus(state, text){
-    if(!dupEl) return;
-    dupEl.dataset.state = state || '';
-    if(state === 'checking'){
-      dupEl.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>'+(text||'Looking for duplicates…')+'</span>';
-      dupEl.style.display = 'inline-flex';
-    }else if(state === 'none'){
-      dupEl.innerHTML = '<span>✓</span><span>'+(text||'No duplicates')+'</span>';
-      dupEl.style.display = 'inline-flex';
-      setTimeout(()=>{ dupEl.style.display='none'; }, 1600);
-    }else if(state === 'error'){
-      dupEl.innerHTML = '<span>!</span><span>'+(text||'Check failed')+'</span>';
-      dupEl.style.display = 'inline-flex';
-      setTimeout(()=>{ dupEl.style.display='none'; }, 2000);
-    }else{
-      dupEl.style.display='none';
-    }
-  }
-
-  function cancelDupRequest(){
-    if(dupAbort){ try{ dupAbort.abort(); }catch(_){ } dupAbort=null; }
-  }
-
-  function bothFilled(){
-    const name = valStr('patientName');
-    const uhid = valStr('uhid');
-    return !!(name && uhid);
-  }
-
-  async function checkDuplicateNow(reason){
-    const name = valStr('patientName');
-    const uhid = valStr('uhid');
-    if(!name || !uhid){ return; }
-
-    const { url } = currentConn();
-    if(!url){ return; }
-
-    cancelDupRequest();
-    dupAbort = new AbortController();
-    setDupStatus('checking', 'Looking for duplicates…');
-
-    const execUrl = sanitizeExecUrl(url);
-    const ym = istMonthYYYYMM();
-
-    const qs = new URLSearchParams({
-      action:'check',
-      uhid: String(uhid).trim(),
-      name: String(name).trim(),
-      month: ym
-    }).toString();
-
-    const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
-    console.log('[duplicate-check] GET ('+reason+') →', full);
-
-    try{
-      const res = await fetch(full, {
-        method:'GET',
-        mode:'cors',
-        credentials:'omit',
-        cache:'no-store',
-        signal: dupAbort.signal
-      });
-      const text = await res.text();
-      let data = {};
-      try{ data = text ? JSON.parse(text) : {}; }catch(_){ data={}; }
-      console.log('[duplicate-check] response status=', res.status, 'body=', data);
-
-      if(!res.ok){
-        setDupStatus('error','Check failed');
-        return;
-      }
-
-      // Expected: { ok:true, matches:n, tag:'duplicate_entry'|'no_duplicate' }
-      const isDup = !!(data && (data.tag === 'duplicate_entry' || (data.matches|0) > 0));
-      if(isDup){
-        setDupStatus('', '');
-        toastCenter('Possible duplicate entry found!');
-      }else{
-        setDupStatus('none','No duplicates');
-      }
-
-      if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
-    }catch(e){
-      if(e && e.name==='AbortError'){
-        console.log('[duplicate-check] aborted (new edit/focus)');
-        return;
-      }
-      console.warn('[duplicate-check] error:', e && e.message ? e.message : e);
-      setDupStatus('error','Check failed');
-    }
-  }
-
-  function onBlurTrigger(ev){
-    if(bothFilled()){ checkDuplicateNow('blur from '+ev.target.id); }
-  }
-  function onFocusCancel(){
-    cancelDupRequest();
-    setDupStatus('', '');
-  }
-
-  ['patientName','uhid','patientNameMini','uhidMini'].forEach(id=>{
+/* Attach events only to relevant inputs (avoid document-wide listeners) */
+function attachFastListeners(){
+  const ids = [
+    'patientName','uhid','age','sex','admitDate','diagnosis','gcs',
+    'tempF','map','hr','rr','pao2','aagrad','ph','hco3','na','k','cr','wbc','hct'
+  ];
+  ids.forEach(id=>{
     const el=$(id);
     if(!el) return;
-    el.addEventListener('focus', onFocusCancel, true);
-    el.addEventListener('blur', onBlurTrigger, true);
+    el.addEventListener('input', scheduleCompute, { passive:true });
+    el.addEventListener('change', scheduleCompute, { passive:true });
   });
 
-  // ============================================================================
-  //  ADMIN: LIST patients (tag=LIST)
-  //  Script auth: accepts secret via query auth/authToken/token/key/secret or body/header
-  //  We'll use query `auth=<secret>` for a quick GET.
-  //
-  //  SPEED:
-  //   - cached for 30 seconds per month
-  //   - abort previous fetch if refreshed/closed
-  // ============================================================================
-  let adminListAbort = null;
-  const ADMIN_LIST_CACHE = new Map(); // key: month -> { ts, patients:[] }
-  const ADMIN_LIST_TTL_MS = 30_000;
+  const radioNames = ['fio2','arf','chronic','surgtype','mortality'];
+  radioNames.forEach(n=>{
+    document.querySelectorAll('input[name="'+n+'"]').forEach(r=>{
+      r.addEventListener('change', scheduleCompute, { passive:true });
+    });
+  });
+}
 
-  function cancelAdminListFetch(){
-    if(adminListAbort){ try{ adminListAbort.abort(); }catch(_){ } adminListAbort=null; }
+/* =========================================================================
+   Strict payload builder (ONLY used for submit & preview)
+   =========================================================================
+   Script sync contract (as you requested):
+     - authToken must match shared secret
+     - month must be YYYY-MM
+     - sheetRow must be EXACTLY 9 columns
+   ========================================================================= */
+function buildPayloadStrict(){
+  const patientName=valStr('patientName');
+  const uhid=valStr('uhid');
+  const age=valNum('age');
+  const sexSel=$('sex'); const sex=sexSel?sexSel.value:'';
+  const diagnosis=valStr('diagnosis');
+  const admitDate=valStr('admitDate');
+  const fio2=radioVal('fio2');
+  const mortYN=radioVal('mortality');
+
+  if(!patientName) throw new Error('Patient Name is required');
+  if(!uhid) throw new Error('UHID is required');
+  if(age===null) throw new Error('Age is required');
+  if(!sex) throw new Error('Sex is required');
+  if(!diagnosis) throw new Error('Diagnosis is required');
+  if(!admitDate) throw new Error('Admission Date is required');
+  if(!fio2) throw new Error('FiO₂ category is required');
+  if(!mortYN) throw new Error('Mortality (Y/N) is required');
+
+  const chronic=radioVal('chronic');
+  const surgtype=chronic==='Yes' ? radioVal('surgtype') : null;
+
+  const tempF = valNum('tempF'); if(tempF===null) throw new Error('Temperature is required');
+  const map   = valNum('map');   if(map===null)   throw new Error('MAP is required');
+  const hr    = valNum('hr');    if(hr===null)    throw new Error('Heart Rate is required');
+  const rr    = valNum('rr');    if(rr===null)    throw new Error('Respiratory Rate is required');
+
+  const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
+  const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
+  if(fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
+  if(fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
+
+  const phVal = valNum('ph');
+  const hco3Val = valNum('hco3');
+  if(phVal===null && hco3Val===null) throw new Error('Provide arterial pH or HCO₃⁻');
+
+  const na = valNum('na'); if(na===null) throw new Error('Sodium is required');
+  const k  = valNum('k');  if(k===null)  throw new Error('Potassium is required');
+  const cr = valNum('cr'); if(cr===null) throw new Error('Creatinine is required');
+  const wbc= valNum('wbc');if(wbc===null)throw new Error('WBC is required');
+  const hct= valNum('hct');if(hct===null)throw new Error('Hematocrit is required');
+
+  const gcs = valNum('gcs'); if(gcs===null) throw new Error('GCS is required');
+
+  const inputs={
+    Age_years: age,
+    GCS: gcs,
+    Temperature_F: tempF,
+    MAP_mmHg: map,
+    HeartRate_bpm: hr,
+    RespRate_bpm: rr,
+    FiO2_Category: fio2,
+    PaO2_mmHg: pao2,
+    AaGradient_mmHg: aagrad,
+    pH: phVal,
+    HCO3_mEqL: hco3Val,
+    Na_mEqL: na,
+    K_mEqL: k,
+    Creatinine_mgdl: cr,
+    AcuteRenalFailure: radioVal('arf')==='Yes',
+    Hematocrit_pct: hct,
+    WBC_10e3uL: wbc,
+    ChronicHealth: chronic==='Yes' ? 'Yes' : 'No',
+    SurgeryType: surgtype
+  };
+
+  const nowIso=new Date().toISOString();
+  const { apacheII, mortNon, mortPost } = computeApacheFast({
+    age, fio2, tempF, map, hr, rr, pao2, aagrad, phVal, hco3Val, na, k, cr, wbc, hct, gcs,
+    arf: inputs.AcuteRenalFailure,
+    chronic: inputs.ChronicHealth,
+    surgtype
+  });
+
+  const selectedMortality = (surgtype==='Emergency' || surgtype==='Elective') ? mortPost : mortNon;
+
+  const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, selectedMortality, mortYN ];
+
+  return {
+    clientId: 'NURSING-STATION-01',
+    authToken: '',
+    patientName, uhid, age, sex, diagnosis, admitDate,
+    timestamp: nowIso,
+    month: monthKeyFromISO(nowIso),
+    submissionId: uuidv4(),
+    apacheInputs: inputs,
+    apacheScore: apacheII,
+    predictedMortalityNonOpPct: mortNon,
+    predictedMortalityPostOpPct: mortPost,
+    predictedMortalityPct: selectedMortality,
+    mortalityYN: mortYN,
+    sheetRow: row
+  };
+}
+
+/* =========================================================================
+   NETWORK HELPERS — abortable, strict JSON parsing, keepalive support
+   ========================================================================= */
+function withTimeout(ms){
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), ms);
+  return { ctrl, cancel: ()=>clearTimeout(timer) };
+}
+
+/*
+  sendJson():
+    - POSTs JSON but uses text/plain;charset=utf-8 (GAS friendly)
+    - keepalive:true to reduce cancellation risk (mobile gesture / navigation)
+    - returns parsed JSON or throws readable error
+*/
+async function sendJson(url, payload, label, timeoutMs=12000){
+  let res, text;
+  const { ctrl, cancel } = withTimeout(timeoutMs);
+
+  try{
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      keepalive: true,
+      signal: ctrl.signal
+    });
+  }catch(netErr){
+    cancel();
+    if(netErr && netErr.name === 'AbortError'){
+      throw new Error(label+' timed out (>'+timeoutMs+'ms). Check network/server load.');
+    }
+    throw new Error(label+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
   }
 
-  function renderPatientsTable(patients){
-    if(!adminPatientsTbody) return;
+  cancel();
+  try{ text = await res.text(); }catch(_){ text=''; }
 
-    // Empty render fast path
-    if(!patients || patients.length===0){
-      adminPatientsTbody.innerHTML = '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">No entries found for this month.</td></tr>';
-      return;
-    }
-
-    // Build HTML in one go (fast, avoids DOM thrash)
-    let html = '';
-    for(let i=0;i<patients.length;i++){
-      const u = String(patients[i].uhid||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
-      const n = String(patients[i].name||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
-      html += '<tr><td style="font-weight:800;color:#e2e8f0">'+u+'</td><td style="color:rgba(226,232,240,.92)">'+n+'</td></tr>';
-    }
-    adminPatientsTbody.innerHTML = html;
+  let data=null;
+  try{ data = text ? JSON.parse(text) : null; }catch(_){
+    throw new Error(label+' returned non-JSON: '+(text ? text.slice(0,220) : 'empty body'));
   }
 
-  async function fetchPatientsList(month, force=false){
-    const key = String(month||'').trim();
-    if(!key) throw new Error('Month missing');
+  if(!res.ok){
+    const msg=(data && (data.error||data.message)) || ('HTTP '+res.status);
+    throw new Error(label+' HTTP error: '+msg);
+  }
+  return data;
+}
 
-    const cached = ADMIN_LIST_CACHE.get(key);
-    if(!force && cached && (Date.now()-cached.ts) < ADMIN_LIST_TTL_MS){
-      return cached.patients;
-    }
+/* =========================================================================
+   Submit (FAST UX)
+   =========================================================================
+   - We show "Sending..." immediately.
+   - If it runs > 1.6s, we show a center hint.
+   - Success requires { ok:true } from script.
+*/
+async function postOnline(strictPayload){
+  const { url, secret, clientId } = currentConn();
+  if(!url) throw new Error('Online Webhook URL not configured.');
 
-    const { url, secret } = currentConn();
-    if(!url) throw new Error('Online URL missing');
-    if(!secret) throw new Error('Online Secret missing (required for LIST/KP)');
+  const execUrl = sanitizeExecUrl(url);
 
-    cancelAdminListFetch();
-    adminListAbort = new AbortController();
+  // Build minimal send payload WITHOUT heavy cloning:
+  // (we keep your fields so script stays compatible)
+  const sendPayload = {
+    ...strictPayload,
+    clientId,
+    authToken: secret || ''
+  };
 
-    // tag=LIST route (GET) – simplest + fast
-    const execUrl = sanitizeExecUrl(url);
-    const qs = new URLSearchParams({
-      tag: 'LIST',
-      month: key,
-      limit: '5000',
-      offset: '0',
-      auth: secret
-    }).toString();
+  const data = await sendJson(execUrl, sendPayload, 'Google Sheets webhook', 12000);
+  if(!data || data.ok !== true){
+    const detail = data && (data.error || JSON.stringify(data).slice(0,200));
+    throw new Error('Sheets webhook did not confirm success' + (detail?': '+detail:''));
+  }
+  return data;
+}
 
-    const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
-    console.log('[admin LIST] GET →', full);
+$('btnSubmit').addEventListener('click', async (ev)=>{
+  ev.preventDefault();
+  const button=$('btnSubmit');
+  button.disabled=true;
 
-    // Show loading immediately
-    adminPatientsTbody.innerHTML = '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>';
+  const slowTimer = setTimeout(()=>toastCenter('Still sending… network may be slow.'), 1600);
 
-    // Strict but reasonable timeout (LIST should be quick)
-    const { ctrl, cancel } = withTimeout(8000);
-    const compositeSignal = (() => {
-      // Combine abort controllers: if either aborts, fetch aborts.
-      // We do it by listening; this is small + robust.
-      const master = new AbortController();
-      const abort = () => { try{ master.abort(); }catch(_){} };
-      adminListAbort.signal.addEventListener('abort', abort, { once:true });
-      ctrl.signal.addEventListener('abort', abort, { once:true });
-      return { signal: master.signal, cleanup: ()=>{ cancel(); } };
-    })();
+  try{
+    saveDevOverrides();
+    const payload = buildPayloadStrict();
 
-    try{
-      const res = await fetch(full, {
-        method:'GET',
-        mode:'cors',
-        credentials:'omit',
-        cache:'no-store',
-        signal: compositeSignal.signal
-      });
+    toast('Sending to Google Sheets…');
+    const resp = await postOnline(payload);
 
+    clearTimeout(slowTimer);
+    if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
+
+    toast('Saved to Google Sheets ✅');
+    scheduleCompute(); // refresh UI state
+  }catch(e){
+    clearTimeout(slowTimer);
+    if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
+    toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
+  }finally{
+    scheduleCompute();
+  }
+});
+
+/* =========================================================================
+   Download current month (supports JSON dataUri OR direct file)
+   =========================================================================
+   Script variations seen in practice:
+     A) doGet returns JSON: { ok:true, dataUri:"data:application/vnd....;base64,..." }
+     B) doGet returns a file stream directly (xlsx/csv) with a content-type
+
+   This handler supports BOTH.
+*/
+async function downloadCurrentMonth(){
+  const { url, secret } = currentConn();
+  if(!url) throw new Error('Online URL missing.');
+  if(!secret) throw new Error('Online Secret missing (required for download).');
+
+  const ym = istMonthYYYYMM();
+  const execUrl = sanitizeExecUrl(url);
+
+  const qs = new URLSearchParams({
+    action:'download',
+    month: ym,
+    auth: secret
+  }).toString();
+
+  const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
+
+  // Attempt: fetch (so we can detect JSON vs file)
+  const { ctrl, cancel } = withTimeout(15000);
+  try{
+    const res = await fetch(full, {
+      method:'GET',
+      mode:'cors',
+      credentials:'omit',
+      cache:'no-store',
+      signal: ctrl.signal
+    });
+
+    const ct = (res.headers.get('content-type')||'').toLowerCase();
+
+    // JSON path (dataUri link)
+    if(ct.includes('application/json') || ct.includes('text/json') || ct.includes('application/javascript')){
       const text = await res.text();
-      let data = {};
+      let data={};
       try{ data = text ? JSON.parse(text) : {}; }catch(_){ data = {}; }
 
-      if(!res.ok){
+      if(!res.ok || !data || data.ok !== true){
         const msg = (data && (data.error||data.message)) || ('HTTP '+res.status);
-        throw new Error('LIST failed: '+msg);
-      }
-      if(!data || data.ok !== true){
-        throw new Error('LIST did not confirm ok');
+        throw new Error('Download failed: '+msg);
       }
 
-      const patients = Array.isArray(data.patients) ? data.patients : [];
-      ADMIN_LIST_CACHE.set(key, { ts: Date.now(), patients });
+      // Support common keys
+      const dataUri = data.dataUri || data.dataURL || data.uri || '';
+      const href = data.downloadUrl || data.url || dataUri;
 
-      if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
-      return patients;
-    }finally{
-      compositeSignal.cleanup();
-    }
-  }
+      if(!href) throw new Error('Download response missing dataUri/url.');
 
-  async function adminEnsureListLoaded(opening=false, force=false){
-    try{
-      const month = istMonthYYYYMM();
-      if(adminMonthPill) adminMonthPill.textContent = 'Month: '+month;
+      // If it is data URI: clicking triggers save
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = data.filename || ('APACHE-'+ym+'.xlsx');
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>a.remove(), 400);
 
-      // If admin panel isn't open, don't waste cycles
-      if(adminPanel.getAttribute('aria-hidden')!=='false') return;
-
-      // Faster UX: if opening, don't show noisy toast unless error
-      const patients = await fetchPatientsList(month, force);
-      renderPatientsTable(patients);
-      if(!opening) toast('List updated ✅');
-    }catch(e){
-      console.warn('[admin LIST] error:', e && e.message ? e.message : e);
-      renderPatientsTable([]);
-      toast('List failed: '+(e && e.message ? e.message : String(e)), false);
-    }
-  }
-
-  // ============================================================================
-  //  ADMIN: KP queue + Update
-  //  Backend KP currently sets Mortality(Y/N) to "Y" (hard).
-  //  UI lets Y/N for future-proofing, but:
-  //   - Y → sent to KP
-  //   - N → marked unsupported (warned)
-  // ============================================================================
-  const kpUhid=$('kpUhid'), kpYN=$('kpYN'), btnKpAdd=$('btnKpAdd'), btnKpUpdate=$('btnKpUpdate'), btnKpClear=$('btnKpClear');
-  const kpQueueTbody=$('kpQueueTbody');
-
-  let KP_QUEUE = []; // [{ uhid, yn }]
-
-  function normalizeUhid(u){
-    return String(u||'').trim();
-  }
-  function kpQueueSet(next){
-    KP_QUEUE = Array.isArray(next) ? next : [];
-    renderKpQueue();
-  }
-  function renderKpQueue(){
-    const n = KP_QUEUE.length;
-    if(adminQueuePill) adminQueuePill.textContent = 'Queued: '+n;
-    if(btnKpUpdate) btnKpUpdate.disabled = (n===0);
-
-    if(!kpQueueTbody) return;
-    if(n===0){
-      kpQueueTbody.innerHTML = '<tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>';
+      toast('Download started ✅');
       return;
     }
 
-    let html = '';
-    for(let i=0;i<n;i++){
-      const item = KP_QUEUE[i];
-      const u = String(item.uhid||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
-      const yn = String(item.yn||'Y').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
-      html += '<tr>' +
-        '<td style="font-weight:800;color:#e2e8f0">'+u+'</td>' +
-        '<td style="font-weight:900">'+yn+'</td>' +
-        '<td><button class="btn ghost" type="button" data-kp-remove="'+i+'" style="padding:8px 10px">Remove</button></td>' +
-      '</tr>';
+    // File path: blob download
+    if(!res.ok){
+      throw new Error('Download HTTP '+res.status);
     }
-    kpQueueTbody.innerHTML = html;
+
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    const obj = URL.createObjectURL(blob);
+    a.href = obj;
+    a.download = 'APACHE-'+ym+(ct.includes('csv')?'.csv':'.xlsx');
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(obj); a.remove(); }, 1400);
+
+    toast('Download started ✅');
+  }catch(e){
+    if(e && e.name === 'AbortError') toast('Download timed out.', false);
+    else toast('Download failed: '+(e && e.message ? e.message : String(e)), false);
+
+    // Fallback: open in new tab (some devices block blob downloads)
+    try{
+      window.open(full, '_blank', 'noopener');
+    }catch(_){}
+  }finally{
+    cancel();
+  }
+}
+
+$('btnDownload').addEventListener('click', ()=>downloadCurrentMonth());
+
+/* =========================================================================
+   Dev tools (preview/copy/dummy)
+   ========================================================================= */
+$('btnBuildPreview').addEventListener('click', ()=>{
+  try{
+    const payload=buildPayloadStrict();
+    $('debugPreview').textContent = JSON.stringify(payload, null, 2);
+    toast('Payload built');
+  }catch(e){
+    $('debugPreview').textContent = 'Error: '+e.message;
+    toast(e.message, false);
+  }
+});
+$('btnCopyPreview').addEventListener('click', ()=>{
+  try{ navigator.clipboard.writeText($('debugPreview').textContent||''); toast('Copied JSON'); }
+  catch(_){ toast('Copy failed', false); }
+});
+$('btnCopyExcelRow').addEventListener('click', ()=>{
+  try{
+    const p = buildPayloadStrict();
+    navigator.clipboard.writeText(p.sheetRow.join('\t'));
+    toast('Row copied (tab-separated). Paste into Excel/Sheets.');
+  }catch(e){
+    toast('Copy failed: '+(e && e.message ? e.message : String(e)), false);
+  }
+});
+function dummyFill(){
+  const age = randInt(45,70);
+  $('patientName').value = 'Jane Doe';
+  $('patientNameMini').value = 'Jane Doe';
+  $('uhid').value = '2010' + String(randInt(1000,9999));
+  $('uhidMini').value = $('uhid').value;
+
+  $('age').value = String(age);
+  $('sex').value = 'Female';
+  $('admitDate').value = todayISO();
+  $('diagnosis').value = 'CKD on HTN; Community-acquired pneumonia; on oxygen';
+
+  $('tempF').value = '99.1';
+  $('map').value = '78';
+  $('hr').value = '96';
+  $('rr').value = '22';
+  $('gcs').value = '14';
+
+  document.querySelector('input[name="fio2"][value="<50%"]').checked = true;
+  updateOxygenUI();
+  $('pao2').value = '72';
+  $('aagrad').value = '';
+
+  $('ph').value = '7.36';
+  $('hco3').value = '22';
+  $('na').value = '138';
+  $('k').value = '4.8';
+  $('cr').value = '2.6';
+  $('wbc').value = '13.2';
+  $('hct').value = '33';
+
+  document.querySelector('input[name="arf"][value="Yes"]').checked = true;
+
+  document.querySelector('input[name="chronic"][value="Yes"]').checked = true;
+  $('surgTypeWrap').style.display = 'grid';
+  document.querySelector('input[name="surgtype"][value="Nonoperative"]').checked = true;
+
+  document.querySelector('input[name="mortality"][value="N"]').checked = true;
+
+  toast('Dummy data filled');
+  scheduleCompute();
+}
+$('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
+
+/* =========================================================================
+   Duplicate-check (GET, blur-triggered, cancelable)
+   =========================================================================
+   Script contract:
+     - action=check
+     - month=YYYY-MM
+     - uhid, name
+     - auth=<secret> (added here for tighter security sync)
+*/
+let dupAbort = null;
+const dupEl = $('dupIndicator');
+
+function setDupStatus(state, text){
+  if(!dupEl) return;
+  dupEl.dataset.state = state || '';
+  if(state === 'checking'){
+    dupEl.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>'+(text||'Looking for duplicates…')+'</span>';
+    dupEl.style.display = 'inline-flex';
+  }else if(state === 'none'){
+    dupEl.innerHTML = '<span>✓</span><span>'+(text||'No duplicates')+'</span>';
+    dupEl.style.display = 'inline-flex';
+    setTimeout(()=>{ dupEl.style.display='none'; }, 1600);
+  }else if(state === 'error'){
+    dupEl.innerHTML = '<span>!</span><span>'+(text||'Check failed')+'</span>';
+    dupEl.style.display = 'inline-flex';
+    setTimeout(()=>{ dupEl.style.display='none'; }, 2000);
+  }else{
+    dupEl.style.display='none';
+  }
+}
+function cancelDupRequest(){
+  if(dupAbort){ try{ dupAbort.abort(); }catch(_){ } dupAbort=null; }
+}
+function bothFilled(){
+  const name = valStr('patientName');
+  const uhid = valStr('uhid');
+  return !!(name && uhid);
+}
+async function checkDuplicateNow(reason){
+  const name = valStr('patientName');
+  const uhid = valStr('uhid');
+  if(!name || !uhid) return;
+
+  const { url, secret } = currentConn();
+  if(!url) return;
+
+  cancelDupRequest();
+  dupAbort = new AbortController();
+  setDupStatus('checking', 'Looking for duplicates…');
+
+  const execUrl = sanitizeExecUrl(url);
+  const ym = istMonthYYYYMM();
+
+  const qs = new URLSearchParams({
+    action:'check',
+    uhid: String(uhid).trim(),
+    name: String(name).trim(),
+    month: ym,
+    auth: secret || ''   // NEW: auth on check
+  }).toString();
+
+  const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
+
+  try{
+    const res = await fetch(full, {
+      method:'GET',
+      mode:'cors',
+      credentials:'omit',
+      cache:'no-store',
+      signal: dupAbort.signal
+    });
+    const text = await res.text();
+    let data = {};
+    try{ data = text ? JSON.parse(text) : {}; }catch(_){ data={}; }
+
+    if(!res.ok){
+      setDupStatus('error','Check failed');
+      return;
+    }
+
+    const isDup = !!(data && (data.tag === 'duplicate_entry' || (data.matches|0) > 0));
+    if(isDup){
+      setDupStatus('', '');
+      toastCenter('Possible duplicate entry found!');
+    }else{
+      setDupStatus('none','No duplicates');
+    }
+
+    if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
+  }catch(e){
+    if(e && e.name==='AbortError') return;
+    setDupStatus('error','Check failed');
+  }
+}
+function onBlurTrigger(ev){
+  if(bothFilled()) checkDuplicateNow('blur from '+ev.target.id);
+}
+function onFocusCancel(){
+  cancelDupRequest();
+  setDupStatus('', '');
+}
+['patientName','uhid','patientNameMini','uhidMini'].forEach(id=>{
+  const el=$(id);
+  if(!el) return;
+  el.addEventListener('focus', onFocusCancel, true);
+  el.addEventListener('blur', onBlurTrigger, true);
+});
+
+/* =========================================================================
+   ADMIN: LIST patients (tag=LIST) — cached + abortable
+   ========================================================================= */
+let adminListAbort = null;
+const ADMIN_LIST_CACHE = new Map();
+const ADMIN_LIST_TTL_MS = 30_000;
+
+function renderPatientsTable(patients){
+  if(!adminPatientsTbody) return;
+  if(!patients || patients.length===0){
+    adminPatientsTbody.innerHTML = '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">No entries found for this month.</td></tr>';
+    return;
+  }
+  let html = '';
+  for(let i=0;i<patients.length;i++){
+    const u = String(patients[i].uhid||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+    const n = String(patients[i].name||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+    html += '<tr><td style="font-weight:800;color:#e2e8f0">'+u+'</td><td style="color:rgba(226,232,240,.92)">'+n+'</td></tr>';
+  }
+  adminPatientsTbody.innerHTML = html;
+}
+
+async function fetchPatientsList(month, force=false){
+  const key = String(month||'').trim();
+  if(!key) throw new Error('Month missing');
+
+  const cached = ADMIN_LIST_CACHE.get(key);
+  if(!force && cached && (Date.now()-cached.ts) < ADMIN_LIST_TTL_MS){
+    return cached.patients;
   }
 
-  kpQueueTbody.addEventListener('click', (ev)=>{
-    const t = ev.target;
-    if(!t) return;
-    const idx = t.getAttribute && t.getAttribute('data-kp-remove');
-    if(idx==null) return;
-    const i = Number(idx);
-    if(Number.isFinite(i)){
-      const next = KP_QUEUE.slice();
-      next.splice(i, 1);
-      kpQueueSet(next);
+  const { url, secret } = currentConn();
+  if(!url) throw new Error('Online URL missing');
+  if(!secret) throw new Error('Online Secret missing (required for LIST/KP)');
+
+  cancelAdminListFetch();
+  adminListAbort = new AbortController();
+
+  const execUrl = sanitizeExecUrl(url);
+  const qs = new URLSearchParams({
+    tag: 'LIST',
+    month: key,
+    limit: '5000',
+    offset: '0',
+    auth: secret
+  }).toString();
+
+  const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
+
+  adminPatientsTbody.innerHTML = '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>';
+
+  const { ctrl, cancel } = withTimeout(8000);
+  const master = new AbortController();
+  const abort = () => { try{ master.abort(); }catch(_){} };
+  adminListAbort.signal.addEventListener('abort', abort, { once:true });
+  ctrl.signal.addEventListener('abort', abort, { once:true });
+
+  try{
+    const res = await fetch(full, {
+      method:'GET',
+      mode:'cors',
+      credentials:'omit',
+      cache:'no-store',
+      signal: master.signal
+    });
+
+    const text = await res.text();
+    let data = {};
+    try{ data = text ? JSON.parse(text) : {}; }catch(_){ data = {}; }
+
+    if(!res.ok){
+      const msg = (data && (data.error||data.message)) || ('HTTP '+res.status);
+      throw new Error('LIST failed: '+msg);
     }
-  });
+    if(!data || data.ok !== true){
+      throw new Error('LIST did not confirm ok');
+    }
 
-  btnKpAdd.addEventListener('click', ()=>{
-    const u = normalizeUhid(kpUhid.value);
-    const yn = String(kpYN.value||'Y').trim().toUpperCase()==='N' ? 'N' : 'Y';
+    const patients = Array.isArray(data.patients) ? data.patients : [];
+    ADMIN_LIST_CACHE.set(key, { ts: Date.now(), patients });
 
-    if(!u){ toast('Enter UHID', false); return; }
+    if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
+    return patients;
+  }finally{
+    cancel();
+  }
+}
 
-    // Deduplicate by UHID: keep latest choice
-    const next = KP_QUEUE.filter(x => String(x.uhid) !== u);
-    next.push({ uhid:u, yn });
+async function adminEnsureListLoaded(opening=false, force=false){
+  try{
+    const month = istMonthYYYYMM();
+    if(adminMonthPill) adminMonthPill.textContent = 'Month: '+month;
+    if(adminPanel.getAttribute('aria-hidden')!=='false') return;
+
+    const patients = await fetchPatientsList(month, force);
+    renderPatientsTable(patients);
+    if(!opening) toast('List updated ✅');
+  }catch(e){
+    renderPatientsTable([]);
+    toast('List failed: '+(e && e.message ? e.message : String(e)), false);
+  }
+}
+
+/* =========================================================================
+   ADMIN: KP queue + Update
+   ========================================================================= */
+const kpUhid=$('kpUhid'), kpYN=$('kpYN'), btnKpAdd=$('btnKpAdd'), btnKpUpdate=$('btnKpUpdate'), btnKpClear=$('btnKpClear');
+const kpQueueTbody=$('kpQueueTbody');
+
+let KP_QUEUE = [];
+function normalizeUhid(u){ return String(u||'').trim(); }
+
+function kpQueueSet(next){
+  KP_QUEUE = Array.isArray(next) ? next : [];
+  renderKpQueue();
+}
+function renderKpQueue(){
+  const n = KP_QUEUE.length;
+  if(adminQueuePill) adminQueuePill.textContent = 'Queued: '+n;
+  if(btnKpUpdate) btnKpUpdate.disabled = (n===0);
+
+  if(!kpQueueTbody) return;
+  if(n===0){
+    kpQueueTbody.innerHTML = '<tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>';
+    return;
+  }
+
+  let html = '';
+  for(let i=0;i<n;i++){
+    const item = KP_QUEUE[i];
+    const u = String(item.uhid||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+    const yn = String(item.yn||'Y').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+    html += '<tr>' +
+      '<td style="font-weight:800;color:#e2e8f0">'+u+'</td>' +
+      '<td style="font-weight:900">'+yn+'</td>' +
+      '<td><button class="btn ghost" type="button" data-kp-remove="'+i+'" style="padding:8px 10px">Remove</button></td>' +
+    '</tr>';
+  }
+  kpQueueTbody.innerHTML = html;
+}
+kpQueueTbody.addEventListener('click', (ev)=>{
+  const t = ev.target;
+  if(!t) return;
+  const idx = t.getAttribute && t.getAttribute('data-kp-remove');
+  if(idx==null) return;
+  const i = Number(idx);
+  if(Number.isFinite(i)){
+    const next = KP_QUEUE.slice();
+    next.splice(i, 1);
     kpQueueSet(next);
-
-    kpUhid.value = '';
-    kpUhid.focus();
-    toast('Added to queue');
-  });
-
-  btnKpClear.addEventListener('click', ()=>{
-    kpQueueSet([]);
-    toast('Queue cleared');
-  });
-
-  let kpAbort = null;
-  function cancelKpFetch(){
-    if(kpAbort){ try{ kpAbort.abort(); }catch(_){} kpAbort=null; }
   }
+});
+btnKpAdd.addEventListener('click', ()=>{
+  const u = normalizeUhid(kpUhid.value);
+  const yn = String(kpYN.value||'Y').trim().toUpperCase()==='N' ? 'N' : 'Y';
+  if(!u){ toast('Enter UHID', false); return; }
 
-  async function postKP(uhids){
-    const { url, secret } = currentConn();
-    if(!url) throw new Error('Online URL missing');
-    if(!secret) throw new Error('Online Secret missing (required for KP)');
+  const next = KP_QUEUE.filter(x => String(x.uhid) !== u);
+  next.push({ uhid:u, yn });
+  kpQueueSet(next);
 
-    const execUrl = sanitizeExecUrl(url);
+  kpUhid.value = '';
+  kpUhid.focus();
+  toast('Added to queue');
+});
+btnKpClear.addEventListener('click', ()=>{
+  kpQueueSet([]);
+  toast('Queue cleared');
+});
 
-    // Backend supports tag via POST body: { tag:'KP', uhids:[...], authToken:'...' }
-    const payload = {
-      tag: 'KP',
-      uhids: uhids,
-      authToken: secret
-    };
+let kpAbort = null;
+async function postKP(uhids){
+  const { url, secret } = currentConn();
+  if(!url) throw new Error('Online URL missing');
+  if(!secret) throw new Error('Online Secret missing (required for KP)');
 
-    // Use sendJson for robust parsing
-    return await sendJson(execUrl, payload, 'KP (Kill Patient)', 12000);
+  const execUrl = sanitizeExecUrl(url);
+  const payload = { tag: 'KP', uhids: uhids, authToken: secret };
+  return await sendJson(execUrl, payload, 'KP', 12000);
+}
+
+btnKpUpdate.addEventListener('click', async ()=>{
+  if(KP_QUEUE.length===0) return;
+
+  const yList = KP_QUEUE.filter(x => x.yn==='Y').map(x => x.uhid);
+  const nList = KP_QUEUE.filter(x => x.yn==='N').map(x => x.uhid);
+
+  if(nList.length>0) toast('Note: Backend KP currently sets Y only. N entries will be skipped.', true, 'warn');
+  if(yList.length===0){ toast('Nothing to update (only N entries).', false); return; }
+
+  cancelKpFetch();
+  kpAbort = new AbortController();
+
+  toast('Updating mortality (KP)…');
+
+  try{
+    const resp = await postKP(yList);
+    if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
+
+    if(!resp || resp.ok !== true){
+      const detail = resp && (resp.error || JSON.stringify(resp).slice(0,200));
+      throw new Error('KP did not confirm ok' + (detail?': '+detail:''));
+    }
+
+    const remain = KP_QUEUE.filter(x => x.yn==='N');
+    kpQueueSet(remain);
+
+    toast('Mortality updated for '+yList.length+' UHID(s) ✅');
+    adminEnsureListLoaded(false, true);
+  }catch(e){
+    toast('KP failed: '+(e && e.message ? e.message : String(e)), false);
+  }finally{
+    kpAbort = null;
   }
+});
 
-  btnKpUpdate.addEventListener('click', async ()=>{
-    if(KP_QUEUE.length===0) return;
+/* =========================================================================
+   INIT
+   ========================================================================= */
+document.addEventListener('DOMContentLoaded', ()=>{
+  loadDevOverrides();
 
-    // Separate Y vs N
-    const yList = KP_QUEUE.filter(x => x.yn==='Y').map(x => x.uhid);
-    const nList = KP_QUEUE.filter(x => x.yn==='N').map(x => x.uhid);
+  const { url } = currentConn();
+  ensurePreconnectForUrl(url);  // NEW: warm origin early
 
-    if(nList.length>0){
-      toast('Note: Backend KP currently sets Y only. N entries will be skipped.', true, 'warn');
-    }
+  updateOxygenUI();
+  attachFastListeners();
 
-    if(yList.length===0){
-      toast('Nothing to update (only N entries).', false);
-      return;
-    }
+  if(adminMonthPill) adminMonthPill.textContent = 'Month: '+istMonthYYYYMM();
+  kpQueueSet([]);
 
-    cancelKpFetch();
-    kpAbort = new AbortController();
-
-    // Non-blocking UX: quick status
-    toast('Updating mortality (KP)…');
-
-    try{
-      const resp = await postKP(yList);
-      if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
-
-      if(!resp || resp.ok !== true){
-        const detail = resp && (resp.error || JSON.stringify(resp).slice(0,200));
-        throw new Error('KP did not confirm ok' + (detail?': '+detail:''));
-      }
-
-      // Success: clear only Y entries; keep N entries (since skipped)
-      const remain = KP_QUEUE.filter(x => x.yn==='N');
-      kpQueueSet(remain);
-
-      toast('Mortality updated for '+yList.length+' UHID(s) ✅');
-
-      // Refresh list because KP might change row state (optional but helpful)
-      adminEnsureListLoaded(false, true);
-
-    }catch(e){
-      toast('KP failed: '+(e && e.message ? e.message : String(e)), false);
-      console.error('[KP] error:', e);
-    }finally{
-      kpAbort = null;
-    }
-  });
-
-  // ============================================================================
-  //  Dev modal open/close (admin opens dev)
-  // ============================================================================
-  // (Deliberately no devToggle click here—devToggle now opens admin.)
-
-  // ============================================================================
-  //  Init
-  // ============================================================================
-  document.addEventListener('DOMContentLoaded', ()=>{
-    // Fill dev modal inputs if user previously saved them
-    loadDevOverrides();
-
-    updateOxygenUI();
-    maybeShowResults();
-    if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = !formIsComplete();
-    setDupStatus('', '');
-    updateCompletenessUI();
-
-    // Prep admin month pill + queue
-    if(adminMonthPill) adminMonthPill.textContent = 'Month: '+istMonthYYYYMM();
-    kpQueueSet([]);
-  });
+  scheduleCompute();            // initial enable/disable + results
+  setDupStatus('', '');
+});
 </script>
 </body>
 </html>
