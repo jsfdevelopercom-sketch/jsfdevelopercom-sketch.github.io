@@ -106,6 +106,131 @@
   .toast.warn{border-left-color:#f59e0b;color:#92400e}
   .toast.center{left:50%;top:50%;transform:translate(-50%,-50%);right:auto;bottom:auto;min-width:min(460px,calc(100vw - 48px));text-align:center}
 
+  /* ===========================
+     ADMIN (NEW) SETTINGS PANEL
+     ===========================
+     This overlays when user taps the ⚙️ bubble.
+     Contains:
+     1) LIST of current UHIDs + Names (scroll both axes)
+     2) Update Mortality (queue UHID + Y/N, then Update → KP tag)
+     3) "Dev Settings" button → opens the original Dev/Connection modal
+  */
+  .admin-panel,.admin-backdrop{position:fixed;inset:0;z-index:235}
+  .admin-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
+  .admin-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
+  .admin-panel{display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
+  .admin-panel[aria-hidden="false"]{opacity:1;visibility:visible;pointer-events:auto}
+
+  .admin-sheet{
+    width:min(720px,calc(100vw - 28px));
+    background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);
+    border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);
+    padding:18px;display:grid;gap:14px;pointer-events:auto;
+    max-height:min(84vh, 760px);
+    overflow:hidden; /* internal sections manage scroll */
+  }
+  .admin-top{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:6px 6px 0 6px;
+  }
+  .admin-title-wrap{display:grid;gap:2px}
+  .admin-title{margin:0;font-size:18px;font-weight:700}
+  .admin-sub{margin:0;font-size:12px;color:rgba(226,232,240,.72);line-height:1.35}
+  .admin-close{
+    border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;
+    padding:8px 14px;cursor:pointer;font-weight:700
+  }
+
+  .admin-body{
+    display:grid;gap:12px;
+    overflow:auto;
+    padding:0 6px 6px 6px;
+  }
+
+  .admin-card{
+    border:1px solid rgba(148,163,184,.28);
+    background:rgba(2,6,23,.35);
+    border-radius:18px;
+    padding:12px;
+    display:grid;
+    gap:10px;
+  }
+  .admin-card h4{margin:0;font-size:14px;font-weight:800}
+  .admin-card .minihelp{margin:0;color:rgba(226,232,240,.70);font-size:12px;line-height:1.4}
+
+  .table-wrap{
+    border:1px solid rgba(148,163,184,.22);
+    border-radius:14px;
+    background:rgba(2,6,23,.35);
+    overflow:auto; /* BOTH AXES scroll */
+    max-height:320px;
+  }
+  table.admin-table{
+    border-collapse:collapse;
+    width:max(520px,100%);
+    font-size:13px;
+  }
+  table.admin-table th, table.admin-table td{
+    padding:10px 10px;
+    border-bottom:1px solid rgba(148,163,184,.16);
+    white-space:nowrap;
+    text-align:left;
+    vertical-align:top;
+  }
+  table.admin-table th{
+    position:sticky;top:0;z-index:2;
+    background:rgba(15,23,42,.92);
+    color:#e2e8f0;
+    font-weight:800;
+  }
+  .pill{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:8px 12px;border-radius:999px;
+    border:1px solid rgba(148,163,184,.22);
+    background:rgba(148,163,184,.10);
+    font-weight:700;
+    color:#e2e8f0;
+    font-size:12px;
+  }
+  .admin-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .admin-inputs{display:grid;grid-template-columns:1fr 120px auto;gap:10px;align-items:end}
+  @media (max-width:520px){
+    .admin-inputs{grid-template-columns:1fr;align-items:stretch}
+  }
+
+  .admin-sheet label{color:#cbd5f5}
+  .admin-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
+  .admin-sheet select.input{appearance:none}
+  .admin-sheet .btn{padding:12px 14px;font-size:14px}
+  .admin-sheet .btn.primary{box-shadow:none}
+  .admin-sheet .btn.ghost{color:#e2e8f0;border-color:rgba(148,163,184,.28)}
+  .admin-sheet .btn.secondary{color:#e2e8f0;background:rgba(37,99,235,.16);border-color:rgba(37,99,235,.22)}
+
+  .dev-entry{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding-top:10px;
+    border-top:1px solid rgba(148,163,184,.22);
+  }
+  .dev-entry .dev-cta{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px;border-radius:14px;
+    background:linear-gradient(135deg, rgba(37,99,235,.28), rgba(14,165,233,.18));
+    border:1px solid rgba(148,163,184,.22);
+    cursor:pointer;
+    user-select:none;
+    font-weight:800;
+  }
+  .dev-entry .dev-cta small{display:block;font-weight:700;color:rgba(226,232,240,.72)}
+  .dev-entry .dev-ico{
+    width:40px;height:40px;border-radius:14px;
+    display:grid;place-items:center;
+    background:rgba(15,23,42,.85);
+    border:1px solid rgba(148,163,184,.22);
+  }
+  .danger-note{
+    font-size:12px;color:rgba(248,250,252,.72);line-height:1.4
+  }
+
   .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:230}
   .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
   .dev-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
@@ -175,7 +300,10 @@
             <p>Direct to Google Sheets. One shared sheet per month. All doctors, one source of truth.</p>
           </div>
         </div>
-        <button id="devToggle" class="dev-bubble" aria-label="Developer settings" aria-haspopup="dialog" aria-expanded="false">⚙️</button>
+        <!-- IMPORTANT:
+             ⚙️ now opens the NEW Admin overlay (patient list + KP update queue).
+             The original Dev/Connection modal is still available INSIDE that overlay via "Dev Settings". -->
+        <button id="devToggle" class="dev-bubble" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false">⚙️</button>
       </div>
 
       <div class="mode-switcher" aria-label="Submission mode">
@@ -414,7 +542,121 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="toastCenter" class="toast center warn" role="status" aria-live="assertive"></div>
 
-  <!-- Dev modal -->
+  <!-- ===========================
+       ADMIN OVERLAY (NEW)
+       ===========================
+       Shows patient list + mortality update queue.
+  -->
+  <div id="adminBackdrop" class="admin-backdrop" aria-hidden="true"></div>
+  <div id="adminPanel" class="admin-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+    <div class="admin-sheet">
+      <div class="admin-top">
+        <div class="admin-title-wrap">
+          <h3 id="adminTitle" class="admin-title">Quick Admin Console</h3>
+          <p class="admin-sub">Patient list (current month) + Update Mortality (KP). Fast, non-blocking.</p>
+        </div>
+        <button id="adminClose" class="admin-close" type="button">Close</button>
+      </div>
+
+      <div class="admin-body">
+        <!-- Patient List -->
+        <div class="admin-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="display:grid;gap:4px">
+              <h4 style="margin:0">Current UHIDs &amp; Names</h4>
+              <p class="minihelp">Pulled from MAIN sheet using tag=LIST (month = IST current month). Scroll both directions.</p>
+            </div>
+            <div class="admin-actions">
+              <span id="adminMonthPill" class="pill">Month: —</span>
+              <button id="btnAdminRefresh" class="btn ghost" type="button" style="padding:10px 12px">Refresh</button>
+            </div>
+          </div>
+
+          <div class="table-wrap" aria-label="Patient list table container">
+            <table class="admin-table" aria-label="Patient list table">
+              <thead>
+                <tr>
+                  <th style="width:180px">UHID</th>
+                  <th style="min-width:320px">Patient Name</th>
+                </tr>
+              </thead>
+              <tbody id="adminPatientsTbody">
+                <tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="danger-note" id="adminListNote">
+            Tip: If Dev URL/Secret are wrong, LIST won’t load. Use “Dev Settings” below to fix connection.
+          </div>
+        </div>
+
+        <!-- Update Mortality (KP) -->
+        <div class="admin-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="display:grid;gap:4px">
+              <h4 style="margin:0">Update Mortality</h4>
+              <p class="minihelp">Queue UHID + Y/N. Update sends KP for all “Y”. (Backend KP currently sets Y only.)</p>
+            </div>
+            <span class="pill" id="adminQueuePill">Queued: 0</span>
+          </div>
+
+          <div class="admin-inputs">
+            <div>
+              <label for="kpUhid">UHID</label>
+              <input id="kpUhid" class="input" type="text" placeholder="Enter UHID" autocomplete="off">
+            </div>
+            <div>
+              <label for="kpYN">Y/N</label>
+              <select id="kpYN" class="input">
+                <option value="Y" selected>Y</option>
+                <option value="N">N</option>
+              </select>
+            </div>
+            <div>
+              <button id="btnKpAdd" class="btn secondary" type="button" style="padding:12px 14px">Add</button>
+            </div>
+          </div>
+
+          <div class="table-wrap" aria-label="KP queue table container" style="max-height:240px">
+            <table class="admin-table" aria-label="KP queue table">
+              <thead>
+                <tr>
+                  <th style="width:200px">UHID</th>
+                  <th style="width:90px">Y/N</th>
+                  <th style="min-width:220px">Action</th>
+                </tr>
+              </thead>
+              <tbody id="kpQueueTbody">
+                <tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="admin-actions" style="justify-content:space-between">
+            <button id="btnKpClear" class="btn ghost" type="button" style="padding:10px 12px">Clear</button>
+            <button id="btnKpUpdate" class="btn primary" type="button" disabled style="padding:12px 14px">Update</button>
+          </div>
+        </div>
+
+        <!-- Dev Settings entry -->
+        <div class="dev-entry">
+          <div class="danger-note">
+            Developer controls (URL / Secret / ClientId). Use only if needed.
+          </div>
+          <div id="btnOpenDevFromAdmin" class="dev-cta" role="button" tabindex="0" aria-label="Open Dev Settings">
+            <div class="dev-ico" aria-hidden="true">🧰</div>
+            <div>
+              Dev Settings
+              <small>Open connection panel</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dev modal (original) -->
   <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
   <div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
     <div class="dev-sheet">
@@ -456,6 +698,14 @@
   <div class="tiny-footer">© @ JSFDev</div>
 
 <script>
+  // ============================================================================
+  //  APACHE II Bedside UI
+  //  Goals:
+  //   - Tight sync with latest Apps Script (submit/check/download + NEW tags LIST/KP)
+  //   - FAST UX: non-blocking overlays, aggressive caching, abortable requests
+  //   - Professional robustness: clear sections, multi-line comments, safe defaults
+  // ============================================================================
+
   // ---------- small helper & UX ----------
   const $ = (id) => document.getElementById(id);
   const q = (sel) => document.querySelector(sel);
@@ -465,6 +715,7 @@
   function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
   function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
   function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); const k=new Date(d.getTime()-off*60000); return k.toISOString().slice(0,10); }
+
   function toast(msg, ok=true, klass=''){
     const t=$('toast');
     t.textContent=msg; t.className='toast'+(ok?'':' err')+(klass?(' '+klass):''); t.style.display='block';
@@ -481,6 +732,7 @@
     try{ console.groupCollapsed(groupLabel); if(typeof info === 'object') console.debug(info); else console.debug(String(info)); console.groupEnd(); }catch(_){}
   }
 
+  // ---------- desktop detection ----------
   function detectDesktop(){
     const ua=navigator.userAgent||"";
     const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
@@ -491,27 +743,96 @@
   function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
   applyDesktopClass(); addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
 
-  // mini <-> main sync
+  // ---------- mini <-> main sync ----------
   ['patientName','uhid'].forEach((id)=>{ const main=$(id); if(!main) return; main.addEventListener('input',()=>{ const mini=$(id+'Mini'); if(mini && mini.value!==main.value) mini.value=main.value; }); });
   ['patientNameMini','uhidMini'].forEach((id)=>{ const mini=$(id); if(!mini) return; mini.addEventListener('input',()=>{ const main=$(id.replace('Mini','')); if(main && main.value!==mini.value) main.value=mini.value; }); });
 
-  // dev modal
-  const devToggle=$('devToggle'), devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
+  // ============================================================================
+  //  ORIGINAL DEV / CONNECTION MODAL (kept)
+  // ============================================================================
+  const devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
   devPanel.setAttribute('aria-hidden','true'); devBackdrop.setAttribute('data-visible','false');
+
   function setDevPanel(open){
     const wasOpen=devPanel.getAttribute('aria-hidden')==='false';
     devPanel.setAttribute('aria-hidden', open?'false':'true');
     devBackdrop.setAttribute('data-visible', open?'true':'false');
     devBackdrop.setAttribute('aria-hidden', open?'false':'true');
-    devToggle.setAttribute('aria-expanded', open?'true':'false');
+    // aria-expanded is handled on devToggle (now admin open); keep it clean
     if(wasOpen&&!open) saveDevOverrides();
   }
-  devToggle.addEventListener('click',()=>{ const isHidden=devPanel.getAttribute('aria-hidden')!=='false'; setDevPanel(isHidden); });
   devClose.addEventListener('click',()=>setDevPanel(false));
   devBackdrop.addEventListener('click',()=>setDevPanel(false));
-  addEventListener('keydown',(ev)=>{ if(ev.key==='Escape' && devPanel.getAttribute('aria-hidden')==='false') setDevPanel(false); });
 
-  // Persist Dev values
+  // ============================================================================
+  //  NEW ADMIN OVERLAY (⚙️ opens this)
+  // ============================================================================
+  const devToggle=$('devToggle');
+  const adminPanel=$('adminPanel'), adminBackdrop=$('adminBackdrop'), adminClose=$('adminClose');
+  const btnOpenDevFromAdmin=$('btnOpenDevFromAdmin');
+  const btnAdminRefresh=$('btnAdminRefresh');
+  const adminPatientsTbody=$('adminPatientsTbody');
+  const adminMonthPill=$('adminMonthPill');
+  const adminQueuePill=$('adminQueuePill');
+
+  adminPanel.setAttribute('aria-hidden','true'); adminBackdrop.setAttribute('data-visible','false');
+
+  function setAdminPanel(open){
+    const wasOpen = adminPanel.getAttribute('aria-hidden')==='false';
+    adminPanel.setAttribute('aria-hidden', open?'false':'true');
+    adminBackdrop.setAttribute('data-visible', open?'true':'false');
+    adminBackdrop.setAttribute('aria-hidden', open?'false':'true');
+    devToggle.setAttribute('aria-expanded', open?'true':'false');
+
+    // If we close, cancel in-flight list fetch to keep UI snappy.
+    if(wasOpen && !open){
+      cancelAdminListFetch();
+      cancelKpFetch();
+    }
+  }
+
+  devToggle.addEventListener('click', ()=>{
+    const isHidden = adminPanel.getAttribute('aria-hidden')!=='false';
+    setAdminPanel(isHidden);
+    if(isHidden){
+      // Load list immediately (non-blocking, abortable, cached)
+      adminEnsureListLoaded(true);
+    }
+  });
+
+  adminClose.addEventListener('click', ()=>setAdminPanel(false));
+  adminBackdrop.addEventListener('click', ()=>setAdminPanel(false));
+
+  btnOpenDevFromAdmin.addEventListener('click', ()=>{
+    // Close admin overlay, open original dev modal.
+    setAdminPanel(false);
+    setDevPanel(true);
+  });
+  btnOpenDevFromAdmin.addEventListener('keydown', (ev)=>{
+    if(ev.key==='Enter' || ev.key===' '){
+      ev.preventDefault();
+      setAdminPanel(false);
+      setDevPanel(true);
+    }
+  });
+
+  btnAdminRefresh.addEventListener('click', ()=>{
+    adminEnsureListLoaded(true, /*force*/true);
+  });
+
+  // Unified Escape behavior
+  addEventListener('keydown',(ev)=>{
+    if(ev.key!=='Escape') return;
+    if(adminPanel.getAttribute('aria-hidden')==='false'){ setAdminPanel(false); return; }
+    if(devPanel.getAttribute('aria-hidden')==='false'){ setDevPanel(false); return; }
+  });
+
+  // ============================================================================
+  //  Persist Dev values
+  //  NOTE: You had loadDevOverrides() commented out; enabling it is safe because:
+  //   - defaults remain if no localStorage exists
+  //   - it only fills the Dev modal inputs (not changing behavior unless user saved)
+  // ============================================================================
   function saveDevOverrides(){
     const overrides={
       onlineUrl:$('onlineUrl')?.value.trim()||'',
@@ -531,7 +852,9 @@
     }catch(_){}
   }
 
-  // Use hardcoded defaults first; Dev overrides only if present.
+  // ============================================================================
+  //  Connection selection (defaults first; dev overrides only if present)
+  // ============================================================================
   function currentConn(){
     let url = ONLINE_WEBHOOK_URL;
     let secret = ONLINE_SECRET;
@@ -548,13 +871,29 @@
     return { url, secret, clientId };
   }
 
-  // Z Fold cosmetic
-  (function(){ const ua=(navigator.userAgent||'').toUpperCase(); const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6'); if(isFold6) document.body.classList.add('fold6'); })();
+  // Sanitize /dev → /exec (Google Apps Script links sometimes come as /dev)
+  function sanitizeExecUrl(u){
+    try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
+    catch(_){ return u; }
+  }
 
-  // Chronic toggle
+  // ============================================================================
+  //  Cosmetic (Fold)
+  // ============================================================================
+  (function(){
+    const ua=(navigator.userAgent||'').toUpperCase();
+    const isFold6=ua.includes('SM-F956')||ua.includes('Z FOLD 6')||ua.includes('Z FOLD6');
+    if(isFold6) document.body.classList.add('fold6');
+  })();
+
+  // ============================================================================
+  //  Chronic toggle
+  // ============================================================================
   $('chronicGrp').addEventListener('change',()=>{ $('surgTypeWrap').style.display = (radioVal('chronic')==='Yes') ? 'grid' : 'none'; });
 
-  // FiO2 toggle + init
+  // ============================================================================
+  //  FiO2 toggle + init
+  // ============================================================================
   function updateOxygenUI(){
     const v = radioVal('fio2');
     const po2=$('po2Wrap'), aagrad=$('aagradWrap'), pao2El=$('pao2'), aagradEl=$('aagrad');
@@ -570,7 +909,9 @@
   }
   document.querySelectorAll('input[name="fio2"]').forEach(r=>r.addEventListener('change',()=>{ updateOxygenUI(); maybeShowResults(); }));
 
-  // Tabs
+  // ============================================================================
+  //  Tabs
+  // ============================================================================
   document.querySelectorAll('.tab').forEach((btn)=>{
     btn.addEventListener('click',()=>{
       document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active'));
@@ -581,12 +922,15 @@
     });
   });
 
-  // ====== ONLINE ONLY (defaults first) ======
+  // ============================================================================
+  //  ONLINE ONLY (defaults first)
+  // ============================================================================
   let ONLINE_WEBHOOK_URL='https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
- let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
- // loadDevOverrides();
+  let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
 
-  // === APACHE II scoring (MDCalc-exact binning) + mortality bands ===
+  // ============================================================================
+  //  APACHE II scoring (MDCalc-exact binning) + mortality bands
+  // ============================================================================
   function fToC(f){ return (f-32)*(5/9); }
   function ptsTempC(c){
     if(c==null) return 0;
@@ -767,9 +1111,18 @@
   }
 
   function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
-  function istMonthYYYYMM(){ try{ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }catch(_){ return (new Date().toISOString()).slice(0,7); } }
+  function istMonthYYYYMM(){
+    try{ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }
+    catch(_){ return (new Date().toISOString()).slice(0,7); }
+  }
 
-  // Build payload — strict completeness (requires all marked * and oxygen branch; pH OR HCO3)
+  // ============================================================================
+  //  Build payload — strict completeness (requires all marked * and oxygen branch; pH OR HCO3)
+  //  Tight script sync:
+  //   - authToken must equal ONLINE_SECRET
+  //   - month must be YYYY-MM
+  //   - sheetRow must be EXACTLY 9 columns (EXPECTED_COLS=9)
+  // ============================================================================
   function buildPayload(){
     const patientName=valStr('patientName');
     const uhid=valStr('uhid');
@@ -847,6 +1200,7 @@
     // choose single mortality for sending/row: postop if Emergency/Elective, else non-op
     const selectedMortality = (surgtype==='Emergency' || surgtype==='Elective') ? mortPost : mortNon;
 
+    // EXACT 9 columns, must match Apps Script EXPECTED_COLS
     const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, selectedMortality, mortYN ];
 
     return {
@@ -858,9 +1212,11 @@
       submissionId: uuidv4(),
       apacheInputs: inputs,
       apacheScore: apacheII,
-      // keep both below for on-screen preview; they will be stripped before sending
+
+      // preview-only fields (will be stripped before sending)
       predictedMortalityNonOpPct: mortNon,
       predictedMortalityPostOpPct: mortPost,
+
       mortalityYN: mortYN,
       sheetRow: row
     };
@@ -948,9 +1304,20 @@
     toast('Dummy data filled');
   }
 
-  // ---------- network helpers ----------
-  async function sendJson(url, payload, label){
+  // ============================================================================
+  //  NETWORK HELPERS (FAST + CANCELABLE)
+  // ============================================================================
+  function withTimeout(ms){
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), ms);
+    return { ctrl, cancel: ()=>clearTimeout(timer) };
+  }
+
+  async function sendJson(url, payload, label, timeoutMs=12000){
+    // Professional: abortable + explicit parsing + detailed errors
     let res, text;
+    const { ctrl, cancel } = withTimeout(timeoutMs);
+
     try{
       vlog('[fetch] '+label+' → POST', { url, payloadPreview: JSON.stringify(payload).slice(0,300) });
       res = await fetch(url, {
@@ -958,18 +1325,28 @@
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload),
         mode: 'cors',
-        credentials: 'omit'
+        credentials: 'omit',
+        cache: 'no-store',
+        signal: ctrl.signal
       });
     }catch(netErr){
+      cancel();
+      if(netErr && netErr.name === 'AbortError'){
+        throw new Error(label+' timed out (>'+timeoutMs+'ms). Check network or server load.');
+      }
       console.error('[NET] '+label+' network error:', netErr);
       throw new Error(label+' network error: '+(netErr && netErr.message ? netErr.message : String(netErr)));
     }
+
+    cancel();
     try{ text = await res.text(); }catch(_){ text=''; }
+
     let data=null;
     try{ data = text ? JSON.parse(text) : null; }catch(parseErr){
       console.error('[PARSE] Non-JSON body:', text);
       throw new Error(label+' returned non-JSON: '+(text ? text.slice(0,200) : 'empty body'));
     }
+
     vlog('[fetch] '+label+' ← response', { status: res.status, data });
     if(!res.ok){
       const msg=(data && (data.error||data.message)) || ('HTTP '+res.status);
@@ -978,24 +1355,24 @@
     return data;
   }
 
-  // Sanitize /dev → /exec
-  function sanitizeExecUrl(u){
-    try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
-    catch(_){ return u; }
-  }
-
-  // Submit using constants first; Dev values only override if present
+  // ============================================================================
+  //  Submit (FAST)
+  //   - Backend already returns OK immediately after MAIN write (your script rule).
+  //   - UI: show quick status, tight success detection: { ok:true }
+  // ============================================================================
   async function postOnline(payload){
     const { url, secret, clientId } = currentConn();
     if(!url){ throw new Error('Online Webhook URL not configured.'); }
 
-    // Build a copy for sending: include ONLY a single numeric mortality
+    // Build a copy for sending:
+    // - Keep sheetRow EXACT (9)
+    // - Provide authToken = secret
+    // - Provide predictedMortalityPct single numeric (backend validation uses sheetRow only, but keep consistent)
     const out = JSON.parse(JSON.stringify(payload));
     const surgType = out.apacheInputs && out.apacheInputs.SurgeryType;
     const isPostOp = (surgType === 'Emergency' || surgType === 'Elective');
     const selectedMort = isPostOp ? Number(out.predictedMortalityPostOpPct) : Number(out.predictedMortalityNonOpPct);
 
-    // strip dual fields, send single numeric one
     delete out.predictedMortalityNonOpPct;
     delete out.predictedMortalityPostOpPct;
     out.predictedMortalityPct = selectedMort;
@@ -1004,7 +1381,9 @@
     out.authToken = secret || '';
 
     const execUrl = sanitizeExecUrl(url);
-    const data = await sendJson(execUrl, out, 'Google Sheets webhook');
+
+    // Short-ish timeout; no one should wait forever on bedside UI.
+    const data = await sendJson(execUrl, out, 'Google Sheets webhook', 12000);
     if(!data || data.ok !== true){
       const detail = data && (data.error || JSON.stringify(data).slice(0,200));
       throw new Error('Sheets webhook did not confirm success' + (detail?': '+detail:''));
@@ -1012,14 +1391,16 @@
     return data;
   }
 
-  // ---------- Robust CSV download (raw CSV for Chrome-safe path) ----------
+  // ============================================================================
+  //  Robust CSV download (raw CSV for Chrome-safe path)
+  // ============================================================================
   function buildDownloadParams(ym){
     return { action:'download', month: ym };
   }
   async function blobFallbackDownload(url, fileName){
     try{
       console.log('[download] blob fallback →', url);
-      const res = await fetch(url, { method:'GET', mode:'cors', credentials:'omit' });
+      const res = await fetch(url, { method:'GET', mode:'cors', credentials:'omit', cache:'no-store' });
       if(!res.ok) throw new Error('HTTP '+res.status);
       const blob = await res.blob();
       const a = document.createElement('a');
@@ -1063,20 +1444,33 @@
     }, 350);
   });
 
-  // ---------- Submit ----------
+  // ============================================================================
+  //  Submit button handler
+  // ============================================================================
   $('btnSubmit').addEventListener('click', async (ev)=>{
     ev.preventDefault();
     const button=$('btnSubmit'); button.disabled=true;
+
+    // Non-blocking UX: if server is slow, show center warning quickly.
+    const slowTimer = setTimeout(()=>toastCenter('Still sending… network may be slow.'), 1800);
+
     try{
       saveDevOverrides();
       const payload=buildPayload();
       vlog('[submit] Built payload', payload);
       toast('Sending to Google Sheets…');
+
       const resp = await postOnline(payload);
+
+      clearTimeout(slowTimer);
       if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
+
+      // FAST confirmation: server OK means MAIN entry is written (per script).
       toast('Saved to Google Sheets ✅');
+
       maybeShowResults();
     }catch(e){
+      clearTimeout(slowTimer);
       if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
       toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
       console.error('[submit] error:', e);
@@ -1086,7 +1480,9 @@
     }
   });
 
-  // ---------- Dev tools ----------
+  // ============================================================================
+  //  Dev tools (unchanged)
+  // ============================================================================
   $('btnBuildPreview').addEventListener('click', ()=>{
     try{
       const payload=buildPayload();
@@ -1108,7 +1504,10 @@
   });
   $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
 
-  // ---------- Duplicate-check (GET, blur-triggered, cancelable, inline status, center warning) ----------
+  // ============================================================================
+  //  Duplicate-check (GET, blur-triggered, cancelable, inline status, center warning)
+  //  Script accepts: action=check & month=YYYY-MM & uhid & (patientName or name)
+  // ============================================================================
   let dupAbort = null;
   const dupEl = $('dupIndicator');
 
@@ -1153,9 +1552,9 @@
     dupAbort = new AbortController();
     setDupStatus('checking', 'Looking for duplicates…');
 
-    // Apps Script expects: action=check & uhid=... & name=... & month=YYYY-MM
     const execUrl = sanitizeExecUrl(url);
     const ym = istMonthYYYYMM();
+
     const qs = new URLSearchParams({
       action:'check',
       uhid: String(uhid).trim(),
@@ -1171,6 +1570,7 @@
         method:'GET',
         mode:'cors',
         credentials:'omit',
+        cache:'no-store',
         signal: dupAbort.signal
       });
       const text = await res.text();
@@ -1183,10 +1583,10 @@
         return;
       }
 
-      // Expected from script: { ok:true, matches:n, tag:'duplicate_entry'|'no_duplicate' }
+      // Expected: { ok:true, matches:n, tag:'duplicate_entry'|'no_duplicate' }
       const isDup = !!(data && (data.tag === 'duplicate_entry' || (data.matches|0) > 0));
       if(isDup){
-        setDupStatus('', ''); // hide the inline badge
+        setDupStatus('', '');
         toastCenter('Possible duplicate entry found!');
       }else{
         setDupStatus('none','No duplicates');
@@ -1195,7 +1595,7 @@
       if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
     }catch(e){
       if(e && e.name==='AbortError'){
-        console.log('[duplicate-check] aborted (new edit/focus)'); 
+        console.log('[duplicate-check] aborted (new edit/focus)');
         return;
       }
       console.warn('[duplicate-check] error:', e && e.message ? e.message : e);
@@ -1218,13 +1618,306 @@
     el.addEventListener('blur', onBlurTrigger, true);
   });
 
-  // ---------- Init ----------
+  // ============================================================================
+  //  ADMIN: LIST patients (tag=LIST)
+  //  Script auth: accepts secret via query auth/authToken/token/key/secret or body/header
+  //  We'll use query `auth=<secret>` for a quick GET.
+  //
+  //  SPEED:
+  //   - cached for 30 seconds per month
+  //   - abort previous fetch if refreshed/closed
+  // ============================================================================
+  let adminListAbort = null;
+  const ADMIN_LIST_CACHE = new Map(); // key: month -> { ts, patients:[] }
+  const ADMIN_LIST_TTL_MS = 30_000;
+
+  function cancelAdminListFetch(){
+    if(adminListAbort){ try{ adminListAbort.abort(); }catch(_){ } adminListAbort=null; }
+  }
+
+  function renderPatientsTable(patients){
+    if(!adminPatientsTbody) return;
+
+    // Empty render fast path
+    if(!patients || patients.length===0){
+      adminPatientsTbody.innerHTML = '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">No entries found for this month.</td></tr>';
+      return;
+    }
+
+    // Build HTML in one go (fast, avoids DOM thrash)
+    let html = '';
+    for(let i=0;i<patients.length;i++){
+      const u = String(patients[i].uhid||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+      const n = String(patients[i].name||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+      html += '<tr><td style="font-weight:800;color:#e2e8f0">'+u+'</td><td style="color:rgba(226,232,240,.92)">'+n+'</td></tr>';
+    }
+    adminPatientsTbody.innerHTML = html;
+  }
+
+  async function fetchPatientsList(month, force=false){
+    const key = String(month||'').trim();
+    if(!key) throw new Error('Month missing');
+
+    const cached = ADMIN_LIST_CACHE.get(key);
+    if(!force && cached && (Date.now()-cached.ts) < ADMIN_LIST_TTL_MS){
+      return cached.patients;
+    }
+
+    const { url, secret } = currentConn();
+    if(!url) throw new Error('Online URL missing');
+    if(!secret) throw new Error('Online Secret missing (required for LIST/KP)');
+
+    cancelAdminListFetch();
+    adminListAbort = new AbortController();
+
+    // tag=LIST route (GET) – simplest + fast
+    const execUrl = sanitizeExecUrl(url);
+    const qs = new URLSearchParams({
+      tag: 'LIST',
+      month: key,
+      limit: '5000',
+      offset: '0',
+      auth: secret
+    }).toString();
+
+    const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
+    console.log('[admin LIST] GET →', full);
+
+    // Show loading immediately
+    adminPatientsTbody.innerHTML = '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>';
+
+    // Strict but reasonable timeout (LIST should be quick)
+    const { ctrl, cancel } = withTimeout(8000);
+    const compositeSignal = (() => {
+      // Combine abort controllers: if either aborts, fetch aborts.
+      // We do it by listening; this is small + robust.
+      const master = new AbortController();
+      const abort = () => { try{ master.abort(); }catch(_){} };
+      adminListAbort.signal.addEventListener('abort', abort, { once:true });
+      ctrl.signal.addEventListener('abort', abort, { once:true });
+      return { signal: master.signal, cleanup: ()=>{ cancel(); } };
+    })();
+
+    try{
+      const res = await fetch(full, {
+        method:'GET',
+        mode:'cors',
+        credentials:'omit',
+        cache:'no-store',
+        signal: compositeSignal.signal
+      });
+
+      const text = await res.text();
+      let data = {};
+      try{ data = text ? JSON.parse(text) : {}; }catch(_){ data = {}; }
+
+      if(!res.ok){
+        const msg = (data && (data.error||data.message)) || ('HTTP '+res.status);
+        throw new Error('LIST failed: '+msg);
+      }
+      if(!data || data.ok !== true){
+        throw new Error('LIST did not confirm ok');
+      }
+
+      const patients = Array.isArray(data.patients) ? data.patients : [];
+      ADMIN_LIST_CACHE.set(key, { ts: Date.now(), patients });
+
+      if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
+      return patients;
+    }finally{
+      compositeSignal.cleanup();
+    }
+  }
+
+  async function adminEnsureListLoaded(opening=false, force=false){
+    try{
+      const month = istMonthYYYYMM();
+      if(adminMonthPill) adminMonthPill.textContent = 'Month: '+month;
+
+      // If admin panel isn't open, don't waste cycles
+      if(adminPanel.getAttribute('aria-hidden')!=='false') return;
+
+      // Faster UX: if opening, don't show noisy toast unless error
+      const patients = await fetchPatientsList(month, force);
+      renderPatientsTable(patients);
+      if(!opening) toast('List updated ✅');
+    }catch(e){
+      console.warn('[admin LIST] error:', e && e.message ? e.message : e);
+      renderPatientsTable([]);
+      toast('List failed: '+(e && e.message ? e.message : String(e)), false);
+    }
+  }
+
+  // ============================================================================
+  //  ADMIN: KP queue + Update
+  //  Backend KP currently sets Mortality(Y/N) to "Y" (hard).
+  //  UI lets Y/N for future-proofing, but:
+  //   - Y → sent to KP
+  //   - N → marked unsupported (warned)
+  // ============================================================================
+  const kpUhid=$('kpUhid'), kpYN=$('kpYN'), btnKpAdd=$('btnKpAdd'), btnKpUpdate=$('btnKpUpdate'), btnKpClear=$('btnKpClear');
+  const kpQueueTbody=$('kpQueueTbody');
+
+  let KP_QUEUE = []; // [{ uhid, yn }]
+
+  function normalizeUhid(u){
+    return String(u||'').trim();
+  }
+  function kpQueueSet(next){
+    KP_QUEUE = Array.isArray(next) ? next : [];
+    renderKpQueue();
+  }
+  function renderKpQueue(){
+    const n = KP_QUEUE.length;
+    if(adminQueuePill) adminQueuePill.textContent = 'Queued: '+n;
+    if(btnKpUpdate) btnKpUpdate.disabled = (n===0);
+
+    if(!kpQueueTbody) return;
+    if(n===0){
+      kpQueueTbody.innerHTML = '<tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>';
+      return;
+    }
+
+    let html = '';
+    for(let i=0;i<n;i++){
+      const item = KP_QUEUE[i];
+      const u = String(item.uhid||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+      const yn = String(item.yn||'Y').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+      html += '<tr>' +
+        '<td style="font-weight:800;color:#e2e8f0">'+u+'</td>' +
+        '<td style="font-weight:900">'+yn+'</td>' +
+        '<td><button class="btn ghost" type="button" data-kp-remove="'+i+'" style="padding:8px 10px">Remove</button></td>' +
+      '</tr>';
+    }
+    kpQueueTbody.innerHTML = html;
+  }
+
+  kpQueueTbody.addEventListener('click', (ev)=>{
+    const t = ev.target;
+    if(!t) return;
+    const idx = t.getAttribute && t.getAttribute('data-kp-remove');
+    if(idx==null) return;
+    const i = Number(idx);
+    if(Number.isFinite(i)){
+      const next = KP_QUEUE.slice();
+      next.splice(i, 1);
+      kpQueueSet(next);
+    }
+  });
+
+  btnKpAdd.addEventListener('click', ()=>{
+    const u = normalizeUhid(kpUhid.value);
+    const yn = String(kpYN.value||'Y').trim().toUpperCase()==='N' ? 'N' : 'Y';
+
+    if(!u){ toast('Enter UHID', false); return; }
+
+    // Deduplicate by UHID: keep latest choice
+    const next = KP_QUEUE.filter(x => String(x.uhid) !== u);
+    next.push({ uhid:u, yn });
+    kpQueueSet(next);
+
+    kpUhid.value = '';
+    kpUhid.focus();
+    toast('Added to queue');
+  });
+
+  btnKpClear.addEventListener('click', ()=>{
+    kpQueueSet([]);
+    toast('Queue cleared');
+  });
+
+  let kpAbort = null;
+  function cancelKpFetch(){
+    if(kpAbort){ try{ kpAbort.abort(); }catch(_){} kpAbort=null; }
+  }
+
+  async function postKP(uhids){
+    const { url, secret } = currentConn();
+    if(!url) throw new Error('Online URL missing');
+    if(!secret) throw new Error('Online Secret missing (required for KP)');
+
+    const execUrl = sanitizeExecUrl(url);
+
+    // Backend supports tag via POST body: { tag:'KP', uhids:[...], authToken:'...' }
+    const payload = {
+      tag: 'KP',
+      uhids: uhids,
+      authToken: secret
+    };
+
+    // Use sendJson for robust parsing
+    return await sendJson(execUrl, payload, 'KP (Kill Patient)', 12000);
+  }
+
+  btnKpUpdate.addEventListener('click', async ()=>{
+    if(KP_QUEUE.length===0) return;
+
+    // Separate Y vs N
+    const yList = KP_QUEUE.filter(x => x.yn==='Y').map(x => x.uhid);
+    const nList = KP_QUEUE.filter(x => x.yn==='N').map(x => x.uhid);
+
+    if(nList.length>0){
+      toast('Note: Backend KP currently sets Y only. N entries will be skipped.', true, 'warn');
+    }
+
+    if(yList.length===0){
+      toast('Nothing to update (only N entries).', false);
+      return;
+    }
+
+    cancelKpFetch();
+    kpAbort = new AbortController();
+
+    // Non-blocking UX: quick status
+    toast('Updating mortality (KP)…');
+
+    try{
+      const resp = await postKP(yList);
+      if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
+
+      if(!resp || resp.ok !== true){
+        const detail = resp && (resp.error || JSON.stringify(resp).slice(0,200));
+        throw new Error('KP did not confirm ok' + (detail?': '+detail:''));
+      }
+
+      // Success: clear only Y entries; keep N entries (since skipped)
+      const remain = KP_QUEUE.filter(x => x.yn==='N');
+      kpQueueSet(remain);
+
+      toast('Mortality updated for '+yList.length+' UHID(s) ✅');
+
+      // Refresh list because KP might change row state (optional but helpful)
+      adminEnsureListLoaded(false, true);
+
+    }catch(e){
+      toast('KP failed: '+(e && e.message ? e.message : String(e)), false);
+      console.error('[KP] error:', e);
+    }finally{
+      kpAbort = null;
+    }
+  });
+
+  // ============================================================================
+  //  Dev modal open/close (admin opens dev)
+  // ============================================================================
+  // (Deliberately no devToggle click here—devToggle now opens admin.)
+
+  // ============================================================================
+  //  Init
+  // ============================================================================
   document.addEventListener('DOMContentLoaded', ()=>{
+    // Fill dev modal inputs if user previously saved them
+    loadDevOverrides();
+
     updateOxygenUI();
     maybeShowResults();
     if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = !formIsComplete();
     setDupStatus('', '');
     updateCompletenessUI();
+
+    // Prep admin month pill + queue
+    if(adminMonthPill) adminMonthPill.textContent = 'Month: '+istMonthYYYYMM();
+    kpQueueSet([]);
   });
 </script>
 </body>
