@@ -12,7 +12,19 @@
   3) Cache computed APACHE result for identical inputs.
   4) Keep payload-building ONLY for submit/preview (not for every input event).
   5) Use keepalive fetch so the POST isn’t canceled by a navigation/back gesture.
+
+  SYNC HARDENING (backend compatibility):
+  - For GET endpoints we send BOTH auth + authToken (covers script variants).
+  - LIST endpoint supports action=list OR tag=LIST (we send both).
+  - SUBMIT success accepts ok:true OR success:true.
+  - LIST response accepts:
+      { ok:true, patients:[{uhid,name}...] }
+      { ok:true, patients:[[uhid,name]...] }
+      { ok:true, rows:[[uhid,name]...] }
+      { ok:true, data:{patients:[...] } }
+  - CHECK response detects duplicates from multiple shapes.
 -->
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
@@ -554,7 +566,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="display:grid;gap:4px">
             <h4 style="margin:0">Current UHIDs &amp; Names</h4>
-            <p class="minihelp">Pulled from MAIN sheet using tag=LIST. Scroll both directions.</p>
+            <p class="minihelp">Pulled from MAIN sheet using LIST. Scroll both directions.</p>
           </div>
           <div class="admin-actions">
             <span id="adminMonthPill" class="pill">Month: —</span>
@@ -585,7 +597,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="display:grid;gap:4px">
             <h4 style="margin:0">Update Mortality</h4>
-            <p class="minihelp">Queue UHID + Y/N. Update sends KP for all “Y”. (Backend KP currently sets Y only.)</p>
+            <p class="minihelp">Queue UHID + Y/N. Update sends KP for all “Y”. (Backend KP may only set Y.)</p>
           </div>
           <span class="pill" id="adminQueuePill">Queued: 0</span>
         </div>
@@ -682,41 +694,52 @@
 <div class="tiny-footer">© @ JSFDev</div>
 
 <script>
-/* ============================================================================
-   APACHE II Bedside UI — FAST EDITION
-   ----------------------------------------------------------------------------
-   Your request: "Make it MUCH faster using professional techniques"
-   This version targets the *browser-side bottlenecks*:
-
-   ✅ UI Performance (biggest win):
-      - Replaced global document 'input/change' handler (too chatty)
-      - Debounced compute/validation (no heavy work per keystroke)
-      - Cached computed score by a stable signature hash
-      - Lightweight validation for enabling submit button
-
-   ✅ Network Responsiveness:
-      - fetch(..., { keepalive:true }) for POST to reduce cancellation risk
-      - Preconnect to Apps Script origin
-      - Short critical timeouts + clear "accepted vs confirmed" UX
-      - Robust download handler: JSON dataUri OR blob response
-
-   ✅ Script Sync:
-      - POST JSON: { authToken, clientId, month, sheetRow[9], ... }
-      - GET check: action=check&month&uhid&name&auth
-      - GET download: action=download&month&auth (supports JSON or file)
-      - GET LIST: tag=LIST&month&auth
-      - POST KP: { tag:'KP', uhids:[...], authToken }
-============================================================================ */
-
 /* ----------------------------- DOM helpers ------------------------------ */
 const $ = (id) => document.getElementById(id);
-function valStr(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:v; }
-function valNum(id){ const el=$(id); if(!el) return null; const v=(el.value||'').trim(); return v===''?null:Number(v); }
-function radioVal(name){ const el=document.querySelector('input[name="'+name+'"]:checked'); return el?el.value:null; }
-function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); const k=new Date(d.getTime()-off*60000); return k.toISOString().slice(0,10); }
-function uuidv4(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15; const v=c==='x'?r:((r&0x3)|0x8); return v.toString(16);}); }
+
+function escapeHtml(s){
+  return String(s ?? '').replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch]));
+}
+
+function valStr(id){
+  const el=$(id);
+  if(!el) return null;
+  const v=(el.value||'').trim();
+  return v===''?null:v;
+}
+
+function valNum(id){
+  const el=$(id);
+  if(!el) return null;
+  const raw=(el.value||'').trim();
+  if(raw==='') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function radioVal(name){
+  const el=document.querySelector('input[name="'+name+'"]:checked');
+  return el?el.value:null;
+}
+
+function todayISO(){
+  const d=new Date();
+  const off=d.getTimezoneOffset();
+  const k=new Date(d.getTime()-off*60000);
+  return k.toISOString().slice(0,10);
+}
+
+function uuidv4(){
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{
+    const r=crypto.getRandomValues(new Uint8Array(1))[0]&15;
+    const v=c==='x'?r:((r&0x3)|0x8);
+    return v.toString(16);
+  });
+}
+
 function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 
+/* ----------------------------- Toasts ---------------------------------- */
 function toast(msg, ok=true, klass=''){
   const t=$('toast');
   t.textContent=msg;
@@ -725,6 +748,7 @@ function toast(msg, ok=true, klass=''){
   clearTimeout(toast._timer);
   toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
 }
+
 function toastCenter(msg){
   const t=$('toastCenter');
   t.textContent=msg;
@@ -751,7 +775,7 @@ addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDe
   main.addEventListener('input',()=>{
     const mini=$(id+'Mini');
     if(mini && mini.value!==main.value) mini.value=main.value;
-    scheduleCompute(); // patientName/UHID affects dup-check UX, submit enable, etc.
+    scheduleCompute();
   });
 });
 ['patientNameMini','uhidMini'].forEach((id)=>{
@@ -774,6 +798,7 @@ function saveDevOverrides(){
   };
   try{ localStorage.setItem('apacheMobileDev', JSON.stringify(overrides)); }catch(_){}
 }
+
 function loadDevOverrides(){
   try{
     const raw=localStorage.getItem('apacheMobileDev');
@@ -809,8 +834,15 @@ function currentConn(){
 
 /* Google Apps Script links sometimes come as /dev instead of /exec */
 function sanitizeExecUrl(u){
-  try{ const x=new URL(u); x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec'); return x.toString(); }
-  catch(_){ return u; }
+  try{
+    const x=new URL(u);
+    x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec');
+    // remove trailing slash after /exec to avoid double slashes in qs concat
+    x.pathname = x.pathname.replace(/\/+$/,'');
+    return x.toString();
+  }catch(_){
+    return u;
+  }
 }
 
 /* Preconnect to the Apps Script ORIGIN (DNS + TLS warmup) */
@@ -839,7 +871,11 @@ function setDevPanel(open){
   devPanel.setAttribute('aria-hidden', open?'false':'true');
   devBackdrop.setAttribute('data-visible', open?'true':'false');
   devBackdrop.setAttribute('aria-hidden', open?'false':'true');
-  if(wasOpen&&!open) saveDevOverrides();
+  if(wasOpen&&!open){
+    saveDevOverrides();
+    const { url } = currentConn();
+    ensurePreconnectForUrl(url);
+  }
 }
 devClose.addEventListener('click',()=>setDevPanel(false));
 devBackdrop.addEventListener('click',()=>setDevPanel(false));
@@ -854,8 +890,21 @@ const adminQueuePill=$('adminQueuePill');
 
 adminPanel.setAttribute('aria-hidden','true'); adminBackdrop.setAttribute('data-visible','false');
 
-function cancelAdminListFetch(){ if(adminListAbort){ try{ adminListAbort.abort(); }catch(_){ } adminListAbort=null; } }
-function cancelKpFetch(){ if(kpAbort){ try{ kpAbort.abort(); }catch(_){ } kpAbort=null; } }
+let adminListAbort = null;
+let kpAbort = null;
+
+function cancelAdminListFetch(){
+  if(adminListAbort){
+    try{ adminListAbort.abort(); }catch(_){}
+    adminListAbort=null;
+  }
+}
+function cancelKpFetch(){
+  if(kpAbort){
+    try{ kpAbort.abort(); }catch(_){}
+    kpAbort=null;
+  }
+}
 
 function setAdminPanel(open){
   const wasOpen = adminPanel.getAttribute('aria-hidden')==='false';
@@ -896,6 +945,14 @@ addEventListener('keydown',(ev)=>{
   if(devPanel.getAttribute('aria-hidden')==='false'){ setDevPanel(false); return; }
 });
 
+/* Dev URL live warm-up */
+$('onlineUrl')?.addEventListener('change', ()=>{
+  try{
+    const u = $('onlineUrl').value.trim();
+    if(u) ensurePreconnectForUrl(u);
+  }catch(_){}
+});
+
 /* =========================================================================
    Chronic toggle + Oxygen toggle + Tabs
    ========================================================================= */
@@ -930,7 +987,7 @@ document.querySelectorAll('.tab').forEach((btn)=>{
 });
 
 /* =========================================================================
-   APACHE II scoring — binning as in your current build
+   APACHE II scoring — binning (unchanged)
    ========================================================================= */
 function fToC(f){ return (f-32)*(5/9); }
 function ptsTempC(c){
@@ -1091,37 +1148,25 @@ function mortalityBands(score){
 
 /* =========================================================================
    FAST COMPUTE PIPELINE (debounce + cache)
-   =========================================================================
-   Problem in your prior build:
-     - buildPayload() was being called extremely often (document-wide listener).
-     - buildPayload() is strict, does lots of parsing/validation, creates objects.
-     - This can stutter on mid-range phones.
-
-   Fix here:
-     - validateLight(): only checks what's needed to enable Submit + show results.
-     - snapshotInputs(): only reads essential numeric inputs for scoring.
-     - computeCached(): caches by stable signature string.
-     - scheduleCompute(): debounced runner (120ms).
    ========================================================================= */
-
 function istMonthYYYYMM(){
-  try{ return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }); }
-  catch(_){ return (new Date().toISOString()).slice(0,7); }
+  try{
+    return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
+  }catch(_){
+    return (new Date().toISOString()).slice(0,7);
+  }
 }
 function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
 
 /* Lightweight completeness check (FAST). */
 function validateLight(){
-  // required text fields
   const patientName = valStr('patientName');
   const uhid = valStr('uhid');
   const diagnosis = valStr('diagnosis');
   const admitDate = valStr('admitDate');
 
-  // required selects
   const sex = $('sex')?.value || '';
 
-  // required numbers
   const age = valNum('age');
   const gcs = valNum('gcs');
   const tempF = valNum('tempF');
@@ -1134,7 +1179,6 @@ function validateLight(){
   const wbc = valNum('wbc');
   const hct = valNum('hct');
 
-  // radio requirements
   const fio2 = radioVal('fio2');
   const mortYN = radioVal('mortality');
 
@@ -1146,7 +1190,6 @@ function validateLight(){
   if(!fio2) return { ok:false, why:'FiO2 required' };
   if(!mortYN) return { ok:false, why:'Mortality Y/N required' };
 
-  // oxygen branch
   if(fio2 === '<50%'){
     const pao2 = valNum('pao2');
     if(pao2==null) return { ok:false, why:'PaO2 required for FiO2 <50%' };
@@ -1155,7 +1198,6 @@ function validateLight(){
     if(aagrad==null) return { ok:false, why:'A-a gradient required for FiO2 >=50%' };
   }
 
-  // acid-base: require at least one
   const phVal = valNum('ph');
   const hco3Val = valNum('hco3');
   if(phVal==null && hco3Val==null) return { ok:false, why:'pH or HCO3 required' };
@@ -1164,9 +1206,7 @@ function validateLight(){
 }
 
 function snapshotInputsForCompute(){
-  // Keep this minimal: only what scoring needs.
   const age = valNum('age');
-
   const fio2 = radioVal('fio2');
   const tempF = valNum('tempF');
   const map = valNum('map');
@@ -1189,14 +1229,10 @@ function snapshotInputsForCompute(){
   const chronic = radioVal('chronic')==='Yes' ? 'Yes' : 'No';
   const surgtype = chronic==='Yes' ? radioVal('surgtype') : null;
 
-  return {
-    age, fio2, tempF, map, hr, rr, pao2, aagrad, phVal, hco3Val, na, k, cr, wbc, hct, gcs, arf, chronic, surgtype
-  };
+  return { age, fio2, tempF, map, hr, rr, pao2, aagrad, phVal, hco3Val, na, k, cr, wbc, hct, gcs, arf, chronic, surgtype };
 }
 
 function signatureKey(s){
-  // Stable string key for caching.
-  // NOTE: Avoid JSON stringify of nested objects; just join primitives.
   return [
     s.age, s.fio2, s.tempF, s.map, s.hr, s.rr, s.pao2, s.aagrad,
     s.phVal, s.hco3Val, s.na, s.k, s.cr, s.wbc, s.hct, s.gcs,
@@ -1207,7 +1243,6 @@ function signatureKey(s){
 let COMPUTE_CACHE = { key:null, value:null };
 
 function computeApacheFast(snap){
-  // Build the exact scoring values used in your previous build.
   const tempC = snap.tempF!=null ? fToC(snap.tempF) : null;
 
   const aps = ptsTempC(tempC)+
@@ -1240,7 +1275,6 @@ function computeCached(){
   return out;
 }
 
-/* Debounced compute scheduler */
 let computeTimer = null;
 function scheduleCompute(){
   clearTimeout(computeTimer);
@@ -1273,7 +1307,6 @@ function runComputeAndUI(){
   if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = false;
 }
 
-/* Attach events only to relevant inputs (avoid document-wide listeners) */
 function attachFastListeners(){
   const ids = [
     'patientName','uhid','age','sex','admitDate','diagnosis','gcs',
@@ -1296,11 +1329,6 @@ function attachFastListeners(){
 
 /* =========================================================================
    Strict payload builder (ONLY used for submit & preview)
-   =========================================================================
-   Script sync contract (as you requested):
-     - authToken must match shared secret
-     - month must be YYYY-MM
-     - sheetRow must be EXACTLY 9 columns
    ========================================================================= */
 function buildPayloadStrict(){
   const patientName=valStr('patientName');
@@ -1369,6 +1397,8 @@ function buildPayloadStrict(){
   };
 
   const nowIso=new Date().toISOString();
+  const { clientId } = currentConn();
+
   const { apacheII, mortNon, mortPost } = computeApacheFast({
     age, fio2, tempF, map, hr, rr, pao2, aagrad, phVal, hco3Val, na, k, cr, wbc, hct, gcs,
     arf: inputs.AcuteRenalFailure,
@@ -1381,7 +1411,7 @@ function buildPayloadStrict(){
   const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, selectedMortality, mortYN ];
 
   return {
-    clientId: 'NURSING-STATION-01',
+    clientId,
     authToken: '',
     patientName, uhid, age, sex, diagnosis, admitDate,
     timestamp: nowIso,
@@ -1398,7 +1428,7 @@ function buildPayloadStrict(){
 }
 
 /* =========================================================================
-   NETWORK HELPERS — abortable, strict JSON parsing, keepalive support
+   NETWORK HELPERS
    ========================================================================= */
 function withTimeout(ms){
   const ctrl = new AbortController();
@@ -1406,12 +1436,14 @@ function withTimeout(ms){
   return { ctrl, cancel: ()=>clearTimeout(timer) };
 }
 
-/*
-  sendJson():
-    - POSTs JSON but uses text/plain;charset=utf-8 (GAS friendly)
-    - keepalive:true to reduce cancellation risk (mobile gesture / navigation)
-    - returns parsed JSON or throws readable error
-*/
+function isOkish(data){
+  if(!data) return false;
+  if(data.ok === true) return true;
+  if(data.success === true) return true;
+  if(String(data.status||'').toLowerCase() === 'ok') return true;
+  return false;
+}
+
 async function sendJson(url, payload, label, timeoutMs=12000){
   let res, text;
   const { ctrl, cancel } = withTimeout(timeoutMs);
@@ -1455,19 +1487,13 @@ async function sendJson(url, payload, label, timeoutMs=12000){
 
 /* =========================================================================
    Submit (FAST UX)
-   =========================================================================
-   - We show "Sending..." immediately.
-   - If it runs > 1.6s, we show a center hint.
-   - Success requires { ok:true } from script.
-*/
+   ========================================================================= */
 async function postOnline(strictPayload){
   const { url, secret, clientId } = currentConn();
   if(!url) throw new Error('Online Webhook URL not configured.');
 
   const execUrl = sanitizeExecUrl(url);
 
-  // Build minimal send payload WITHOUT heavy cloning:
-  // (we keep your fields so script stays compatible)
   const sendPayload = {
     ...strictPayload,
     clientId,
@@ -1475,8 +1501,9 @@ async function postOnline(strictPayload){
   };
 
   const data = await sendJson(execUrl, sendPayload, 'Google Sheets webhook', 12000);
-  if(!data || data.ok !== true){
-    const detail = data && (data.error || JSON.stringify(data).slice(0,200));
+
+  if(!isOkish(data)){
+    const detail = data && (data.error || data.message || JSON.stringify(data).slice(0,200));
     throw new Error('Sheets webhook did not confirm success' + (detail?': '+detail:''));
   }
   return data;
@@ -1500,7 +1527,7 @@ $('btnSubmit').addEventListener('click', async (ev)=>{
     if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
 
     toast('Saved to Google Sheets ✅');
-    scheduleCompute(); // refresh UI state
+    scheduleCompute();
   }catch(e){
     clearTimeout(slowTimer);
     if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
@@ -1512,13 +1539,7 @@ $('btnSubmit').addEventListener('click', async (ev)=>{
 
 /* =========================================================================
    Download current month (supports JSON dataUri OR direct file)
-   =========================================================================
-   Script variations seen in practice:
-     A) doGet returns JSON: { ok:true, dataUri:"data:application/vnd....;base64,..." }
-     B) doGet returns a file stream directly (xlsx/csv) with a content-type
-
-   This handler supports BOTH.
-*/
+   ========================================================================= */
 async function downloadCurrentMonth(){
   const { url, secret } = currentConn();
   if(!url) throw new Error('Online URL missing.');
@@ -1530,12 +1551,12 @@ async function downloadCurrentMonth(){
   const qs = new URLSearchParams({
     action:'download',
     month: ym,
-    auth: secret
+    auth: secret,
+    authToken: secret
   }).toString();
 
   const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
 
-  // Attempt: fetch (so we can detect JSON vs file)
   const { ctrl, cancel } = withTimeout(15000);
   try{
     const res = await fetch(full, {
@@ -1548,24 +1569,20 @@ async function downloadCurrentMonth(){
 
     const ct = (res.headers.get('content-type')||'').toLowerCase();
 
-    // JSON path (dataUri link)
     if(ct.includes('application/json') || ct.includes('text/json') || ct.includes('application/javascript')){
       const text = await res.text();
       let data={};
       try{ data = text ? JSON.parse(text) : {}; }catch(_){ data = {}; }
 
-      if(!res.ok || !data || data.ok !== true){
+      if(!res.ok || !isOkish(data)){
         const msg = (data && (data.error||data.message)) || ('HTTP '+res.status);
         throw new Error('Download failed: '+msg);
       }
 
-      // Support common keys
       const dataUri = data.dataUri || data.dataURL || data.uri || '';
       const href = data.downloadUrl || data.url || dataUri;
-
       if(!href) throw new Error('Download response missing dataUri/url.');
 
-      // If it is data URI: clicking triggers save
       const a = document.createElement('a');
       a.href = href;
       a.download = data.filename || ('APACHE-'+ym+'.xlsx');
@@ -1577,7 +1594,6 @@ async function downloadCurrentMonth(){
       return;
     }
 
-    // File path: blob download
     if(!res.ok){
       throw new Error('Download HTTP '+res.status);
     }
@@ -1596,15 +1612,11 @@ async function downloadCurrentMonth(){
     if(e && e.name === 'AbortError') toast('Download timed out.', false);
     else toast('Download failed: '+(e && e.message ? e.message : String(e)), false);
 
-    // Fallback: open in new tab (some devices block blob downloads)
-    try{
-      window.open(full, '_blank', 'noopener');
-    }catch(_){}
+    try{ window.open(full, '_blank', 'noopener'); }catch(_){}
   }finally{
     cancel();
   }
 }
-
 $('btnDownload').addEventListener('click', ()=>downloadCurrentMonth());
 
 /* =========================================================================
@@ -1620,10 +1632,12 @@ $('btnBuildPreview').addEventListener('click', ()=>{
     toast(e.message, false);
   }
 });
+
 $('btnCopyPreview').addEventListener('click', ()=>{
   try{ navigator.clipboard.writeText($('debugPreview').textContent||''); toast('Copied JSON'); }
   catch(_){ toast('Copy failed', false); }
 });
+
 $('btnCopyExcelRow').addEventListener('click', ()=>{
   try{
     const p = buildPayloadStrict();
@@ -1633,6 +1647,7 @@ $('btnCopyExcelRow').addEventListener('click', ()=>{
     toast('Copy failed: '+(e && e.message ? e.message : String(e)), false);
   }
 });
+
 function dummyFill(){
   const age = randInt(45,70);
   $('patientName').value = 'Jane Doe';
@@ -1679,13 +1694,7 @@ $('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ t
 
 /* =========================================================================
    Duplicate-check (GET, blur-triggered, cancelable)
-   =========================================================================
-   Script contract:
-     - action=check
-     - month=YYYY-MM
-     - uhid, name
-     - auth=<secret> (added here for tighter security sync)
-*/
+   ========================================================================= */
 let dupAbort = null;
 const dupEl = $('dupIndicator');
 
@@ -1707,14 +1716,28 @@ function setDupStatus(state, text){
     dupEl.style.display='none';
   }
 }
+
 function cancelDupRequest(){
   if(dupAbort){ try{ dupAbort.abort(); }catch(_){ } dupAbort=null; }
 }
+
 function bothFilled(){
   const name = valStr('patientName');
   const uhid = valStr('uhid');
   return !!(name && uhid);
 }
+
+function looksDuplicate(data){
+  if(!data) return false;
+  if(data.tag === 'duplicate_entry') return true;
+  if(data.duplicate === true) return true;
+  if(data.isDuplicate === true) return true;
+  if((data.matches|0) > 0) return true;
+  if(Array.isArray(data.matches) && data.matches.length>0) return true;
+  if(Array.isArray(data.duplicates) && data.duplicates.length>0) return true;
+  return false;
+}
+
 async function checkDuplicateNow(reason){
   const name = valStr('patientName');
   const uhid = valStr('uhid');
@@ -1735,7 +1758,8 @@ async function checkDuplicateNow(reason){
     uhid: String(uhid).trim(),
     name: String(name).trim(),
     month: ym,
-    auth: secret || ''   // NEW: auth on check
+    auth: secret || '',
+    authToken: secret || ''
   }).toString();
 
   const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
@@ -1748,6 +1772,7 @@ async function checkDuplicateNow(reason){
       cache:'no-store',
       signal: dupAbort.signal
     });
+
     const text = await res.text();
     let data = {};
     try{ data = text ? JSON.parse(text) : {}; }catch(_){ data={}; }
@@ -1757,8 +1782,7 @@ async function checkDuplicateNow(reason){
       return;
     }
 
-    const isDup = !!(data && (data.tag === 'duplicate_entry' || (data.matches|0) > 0));
-    if(isDup){
+    if(looksDuplicate(data)){
       setDupStatus('', '');
       toastCenter('Possible duplicate entry found!');
     }else{
@@ -1771,6 +1795,7 @@ async function checkDuplicateNow(reason){
     setDupStatus('error','Check failed');
   }
 }
+
 function onBlurTrigger(ev){
   if(bothFilled()) checkDuplicateNow('blur from '+ev.target.id);
 }
@@ -1786,11 +1811,31 @@ function onFocusCancel(){
 });
 
 /* =========================================================================
-   ADMIN: LIST patients (tag=LIST) — cached + abortable
+   ADMIN: LIST patients — cached + abortable + response-normalization
    ========================================================================= */
-let adminListAbort = null;
 const ADMIN_LIST_CACHE = new Map();
 const ADMIN_LIST_TTL_MS = 30_000;
+
+function normalizePatientsFromListResponse(data){
+  // Accept multiple shapes.
+  const root = data?.data ?? data ?? {};
+  let patients = root.patients ?? root.rows ?? root.list ?? [];
+  if(!Array.isArray(patients)) patients = [];
+
+  const out = [];
+  for(const item of patients){
+    if(Array.isArray(item)){
+      out.push({ uhid: item[0], name: item[1] });
+    }else if(item && typeof item === 'object'){
+      out.push({
+        uhid: item.uhid ?? item.UHID ?? item.id ?? item[0],
+        name: item.name ?? item.patientName ?? item.PatientName ?? item[1]
+      });
+    }
+  }
+  // filter empties
+  return out.filter(x => String(x.uhid ?? '').trim() || String(x.name ?? '').trim());
+}
 
 function renderPatientsTable(patients){
   if(!adminPatientsTbody) return;
@@ -1800,8 +1845,8 @@ function renderPatientsTable(patients){
   }
   let html = '';
   for(let i=0;i<patients.length;i++){
-    const u = String(patients[i].uhid||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
-    const n = String(patients[i].name||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+    const u = escapeHtml(patients[i].uhid||'');
+    const n = escapeHtml(patients[i].name||'');
     html += '<tr><td style="font-weight:800;color:#e2e8f0">'+u+'</td><td style="color:rgba(226,232,240,.92)">'+n+'</td></tr>';
   }
   adminPatientsTbody.innerHTML = html;
@@ -1824,19 +1869,25 @@ async function fetchPatientsList(month, force=false){
   adminListAbort = new AbortController();
 
   const execUrl = sanitizeExecUrl(url);
+
+  // COMPAT: send BOTH action=list and tag=LIST (script variants)
   const qs = new URLSearchParams({
+    action: 'list',
     tag: 'LIST',
     month: key,
     limit: '5000',
     offset: '0',
-    auth: secret
+    auth: secret,
+    authToken: secret
   }).toString();
 
   const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
 
   adminPatientsTbody.innerHTML = '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>';
 
-  const { ctrl, cancel } = withTimeout(8000);
+  const { ctrl, cancel } = withTimeout(9000);
+
+  // Combine abort signals (timeout OR manual)
   const master = new AbortController();
   const abort = () => { try{ master.abort(); }catch(_){} };
   adminListAbort.signal.addEventListener('abort', abort, { once:true });
@@ -1859,11 +1910,11 @@ async function fetchPatientsList(month, force=false){
       const msg = (data && (data.error||data.message)) || ('HTTP '+res.status);
       throw new Error('LIST failed: '+msg);
     }
-    if(!data || data.ok !== true){
+    if(!isOkish(data)){
       throw new Error('LIST did not confirm ok');
     }
 
-    const patients = Array.isArray(data.patients) ? data.patients : [];
+    const patients = normalizePatientsFromListResponse(data);
     ADMIN_LIST_CACHE.set(key, { ts: Date.now(), patients });
 
     if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
@@ -1915,8 +1966,8 @@ function renderKpQueue(){
   let html = '';
   for(let i=0;i<n;i++){
     const item = KP_QUEUE[i];
-    const u = String(item.uhid||'').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
-    const yn = String(item.yn||'Y').replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]));
+    const u = escapeHtml(item.uhid||'');
+    const yn = escapeHtml(item.yn||'Y');
     html += '<tr>' +
       '<td style="font-weight:800;color:#e2e8f0">'+u+'</td>' +
       '<td style="font-weight:900">'+yn+'</td>' +
@@ -1955,14 +2006,18 @@ btnKpClear.addEventListener('click', ()=>{
   toast('Queue cleared');
 });
 
-let kpAbort = null;
 async function postKP(uhids){
   const { url, secret } = currentConn();
   if(!url) throw new Error('Online URL missing');
   if(!secret) throw new Error('Online Secret missing (required for KP)');
 
   const execUrl = sanitizeExecUrl(url);
-  const payload = { tag: 'KP', uhids: uhids, authToken: secret };
+  const payload = {
+    tag: 'KP',
+    month: istMonthYYYYMM(),
+    uhids: uhids,
+    authToken: secret
+  };
   return await sendJson(execUrl, payload, 'KP', 12000);
 }
 
@@ -1972,7 +2027,7 @@ btnKpUpdate.addEventListener('click', async ()=>{
   const yList = KP_QUEUE.filter(x => x.yn==='Y').map(x => x.uhid);
   const nList = KP_QUEUE.filter(x => x.yn==='N').map(x => x.uhid);
 
-  if(nList.length>0) toast('Note: Backend KP currently sets Y only. N entries will be skipped.', true, 'warn');
+  if(nList.length>0) toast('Note: Backend KP may set Y only. N entries will be skipped.', true, 'warn');
   if(yList.length===0){ toast('Nothing to update (only N entries).', false); return; }
 
   cancelKpFetch();
@@ -1984,8 +2039,8 @@ btnKpUpdate.addEventListener('click', async ()=>{
     const resp = await postKP(yList);
     if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
 
-    if(!resp || resp.ok !== true){
-      const detail = resp && (resp.error || JSON.stringify(resp).slice(0,200));
+    if(!isOkish(resp)){
+      const detail = resp && (resp.error || resp.message || JSON.stringify(resp).slice(0,200));
       throw new Error('KP did not confirm ok' + (detail?': '+detail:''));
     }
 
@@ -2008,7 +2063,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   loadDevOverrides();
 
   const { url } = currentConn();
-  ensurePreconnectForUrl(url);  // NEW: warm origin early
+  ensurePreconnectForUrl(url);
 
   updateOxygenUI();
   attachFastListeners();
@@ -2016,7 +2071,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if(adminMonthPill) adminMonthPill.textContent = 'Month: '+istMonthYYYYMM();
   kpQueueSet([]);
 
-  scheduleCompute();            // initial enable/disable + results
+  scheduleCompute();
   setDupStatus('', '');
 });
 </script>
