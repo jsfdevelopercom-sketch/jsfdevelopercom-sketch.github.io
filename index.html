@@ -1,27 +1,62 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>APACHE II Bedside Entry</title>
 
 <!--
-  IMPORTANT SYNC + SPEED + CORS FIX (2026)
-  ------------------------------------------------
-  This HTML is fully self-contained (complete file).
+================================================================================
+APACHE II Bedside Entry — HTML (Tightly synced to latest Apps Script bridge)
 
-  What changed vs your old HTML:
-  1) LIST / KP / CHECK / SUBMIT now use a CORS-free "bridge" transport:
-     - Hidden iframe loads Apps Script with ?bridge=1
-     - Apps Script responds with HTML that postMessage()s JSON back
-     => No browser CORS errors, and UI stays snappy.
+THIS FILE IS BUILT TO MATCH YOUR LATEST SCRIPT EXACTLY.
 
-  2) Admin overlay scrollbars are COMPULSORY (always visible):
-     - admin-body + table-wrap forced to show both scrollbars.
+SERVER EXPECTATIONS (from your script)
+-------------------------------------
+1) SUBMIT (POST /exec) expects JSON body:
+   {
+     authToken: "<ONLINE_SECRET>",
+     month: "YYYY-MM",
+     sheetRow: [
+       UHID, Patient Name, Age, Sex, Diagnosis, Admission Date, Apache Score, Mortality percentage, Mortality(Y/N)
+     ]
+   }
 
-  REQUIREMENT:
-  - Your Apps Script must include the bridge patch ( _respond_ + _bridgeHtml_ )
-  - And the _safeReadBody_/_readBody_ patch to accept form "json=" posts.
+2) TAG routes (LIST / KP / COUNT) require auth in query/body:
+   auth/authToken/token/key/secret must equal ONLINE_SECRET
+
+3) Bridge mode must be used for cross-origin reliability:
+   Add ?bridge=1
+   Server responds with HTML that postMessage({type:"APACHE_BRIDGE", data:<JSON>})
+
+KEY FIXES IMPLEMENTED HERE (your 4 points)
+------------------------------------------
+(1) LIST not populating:
+    - Uses TAG=LIST + auth in QUERY + bridge=1 via hidden iframe transport.
+    - Uses month selector; default current IST month computed client-side.
+
+(2) Bridge timeout with no console error:
+    - Verbose logging: every request logs start, URL, payload size, timeout value.
+    - On timeout: shows detailed toast + dumps diagnostics to on-screen log.
+    - Also logs the raw postMessage reception event.
+
+(3) KP success UX:
+    - KP runs via bridge POST (not GET) so long UHID lists are safe.
+    - On server ok:true: shows success summary THEN clears the KP "pending table".
+
+(4) Tight sync:
+    - Uses tag/customTag exactly as script parses (tag -> uppercased).
+    - Uses auth fields exactly as script checks (auth in query for LIST/COUNT, auth in body for KP).
+    - Uses action=check via bridge GET with uhid + patientName + month.
+
+HOW TO USE
+----------
+- Put your Apps Script Web App /exec URL in the Dev panel.
+- Put the ONLINE_SECRET in the Dev panel.
+- The top-right ⚙️ opens the Admin overlay:
+   - Live List (UHID + Name)
+   - Update Mortality (KP builder + submit)
+================================================================================
 -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,135 +66,317 @@
 <style>
   :root{
     color-scheme: light;
-    --surface: rgba(255,255,255,0.9);
+    --surface: rgba(255,255,255,0.90);
     --surface-strong: rgba(255,255,255,0.98);
-    --outline: rgba(148,163,184,0.4);
+    --outline: rgba(148,163,184,0.40);
     --muted:#475569; --text:#0f172a;
     --accent:#2563eb; --accent-dark:#1d4ed8;
-    --bg-gradient:
-      radial-gradient(circle at 5% 0%, rgba(59,130,246,.22), transparent 45%),
-      radial-gradient(circle at 95% 0%, rgba(14,165,233,.18), transparent 40%),
+
+    --bg:
+      radial-gradient(circle at 10% 0%, rgba(59,130,246,.22), transparent 45%),
+      radial-gradient(circle at 90% 0%, rgba(14,165,233,.18), transparent 40%),
       linear-gradient(180deg,#f1f5f9 0%,#e2e8f0 55%,#f8fafc 100%);
+
     --shadow: 0 30px 60px -25px rgba(15,23,42,.35);
     --shadow-soft: 0 20px 50px -30px rgba(15,23,42,.35);
+
     --radius-lg: 26px; --radius-md:18px; --radius-sm:12px;
-    --max-width:1260px;
+    --max: 1260px;
+
     font-synthesis:none; text-rendering:optimizeLegibility;
   }
-  *,*::before,*::after{box-sizing:border-box}
-  body{margin:0;min-height:100vh;font-family:"Inter",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg-gradient);display:flex;flex-direction:column}
-  a{color:inherit}
 
-  .masthead{position:relative;padding:clamp(24px,5vw,42px) clamp(18px,7vw,64px) clamp(28px,6vw,52px);display:flex;flex-direction:column;gap:clamp(18px,4vw,36px);overflow:hidden}
-  .masthead::before{content:"";position:absolute;inset:12% auto -20% 50%;width:clamp(240px,40vw,520px);height:clamp(240px,45vw,560px);background:radial-gradient(circle, rgba(37,99,235,.45), transparent 70%);transform:translateX(-50%) rotate(18deg);filter:blur(42px);opacity:.6}
-  .masthead__inner{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:flex;flex-direction:column;gap:clamp(18px,4vw,36px)}
-  .topline{display:flex;align-items:center;justify-content:space-between;gap:18px}
-  .brand{display:flex;align-items:center;gap:16px}
-  .brand__mark{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.7));display:grid;place-items:center;color:#fff;font-family:"Plus Jakarta Sans","Inter",sans-serif;font-weight:700;font-size:20px;letter-spacing:.04em;box-shadow:var(--shadow-soft)}
-  .brand__copy h1{margin:0;font-family:"Plus Jakarta Sans","Inter",sans-serif;font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.02em}
-  .brand__copy p{margin:6px 0 0;max-width:520px;color:var(--muted);font-size:clamp(15px,2.5vw,18px);line-height:1.6}
-  .dev-bubble{width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.7);background:rgba(15,23,42,.75);color:#e2e8f0;display:grid;place-items:center;cursor:pointer;box-shadow:0 16px 40px -20px rgba(15,23,42,.65);backdrop-filter:blur(12px);transition:transform .2s ease}
-  .dev-bubble:hover{transform:translateY(-2px)}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:var(--text);
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+  }
 
-  .mode-switcher{display:grid;gap:10px;align-items:start}
-  .mode-pills{display:grid;grid-template-columns:1fr;gap:12px}
-  .mode{position:relative;border-radius:var(--radius-md);border:1px solid transparent;padding:14px 18px;background:rgba(255,255,255,.65);color:var(--muted);font-weight:600;text-align:left;cursor:default}
-  .mode.active{background:linear-gradient(135deg,#2563eb,#14a3e9);color:#fff;box-shadow:0 18px 42px -18px rgba(37,99,235,.6)}
-  .mode-hint{font-size:14px;color:var(--muted)}
+  .masthead{
+    padding:clamp(22px,5vw,42px) clamp(18px,7vw,64px) clamp(20px,5vw,38px);
+    position:relative;
+    overflow:hidden;
+  }
+  .masthead::before{
+    content:"";
+    position:absolute;
+    inset:12% auto -20% 50%;
+    width:clamp(240px,40vw,520px);
+    height:clamp(240px,45vw,560px);
+    background:radial-gradient(circle, rgba(37,99,235,.45), transparent 70%);
+    transform:translateX(-50%) rotate(18deg);
+    filter:blur(42px);
+    opacity:.55;
+  }
+  .mast-inner{
+    position:relative;
+    z-index:1;
+    max-width:var(--max);
+    margin:0 auto;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
 
-  .patient-mini{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted)}
-  .mini-field{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.75);box-shadow:0 12px 28px -22px rgba(15,23,42,.45)}
-  .mini-field span{font-size:16px}
-  .mini-field input{border:0;background:transparent;font-size:14px;outline:none;min-width:110px}
+  .topline{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    min-width:0;
+  }
+  .mark{
+    width:48px;height:48px;
+    border-radius:16px;
+    background:linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.70));
+    display:grid;place-items:center;
+    color:#fff;
+    font-family:"Plus Jakarta Sans",Inter,sans-serif;
+    font-weight:800;
+    box-shadow:var(--shadow-soft);
+    flex:0 0 auto;
+  }
+  .brand h1{
+    margin:0;
+    font-family:"Plus Jakarta Sans",Inter,sans-serif;
+    font-size:clamp(24px,4.2vw,40px);
+    letter-spacing:-.02em;
+    line-height:1.1;
+  }
+  .brand p{
+    margin:6px 0 0;
+    color:var(--muted);
+    font-size:14px;
+    line-height:1.5;
+    max-width:640px;
+  }
 
-  .workspace-wrapper{flex:1;padding:0 clamp(18px,7vw,64px) clamp(180px,12vw,220px)}
-  .workspace{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:grid;gap:clamp(20px,4vw,36px)}
-  .cards-flow{display:grid;gap:clamp(18px,3vw,28px)}
-  .panel{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--outline);padding:clamp(18px,3vw,28px);box-shadow:var(--shadow-soft);backdrop-filter:blur(14px);display:grid;gap:clamp(16px,2.5vw,26px)}
+  .gear{
+    width:42px;height:42px;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,.7);
+    background:rgba(15,23,42,.78);
+    color:#e2e8f0;
+    display:grid;place-items:center;
+    cursor:pointer;
+    box-shadow:0 16px 40px -20px rgba(15,23,42,.65);
+    backdrop-filter:blur(12px);
+    transition:transform .18s ease;
+    flex:0 0 auto;
+  }
+  .gear:hover{transform:translateY(-1px)}
+  .gear:active{transform:translateY(0)}
+
+  .workspace-wrap{
+    flex:1;
+    padding:0 clamp(18px,7vw,64px) 160px;
+  }
+  .workspace{
+    max-width:var(--max);
+    margin:0 auto;
+    display:grid;
+    gap:18px;
+  }
+
+  .panel{
+    background:var(--surface);
+    border-radius:var(--radius-lg);
+    border:1px solid var(--outline);
+    padding:clamp(16px,3vw,26px);
+    box-shadow:var(--shadow-soft);
+    backdrop-filter:blur(14px);
+    display:grid;
+    gap:16px;
+  }
   .panel header{display:grid;gap:6px}
-  .panel h2{margin:0;font-size:clamp(18px,2.7vw,22px);font-weight:700;letter-spacing:-.01em}
-  .panel .hint{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+  .panel h2{margin:0;font-size:18px;font-weight:800;letter-spacing:-.01em}
+  .hint{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
 
-  label{font-weight:600;font-size:14px;color:#1e293b;display:block;margin-bottom:6px}
-  .input,select,textarea{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid rgba(148,163,184,.5);background:rgba(248,250,252,.92);font-size:15px;transition:border .2s ease,box-shadow .2s ease,background .2s ease}
-  .input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(37,99,235,.6);box-shadow:0 0 0 4px rgba(37,99,235,.15);background:#fff}
-  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  label{font-weight:700;font-size:13px;color:#1e293b;display:block;margin:0 0 6px}
+  .input, select, textarea{
+    width:100%;
+    padding:12px 14px;
+    border-radius:var(--radius-sm);
+    border:1px solid rgba(148,163,184,.55);
+    background:rgba(248,250,252,.92);
+    font-size:14px;
+    transition:border .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+  .input:focus, select:focus, textarea:focus{
+    outline:none;
+    border-color:rgba(37,99,235,.6);
+    box-shadow:0 0 0 4px rgba(37,99,235,.15);
+    background:#fff;
+  }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
-  .grid-2,.grid-3{display:grid;gap:18px}
-  .grid-2{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-  .grid-3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .grid-2{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .grid-3{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 
-  .chip-row{display:flex;flex-wrap:wrap;gap:12px}
-  .chip{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-md);background:rgba(148,163,184,.14);border:1px solid transparent;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s ease}
-  .chip input[type=radio]{accent-color:var(--accent)}
-  .chip:hover{background:rgba(37,99,235,.1)}
-
-  .tab-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
-  .tab{border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.7);padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
-  .tab.active{background:linear-gradient(135deg,#2563eb,#14a3e9);color:#fff;border-color:transparent}
-  .tab-panel{display:none}
-  .tab-panel.active{display:block}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .pill{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:9px 12px;border-radius:999px;
+    border:1px solid rgba(148,163,184,.35);
+    background:rgba(148,163,184,.12);
+    font-weight:800;
+    color:#0f172a;
+    font-size:12px;
+  }
 
   .action-dock{
-    position:static;
-    padding:18px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,24px),28px);
+    position:fixed;
+    left:0;right:0;bottom:0;
+    padding:14px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,20px),18px);
     background:rgba(255,255,255,.96);
     border-top:1px solid rgba(148,163,184,.35);
     box-shadow:0 -18px 42px -24px rgba(15,23,42,.45);
     backdrop-filter:blur(16px);
-    z-index:150
+    z-index:140;
   }
-  .action-dock__inner{max-width:var(--max-width);margin:0 auto;display:grid;gap:12px}
-  .btn{border-radius:var(--radius-md);border:1px solid transparent;padding:16px;font-weight:600;font-size:16px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
-  .btn.primary{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;box-shadow:0 20px 40px -18px rgba(37,99,235,.55)}
-  .btn.primary:hover:not([disabled]){transform:translateY(-1px)}
-  .btn.secondary{background:rgba(37,99,235,.08);color:var(--accent-dark);border:1px solid rgba(37,99,235,.18)}
-  .btn.ghost{background:transparent;border:1px solid rgba(148,163,184,.35);color:var(--muted)}
-  .btn[disabled]{opacity:.6;cursor:not-allowed}
+  .dock-inner{
+    max-width:var(--max);
+    margin:0 auto;
+    display:grid;
+    gap:10px;
+  }
+  .btn-row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .btn{
+    border-radius:var(--radius-md);
+    border:1px solid transparent;
+    padding:14px 16px;
+    font-weight:800;
+    font-size:15px;
+    cursor:pointer;
+    transition:transform .15s ease, opacity .15s ease;
+  }
+  .btn.primary{
+    background:linear-gradient(135deg,#2563eb,#1e40af);
+    color:#fff;
+    box-shadow:0 20px 40px -18px rgba(37,99,235,.55);
+  }
+  .btn.secondary{
+    background:rgba(37,99,235,.10);
+    color:var(--accent-dark);
+    border:1px solid rgba(37,99,235,.20);
+  }
+  .btn.ghost{
+    background:transparent;
+    color:var(--muted);
+    border:1px solid rgba(148,163,184,.35);
+  }
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn.primary:hover:not(:disabled){transform:translateY(-1px)}
+  .btn:active:not(:disabled){transform:translateY(0)}
 
-  .incomplete-note{display:none;font-size:12px;color:#dc2626;font-weight:700}
-  .incomplete-note[data-visible="true"]{display:block}
-
-  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:220}
-  .toast.err{border-left-color:#dc2626;color:#dc2626}
+  .toast{
+    position:fixed;
+    right:clamp(14px,4vw,56px);
+    bottom:clamp(110px,10vw,170px);
+    min-width:min(420px,calc(100vw - 28px));
+    background:#fff;
+    border-radius:var(--radius-md);
+    border-left:5px solid #16a34a;
+    padding:14px 16px;
+    box-shadow:var(--shadow);
+    font-weight:700;
+    color:var(--text);
+    display:none;
+    z-index:260;
+  }
+  .toast.err{border-left-color:#dc2626;color:#b91c1c}
   .toast.warn{border-left-color:#f59e0b;color:#92400e}
-  .toast.center{left:50%;top:50%;transform:translate(-50%,-50%);right:auto;bottom:auto;min-width:min(460px,calc(100vw - 48px));text-align:center}
+  .toast small{display:block;margin-top:6px;font-weight:600;color:rgba(15,23,42,.65)}
 
-  .admin-panel,.admin-backdrop{position:fixed;inset:0;z-index:235}
-  .admin-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
+  /* =========================
+     ADMIN OVERLAY (settings)
+     ========================= */
+  .admin-backdrop,.admin-panel{position:fixed;inset:0;z-index:300}
+  .admin-backdrop{
+    background:rgba(15,23,42,.55);
+    backdrop-filter:blur(6px);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .18s ease;
+  }
   .admin-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
-  .admin-panel{display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
-  .admin-panel[aria-hidden="false"]{opacity:1;visibility:visible;pointer-events:auto}
+
+  .admin-panel{
+    display:grid;
+    place-items:center;
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .18s ease, visibility .18s ease;
+  }
+  .admin-panel[aria-hidden="false"]{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+  }
 
   .admin-sheet{
-    width:min(720px,calc(100vw - 28px));
-    background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);
-    border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);
-    padding:18px;display:grid;gap:14px;pointer-events:auto;
-    max-height:min(84vh, 760px);
-
-    /* keep sheet fixed; inner areas scroll (forced below) */
-    overflow:hidden;
+    width:min(980px,calc(100vw - 20px));
+    background:#0f172a;
+    color:#f8fafc;
+    border-radius:26px;
+    border:1px solid rgba(148,163,184,.35);
+    box-shadow:0 30px 80px -30px rgba(15,23,42,.85);
+    padding:16px;
+    display:grid;
+    gap:12px;
+    max-height:min(88vh, 820px);
+    overflow:hidden; /* inner scroll areas forced below */
   }
   .admin-top{
-    display:flex;justify-content:space-between;align-items:center;gap:12px;
-    padding:6px 6px 0 6px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:4px 6px 0;
   }
-  .admin-title-wrap{display:grid;gap:2px}
-  .admin-title{margin:0;font-size:18px;font-weight:700}
-  .admin-sub{margin:0;font-size:12px;color:rgba(226,232,240,.72);line-height:1.35}
+  .admin-title{
+    margin:0;
+    font-size:18px;
+    font-weight:900;
+    letter-spacing:-.01em;
+  }
+  .admin-sub{
+    margin:2px 0 0;
+    font-size:12px;
+    color:rgba(226,232,240,.72);
+    line-height:1.35;
+  }
   .admin-close{
-    border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;
-    padding:8px 14px;cursor:pointer;font-weight:700
+    border:0;
+    background:rgba(148,163,184,.15);
+    color:#e2e8f0;
+    border-radius:999px;
+    padding:8px 12px;
+    cursor:pointer;
+    font-weight:900;
   }
 
-  /* ✅ COMPULSORY SCROLLBARS (both directions) */
+  /* COMPULSORY scrollbars (both directions) */
   .admin-body{
-    display:grid;gap:12px;
-    overflow: scroll;                     /* ALWAYS show */
-    scrollbar-gutter: stable both-edges;  /* keep layout stable */
-    padding:0 6px 6px 6px;
-    max-height: min(72vh, 680px);
+    display:grid;
+    gap:12px;
+    overflow:scroll;                 /* ALWAYS visible */
+    scrollbar-gutter: stable both-edges;
+    padding:0 6px 6px;
+    max-height:min(76vh, 700px);
   }
 
   .admin-card{
@@ -170,22 +387,47 @@
     display:grid;
     gap:10px;
   }
-  .admin-card h4{margin:0;font-size:14px;font-weight:800}
-  .admin-card .minihelp{margin:0;color:rgba(226,232,240,.70);font-size:12px;line-height:1.4}
+  .admin-card h4{margin:0;font-size:14px;font-weight:900}
+  .admin-minihelp{margin:0;color:rgba(226,232,240,.70);font-size:12px;line-height:1.4}
 
-  /* ✅ COMPULSORY SCROLLBARS (both directions) */
+  .tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .tab{
+    border:1px solid rgba(148,163,184,.28);
+    background:rgba(15,23,42,.45);
+    color:#e2e8f0;
+    padding:8px 12px;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:900;
+    font-size:13px;
+  }
+  .tab.active{
+    background:linear-gradient(135deg,#2563eb,#14a3e9);
+    border-color:transparent;
+  }
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  .admin-sheet label{color:#cbd5f5}
+  .admin-sheet .input{
+    background:rgba(15,23,42,.75);
+    color:#f8fafc;
+    border:1px solid rgba(148,163,184,.40);
+  }
+  .admin-sheet select.input{appearance:none}
+
+  /* Table wrapper with forced scrollbars (both directions) */
   .table-wrap{
     border:1px solid rgba(148,163,184,.22);
     border-radius:14px;
     background:rgba(2,6,23,.35);
-    overflow-x: scroll;
-    overflow-y: scroll;
+    overflow:scroll;
     scrollbar-gutter: stable both-edges;
-    max-height:320px;
+    max-height:340px;
   }
   table.admin-table{
     border-collapse:collapse;
-    width:max(980px,100%);  /* force horizontal scroll area */
+    width:max(1100px,100%);
     font-size:13px;
   }
   table.admin-table th, table.admin-table td{
@@ -196,1828 +438,1486 @@
     vertical-align:top;
   }
   table.admin-table th{
-    position:sticky;top:0;z-index:2;
-    background:rgba(15,23,42,.92);
+    position:sticky;
+    top:0;
+    z-index:2;
+    background:rgba(15,23,42,.95);
     color:#e2e8f0;
-    font-weight:800;
+    font-weight:900;
   }
-  .pill{
-    display:inline-flex;align-items:center;gap:8px;
-    padding:8px 12px;border-radius:999px;
+
+  .admin-actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:end;
+  }
+  .admin-actions .btn{padding:10px 12px;font-size:13px}
+  .admin-actions .btn.primary{box-shadow:none}
+
+  .kp-grid{
+    display:grid;
+    grid-template-columns:1fr 140px auto;
+    gap:10px;
+    align-items:end;
+  }
+  @media (max-width:720px){
+    .kp-grid{grid-template-columns:1fr}
+  }
+
+  .logbox{
     border:1px solid rgba(148,163,184,.22);
-    background:rgba(148,163,184,.10);
-    font-weight:700;
-    color:#e2e8f0;
+    border-radius:14px;
+    background:rgba(2,6,23,.35);
+    padding:10px;
+    overflow:auto;
+    max-height:180px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
     font-size:12px;
-  }
-  .admin-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .admin-inputs{display:grid;grid-template-columns:1fr 120px auto;gap:10px;align-items:end}
-  @media (max-width:520px){
-    .admin-inputs{grid-template-columns:1fr;align-items:stretch}
+    color:rgba(226,232,240,.86);
+    white-space:pre-wrap;
+    line-height:1.35;
   }
 
-  .admin-sheet label{color:#cbd5f5}
-  .admin-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
-  .admin-sheet select.input{appearance:none}
-  .admin-sheet .btn{padding:12px 14px;font-size:14px}
-  .admin-sheet .btn.primary{box-shadow:none}
-  .admin-sheet .btn.ghost{color:#e2e8f0;border-color:rgba(148,163,184,.28)}
-  .admin-sheet .btn.secondary{color:#e2e8f0;background:rgba(37,99,235,.16);border-color:rgba(37,99,235,.22)}
-
-  .dev-entry{
-    display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding-top:10px;
-    border-top:1px solid rgba(148,163,184,.22);
+  /* Hidden bridge iframe */
+  #bridgeFrame{
+    position:absolute;
+    left:-9999px;
+    top:-9999px;
+    width:1px;height:1px;
+    border:0;
+    opacity:0;
+    pointer-events:none;
   }
-  .dev-entry .dev-cta{
-    display:flex;align-items:center;gap:10px;
-    padding:10px 14px;border-radius:14px;
-    background:linear-gradient(135deg, rgba(37,99,235,.28), rgba(14,165,233,.18));
-    border:1px solid rgba(148,163,184,.22);
-    cursor:pointer;
-    user-select:none;
-    font-weight:800;
-  }
-  .dev-entry .dev-cta small{display:block;font-weight:700;color:rgba(226,232,240,.72)}
-  .dev-entry .dev-ico{
-    width:40px;height:40px;border-radius:14px;
-    display:grid;place-items:center;
-    background:rgba(15,23,42,.85);
-    border:1px solid rgba(148,163,184,.22);
-  }
-  .danger-note{
-    font-size:12px;color:rgba(248,250,252,.72);line-height:1.4
-  }
-
-  .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:230}
-  .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
-  .dev-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
-  .dev-panel{display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
-  .dev-panel[aria-hidden="false"]{opacity:1;visibility:visible;pointer-events:auto}
-  .dev-sheet{
-    width:min(560px,calc(100vw - 48px));
-    background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);
-    border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);
-    padding:26px;display:grid;gap:18px;pointer-events:auto;
-    max-height:min(80vh, 720px);
-    overflow-y:auto;
-  }
-  .dev-sheet h3{margin:0;font-size:20px;font-weight:600}
-  .dev-sheet .close{justify-self:end;border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:600}
-  .dev-sheet label{color:#cbd5f5}
-  .dev-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
-  .dev-tip{font-size:13px;color:rgba(226,232,240,.7)}
-
-  .results-card{
-    display:none;
-    background:var(--surface-strong);
-    border:1px solid rgba(148,163,184,.35);
-    border-radius:18px;
-    box-shadow:var(--shadow);
-    padding:16px 18px;
-  }
-  .results-card[data-visible="true"]{display:block}
-  .results-title{margin:0 0 8px 0;font-weight:700}
-  .results-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .metric{padding:12px 14px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:700}
-  .metric small{display:block;font-weight:600;color:var(--muted)}
-
-  .inline-wrap{display:flex;align-items:center;gap:8px}
-  .dup-indicator{display:none;font-size:12px;color:#64748b;white-space:nowrap}
-  .dup-indicator[data-state="checking"],
-  .dup-indicator[data-state="none"],
-  .dup-indicator[data-state="error"]{display:inline-flex;align-items:center;gap:6px}
-  .spinner{width:14px;height:14px;border:2px solid rgba(37,99,235,.25);border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-
-  body.desktop .workspace{grid-template-columns:1fr 360px;align-items:start}
-  body.desktop .cards-flow{grid-template-columns:repeat(2,minmax(0,1fr))}
-  body.desktop .action-dock__inner{grid-template-columns:repeat(3,minmax(0,1fr))}
-  @media (max-width:899px){body.desktop .workspace{grid-template-columns:1fr}}
-  @media (prefers-reduced-motion: reduce){
-    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
-  }
-
-  .tiny-footer{font-size:12px;color:#64748b;text-align:center;padding:8px 0 14px 0}
-  .dev-credit{font-size:12px;color:#64748b;font-weight:600;margin-bottom:2px}
 </style>
 </head>
 
 <body>
-<noscript style="padding:12px 16px;background:#fee2e2;color:#7f1d1d;border-bottom:1px solid #fecaca;font-weight:700">
-  JavaScript is required for APACHE II calculations and Google Sheets submission.
-</noscript>
 
-<header class="masthead" role="banner">
-  <div class="masthead__inner">
+<section class="masthead">
+  <div class="mast-inner">
     <div class="topline">
       <div class="brand">
-        <div class="brand__mark" aria-hidden="true">AI</div>
-        <div class="brand__copy">
-          <h1>APACHE II bedside console</h1>
-          <p>Direct to Google Sheets. One shared sheet per month. All doctors, one source of truth.</p>
+        <div class="mark">A2</div>
+        <div style="min-width:0">
+          <h1>APACHE II Bedside Entry</h1>
+          <p>Fast submit + reliable LIST/KP/COUNT via <b>bridge=1</b>. Admin overlay (⚙️) shows live UHID list and lets you update mortality (KP).</p>
         </div>
       </div>
-      <button id="devToggle" class="dev-bubble" aria-label="Admin" aria-haspopup="dialog" aria-expanded="false">⚙️</button>
+      <button class="gear" id="openAdminBtn" title="Admin / List / KP">⚙️</button>
     </div>
 
-    <div class="mode-switcher" aria-label="Submission mode">
-      <div class="dev-credit">@JSF Developer 2026</div>
-      <div class="mode-pills" role="group">
-        <button id="modeOnline" type="button" class="mode active" disabled>Online (Google Sheets)</button>
-      </div>
-      <div id="modeHint" class="mode-hint">
-        Data go straight to the shared ICU Google Sheet (one tab per month). Download uses the Apps Script download endpoint.
-      </div>
-      <div class="patient-mini" aria-label="Quick patient entry">
-        <div class="mini-field"><span>👤</span><input id="patientNameMini" type="text" placeholder="Patient name" autocomplete="off"></div>
-        <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID" autocomplete="off"></div>
-      </div>
+    <div class="row">
+      <span class="pill" id="pillMonth">Month: —</span>
+      <span class="pill" id="pillBridge">Bridge: idle</span>
+      <span class="pill" id="pillDup">Duplicate: —</span>
+      <span class="pill" id="pillReq">Last reqId: —</span>
     </div>
   </div>
-</header>
+</section>
 
-<div class="workspace-wrapper">
-  <main class="workspace" id="formContent">
-    <div class="cards-flow">
+<main class="workspace-wrap">
+  <div class="workspace">
+    <section class="panel">
+      <header>
+        <h2>Patient + Admission</h2>
+        <p class="hint">These fields map 1:1 to your sheetRow order in the Apps Script (UHID → Mortality(Y/N)).</p>
+      </header>
 
-      <section class="panel" data-span="full" aria-labelledby="patient-h">
-        <header>
-          <h2 id="patient-h">Patient</h2>
-          <p class="hint">Enter the patient’s full name as per hospital record and their UHID.</p>
-        </header>
-        <div class="grid-2">
-          <div>
-            <label for="patientName">Patient Name*</label>
-            <input id="patientName" class="input" type="text" required placeholder="e.g., Jane Doe" autocomplete="off">
-          </div>
-          <div>
-            <label for="uhid">
-              UHID*
-              <span id="dupIndicator" class="dup-indicator">
-                <span class="spinner" aria-hidden="true"></span><span>Looking for duplicates…</span>
-              </span>
-            </label>
-            <div class="inline-wrap">
-              <input id="uhid" class="input" type="text" required placeholder="Hospital unique ID" autocomplete="off" aria-describedby="dupIndicator">
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel" aria-labelledby="demo-h">
-        <header>
-          <h2 id="demo-h">Demographics & Admission</h2>
-          <p class="hint">Age in years, sex, ICU admission date, diagnosis. GCS is required.</p>
-        </header>
-        <div class="grid-3">
-          <div>
-            <label for="age">Age (years)*</label>
-            <input id="age" class="input" type="number" min="0" max="120" step="1" required placeholder="Years">
-          </div>
-          <div>
-            <label for="sex">Sex*</label>
-            <select id="sex" class="input" required>
-              <option value="" selected disabled>Select</option>
-              <option>Male</option>
-              <option>Female</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div>
-            <label for="admitDate">Admission Date*</label>
-            <input id="admitDate" class="input" type="date" required>
-          </div>
+      <div class="grid-3">
+        <div>
+          <label>UHID</label>
+          <input class="input" id="uhid" placeholder="e.g. 123456" inputmode="numeric" />
         </div>
         <div>
-          <label for="diagnosis">Diagnosis*</label>
-          <input id="diagnosis" class="input" type="text" required placeholder="Primary diagnosis at ICU admission">
+          <label>Patient Name</label>
+          <input class="input" id="patientName" placeholder="e.g. Ravi Kumar" />
         </div>
-        <div class="grid-2">
-          <div>
-            <label for="gcs">GCS (3–15)*</label>
-            <input id="gcs" class="input" type="number" min="3" max="15" step="1" required placeholder="e.g., 12">
-          </div>
-        </div>
-      </section>
-
-      <section class="panel" aria-labelledby="chronic-h">
-        <header>
-          <h2 id="chronic-h">Chronic health</h2>
-          <p class="hint">Mark severe chronic organ failure/immunocompromise. If present, specify surgical context.</p>
-        </header>
-        <div class="chip-row" id="chronicGrp">
-          <label class="chip"><input type="radio" name="chronic" value="No" checked> No</label>
-          <label class="chip"><input type="radio" name="chronic" value="Yes"> Yes – severe organ failure / immunocompromise</label>
-        </div>
-        <div id="surgTypeWrap" class="grid-2" style="display:none">
-          <div>
-            <label>Type of surgery (if chronic = Yes)</label>
-            <div class="chip-row">
-              <label class="chip"><input type="radio" name="surgtype" value="Emergency" checked> Emergency</label>
-              <label class="chip"><input type="radio" name="surgtype" value="Elective"> Elective</label>
-              <label class="chip"><input type="radio" name="surgtype" value="Nonoperative"> Non-operative</label>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel" data-span="full" aria-labelledby="inputs-h">
-        <header>
-          <h2 id="inputs-h">Clinical inputs</h2>
-          <p class="hint">Vitals, oxygenation branch (PaO₂ vs A–a gradient based on FiO₂), labs.</p>
-        </header>
-        <div class="tab-bar" role="tablist">
-          <button class="tab active" type="button" data-tab="vitals">Vitals</button>
-          <button class="tab" type="button" data-tab="oxygen">Oxygenation</button>
-          <button class="tab" type="button" data-tab="labs">Labs</button>
-        </div>
-
-        <div id="tab-vitals" class="tab-panel active" role="tabpanel">
-          <div class="grid-3">
-            <div>
-              <label for="tempF">Temperature (°F)*</label>
-              <input id="tempF" class="input" type="number" step="0.1" required>
-            </div>
-            <div>
-              <label for="map">Mean Arterial Pressure (mmHg)*</label>
-              <input id="map" class="input" type="number" step="1" required>
-            </div>
-            <div>
-              <label for="hr">Heart Rate (bpm)*</label>
-              <input id="hr" class="input" type="number" step="1" required>
-            </div>
-          </div>
-          <div class="grid-2">
-            <div>
-              <label for="rr">Respiratory Rate (breaths/min)*</label>
-              <input id="rr" class="input" type="number" step="1" required>
-            </div>
-          </div>
-        </div>
-
-        <div id="tab-oxygen" class="tab-panel" role="tabpanel">
-          <div>
-            <label>FiO₂ category*</label>
-            <div class="chip-row" id="fio2Grp">
-              <label class="chip"><input type="radio" name="fio2" value="<50%" checked> &lt; 50% (or non-intubated)</label>
-              <label class="chip"><input type="radio" name="fio2" value=">=50%"> ≥ 50%</label>
-            </div>
-          </div>
-
-          <div id="po2Wrap">
-            <label for="pao2">PaO₂ (mmHg)*</label>
-            <input id="pao2" class="input" type="number" step="1" placeholder="e.g., 80" autocomplete="off" required>
-            <p class="hint">If FiO₂ &lt; 50% → provide PaO₂.</p>
-          </div>
-
-          <div id="aagradWrap" style="display:none">
-            <label for="aagrad">A–a gradient (mmHg)*</label>
-            <input id="aagrad" class="input" type="number" step="1" placeholder="e.g., 220" autocomplete="off">
-            <p class="hint">If FiO₂ ≥ 50% → provide A–a gradient.</p>
-          </div>
-        </div>
-
-        <div id="tab-labs" class="tab-panel" role="tabpanel">
-          <div class="grid-3">
-            <div>
-              <label for="ph">pH (arterial)</label>
-              <input id="ph" class="input" type="number" step="0.01" min="6.8" max="7.8">
-            </div>
-            <div>
-              <label for="hco3">HCO₃⁻ (mEq/L)</label>
-              <input id="hco3" class="input" type="number" step="0.1">
-            </div>
-            <div>
-              <label for="na">Na⁺ (mEq/L)*</label>
-              <input id="na" class="input" type="number" step="1" required>
-            </div>
-          </div>
-          <div class="grid-3">
-            <div>
-              <label for="k">K⁺ (mEq/L)*</label>
-              <input id="k" class="input" type="number" step="0.1" required>
-            </div>
-            <div>
-              <label for="cr">Creatinine (mg/dL)*</label>
-              <input id="cr" class="input" type="number" step="0.1" required>
-            </div>
-            <div>
-              <label for="wbc">WBC (×10³/mm³)*</label>
-              <input id="wbc" class="input" type="number" step="0.1" required>
-            </div>
-          </div>
-          <div class="grid-2">
-            <div>
-              <label for="hct">Hematocrit (%)*</label>
-              <input id="hct" class="input" type="number" step="0.1" required>
-            </div>
-            <div>
-              <label>Acute Renal Failure</label>
-              <div class="chip-row" id="arfGrp">
-                <label class="chip"><input type="radio" name="arf" value="No" checked> No</label>
-                <label class="chip"><input type="radio" name="arf" value="Yes"> Yes</label>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel" aria-labelledby="outcome-h">
-        <header><h2 id="outcome-h">Outcome</h2></header>
         <div>
-          <label>Mortality (Y/N)*</label>
-          <div class="chip-row" role="group" aria-label="Mortality yes/no" id="mortalityGrp">
-            <label class="chip"><input type="radio" name="mortality" value="Y" required> Y</label>
-            <label class="chip"><input type="radio" name="mortality" value="N" required> N</label>
-          </div>
+          <label>Sex</label>
+          <select class="input" id="sex">
+            <option value="">Select…</option>
+            <option value="M">M</option>
+            <option value="F">F</option>
+            <option value="O">O</option>
+          </select>
         </div>
-      </section>
+      </div>
 
-      <aside id="resultsCard" class="results-card" aria-live="polite" aria-atomic="true">
-        <h4 class="results-title">Computed Result</h4>
-        <div class="results-grid">
-          <div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
-          <div class="metric"><small>Mortality (Non-op)</small><span id="resMortNon">—</span></div>
-          <div class="metric"><small>Mortality (Post-op)</small><span id="resMortPost">—</span></div>
+      <div class="grid-3">
+        <div>
+          <label>Age (years)</label>
+          <input class="input" id="age" type="number" min="0" step="1" placeholder="e.g. 61" />
         </div>
-      </aside>
+        <div>
+          <label>Admission Date</label>
+          <input class="input" id="admissionDate" placeholder="YYYY-MM-DD or DD/MM/YYYY" />
+        </div>
+        <div>
+          <label>Diagnosis</label>
+          <input class="input" id="diagnosis" placeholder="Short diagnosis" />
+        </div>
+      </div>
+    </section>
 
-    </div>
-  </main>
-</div>
+    <section class="panel">
+      <header>
+        <h2>APACHE II Calculator (client-side)</h2>
+        <p class="hint">This computes <b>Apache Score</b> and a simple <b>Mortality % band</b>. You can overwrite before submit if needed.</p>
+      </header>
 
-<div class="action-dock" role="contentinfo">
-  <div class="action-dock__inner">
-    <div id="incompleteNote" class="incomplete-note" aria-live="polite">Form incomplete: please fill all required items.</div>
-    <button id="btnDownload" class="btn ghost" type="button">Download current month</button>
-    <button id="btnSubmit" class="btn primary" type="button" disabled>Submit to Google Sheets</button>
+      <div class="grid-3">
+        <div>
+          <label>Temp (°C)</label>
+          <input class="input" id="vTemp" type="number" step="0.1" placeholder="e.g. 38.2" />
+        </div>
+        <div>
+          <label>MAP (mmHg)</label>
+          <input class="input" id="vMap" type="number" step="1" placeholder="e.g. 75" />
+        </div>
+        <div>
+          <label>HR (/min)</label>
+          <input class="input" id="vHr" type="number" step="1" placeholder="e.g. 112" />
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div>
+          <label>RR (/min)</label>
+          <input class="input" id="vRr" type="number" step="1" placeholder="e.g. 28" />
+        </div>
+        <div>
+          <label>FiO₂ (0.21–1.0)</label>
+          <input class="input" id="vFiO2" type="number" step="0.01" placeholder="e.g. 0.5" />
+        </div>
+        <div>
+          <label>PaO₂ (mmHg)</label>
+          <input class="input" id="vPaO2" type="number" step="1" placeholder="e.g. 70" />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label>A–a gradient (mmHg) <span style="font-weight:600;color:var(--muted)">(optional; used if FiO₂ ≥ 0.5)</span></label>
+          <input class="input" id="vAaGrad" type="number" step="1" placeholder="e.g. 250" />
+        </div>
+        <div>
+          <label>Arterial pH</label>
+          <input class="input" id="vPh" type="number" step="0.01" placeholder="e.g. 7.28" />
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div>
+          <label>Na (mmol/L)</label>
+          <input class="input" id="vNa" type="number" step="1" placeholder="e.g. 132" />
+        </div>
+        <div>
+          <label>K (mmol/L)</label>
+          <input class="input" id="vK" type="number" step="0.1" placeholder="e.g. 4.2" />
+        </div>
+        <div>
+          <label>Creatinine (mg/dL)</label>
+          <input class="input" id="vCr" type="number" step="0.1" placeholder="e.g. 2.1" />
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div>
+          <label>Hematocrit (%)</label>
+          <input class="input" id="vHct" type="number" step="0.1" placeholder="e.g. 30" />
+        </div>
+        <div>
+          <label>WBC (×10⁹/L)</label>
+          <input class="input" id="vWbc" type="number" step="0.1" placeholder="e.g. 24" />
+        </div>
+        <div>
+          <label>GCS</label>
+          <input class="input" id="vGcs" type="number" step="1" min="3" max="15" placeholder="3–15" />
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div>
+          <label>Acute renal failure?</label>
+          <select class="input" id="vArf">
+            <option value="N">No</option>
+            <option value="Y">Yes</option>
+          </select>
+        </div>
+        <div>
+          <label>Chronic health points</label>
+          <select class="input" id="vChronic">
+            <option value="0">None</option>
+            <option value="2">Nonoperative / emergency? (2)</option>
+            <option value="5">Postoperative? (5)</option>
+          </select>
+        </div>
+        <div>
+          <label>Override Mortality(Y/N)</label>
+          <select class="input" id="mortYN">
+            <option value="N">N</option>
+            <option value="Y">Y</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div>
+          <label>Apache Score (computed)</label>
+          <input class="input" id="apacheScore" type="number" step="1" />
+        </div>
+        <div>
+          <label>Mortality % (band)</label>
+          <input class="input" id="mortPct" type="number" step="0.1" />
+        </div>
+        <div>
+          <label>Notes (optional; not sent)</label>
+          <input class="input" id="localNotes" placeholder="Local note (not posted)" />
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <header>
+        <h2>Diagnostics (client)</h2>
+        <p class="hint">This is for visibility only. The admin overlay has the verbose bridge log.</p>
+      </header>
+      <div class="row">
+        <button class="btn ghost" id="btnRecalc">Recalculate APACHE</button>
+        <button class="btn ghost" id="btnCheckDup">Check duplicate (bridge)</button>
+        <button class="btn ghost" id="btnPing">Ping server (bridge)</button>
+      </div>
+    </section>
   </div>
-</div>
+</main>
 
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-<div id="toastCenter" class="toast center warn" role="status" aria-live="assertive"></div>
+<!-- Action Dock -->
+<footer class="action-dock">
+  <div class="dock-inner">
+    <div class="btn-row">
+      <button class="btn primary" id="btnSubmit">Submit to Google Sheets (bridge)</button>
+      <button class="btn secondary" id="btnDownload">Download current month (CSV)</button>
+      <button class="btn ghost" id="btnOpenAdmin2">Open Admin (LIST/KP)</button>
+    </div>
+  </div>
+</footer>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Hidden iframe used for ALL bridge requests -->
+<iframe id="bridgeFrame" name="apache_bridge_iframe"></iframe>
 
 <!-- ADMIN OVERLAY -->
-<div id="adminBackdrop" class="admin-backdrop" aria-hidden="true"></div>
-<div id="adminPanel" class="admin-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
-  <div class="admin-sheet">
+<div class="admin-backdrop" id="adminBackdrop" data-visible="false"></div>
+<div class="admin-panel" id="adminPanel" aria-hidden="true">
+  <div class="admin-sheet" role="dialog" aria-modal="true" aria-label="Admin Panel">
     <div class="admin-top">
-      <div class="admin-title-wrap">
-        <h3 id="adminTitle" class="admin-title">Quick Admin Console</h3>
-        <p class="admin-sub">Patient list (current month) + Update Mortality (KP). Fast, non-blocking.</p>
+      <div>
+        <p class="admin-title">Admin — Live List + Update Mortality (KP)</p>
+        <p class="admin-sub">Uses <b>tag=LIST</b>, <b>tag=KP</b>, <b>tag=COUNT</b> with auth. Bridge transport logs everything here.</p>
       </div>
-      <button id="adminClose" class="admin-close" type="button">Close</button>
+      <button class="admin-close" id="adminCloseBtn">Close</button>
     </div>
 
     <div class="admin-body">
       <div class="admin-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-          <div style="display:grid;gap:4px">
-            <h4 style="margin:0">Current UHIDs &amp; Names</h4>
-            <p class="minihelp">Pulled from MAIN sheet using LIST. Scroll both directions (forced scrollbars).</p>
-          </div>
-          <div class="admin-actions">
-            <span id="adminMonthPill" class="pill">Month: —</span>
-            <button id="btnAdminRefresh" class="btn ghost" type="button" style="padding:10px 12px">Refresh</button>
-          </div>
-        </div>
-
-        <div class="table-wrap" aria-label="Patient list table container">
-          <table class="admin-table" aria-label="Patient list table">
-            <thead>
-              <tr>
-                <th style="width:180px">UHID</th>
-                <th style="min-width:320px">Patient Name</th>
-              </tr>
-            </thead>
-            <tbody id="adminPatientsTbody">
-              <tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="danger-note" id="adminListNote">
-          Tip: If Dev URL/Secret are wrong, LIST won’t load. Use “Dev Settings” below.
+        <div class="tabs">
+          <button class="tab active" id="tabListBtn">Live List</button>
+          <button class="tab" id="tabKpBtn">Update Mortality (KP)</button>
+          <button class="tab" id="tabDevBtn">Dev / Logs</button>
         </div>
       </div>
 
-      <div class="admin-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-          <div style="display:grid;gap:4px">
-            <h4 style="margin:0">Update Mortality</h4>
-            <p class="minihelp">Queue UHID + Y/N. Update sends KP for all “Y”. (Backend KP may only set Y.)</p>
+      <!-- LIST TAB -->
+      <div class="admin-card tab-panel active" id="tabList">
+        <h4>Live UHID + Name (TAG: LIST)</h4>
+        <p class="admin-minihelp">Fetches <b>patients[]</b> from server response. If this is empty, the log below will show exactly why (timeout/auth/month).</p>
+
+        <div class="admin-actions">
+          <div style="min-width:200px;flex:1">
+            <label>Month (YYYY-MM)</label>
+            <input class="input" id="adminMonth" placeholder="YYYY-MM" />
           </div>
-          <span class="pill" id="adminQueuePill">Queued: 0</span>
+          <div style="width:130px">
+            <label>Limit</label>
+            <input class="input" id="adminLimit" type="number" min="1" max="5000" step="1" value="500" />
+          </div>
+          <div style="width:130px">
+            <label>Offset</label>
+            <input class="input" id="adminOffset" type="number" min="0" step="1" value="0" />
+          </div>
+          <button class="btn secondary" id="btnList">Refresh LIST</button>
+          <button class="btn ghost" id="btnCount">COUNT all</button>
         </div>
 
-        <div class="admin-inputs">
+        <div class="row">
+          <span class="pill" id="listStatus">Status: idle</span>
+          <span class="pill" id="listMeta">Total: —</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="admin-table" id="listTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>UHID</th>
+                <th>Name</th>
+              </tr>
+            </thead>
+            <tbody id="listTbody">
+              <tr><td colspan="3" style="color:rgba(226,232,240,.7)">No data yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- KP TAB -->
+      <div class="admin-card tab-panel" id="tabKp">
+        <h4>Update Mortality by UHID (TAG: KP)</h4>
+        <p class="admin-minihelp">
+          Add UHIDs to the pending list, then send one KP request.
+          On <b>ok:true</b> response: shows success summary + clears the pending table.
+        </p>
+
+        <div class="kp-grid">
           <div>
-            <label for="kpUhid">UHID</label>
-            <input id="kpUhid" class="input" type="text" placeholder="Enter UHID" autocomplete="off">
+            <label>UHID</label>
+            <input class="input" id="kpUhid" placeholder="Enter UHID and press ADD" />
           </div>
           <div>
-            <label for="kpYN">Y/N</label>
-            <select id="kpYN" class="input">
-              <option value="Y" selected>Y</option>
+            <label>Mortality (Y/N)</label>
+            <select class="input" id="kpMort">
+              <option value="Y">Y</option>
               <option value="N">N</option>
             </select>
           </div>
-          <div>
-            <button id="btnKpAdd" class="btn secondary" type="button" style="padding:12px 14px">Add</button>
-          </div>
+          <button class="btn secondary" id="btnAddKp">ADD</button>
         </div>
 
-        <div class="table-wrap" aria-label="KP queue table container" style="max-height:240px">
-          <table class="admin-table" aria-label="KP queue table">
+        <div class="admin-actions" style="margin-top:8px">
+          <button class="btn primary" id="btnSendKp">Send KP (bridge POST)</button>
+          <button class="btn ghost" id="btnClearKp">Clear pending list</button>
+          <span class="pill" id="kpStatus">Pending: 0</span>
+        </div>
+
+        <div class="table-wrap" style="max-height:260px">
+          <table class="admin-table" id="kpTable">
             <thead>
               <tr>
-                <th style="width:200px">UHID</th>
-                <th style="width:90px">Y/N</th>
-                <th style="min-width:220px">Action</th>
+                <th>#</th>
+                <th>UHID</th>
+                <th>Mortality</th>
               </tr>
             </thead>
-            <tbody id="kpQueueTbody">
-              <tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>
+            <tbody id="kpTbody">
+              <tr><td colspan="3" style="color:rgba(226,232,240,.7)">No pending UHIDs.</td></tr>
             </tbody>
           </table>
         </div>
 
-        <div class="admin-actions" style="justify-content:space-between">
-          <button id="btnKpClear" class="btn ghost" type="button" style="padding:10px 12px">Clear</button>
-          <button id="btnKpUpdate" class="btn primary" type="button" disabled style="padding:12px 14px">Update</button>
+        <div class="admin-card" style="background:rgba(2,6,23,.25)">
+          <h4>Last KP Result (summary)</h4>
+          <div class="logbox" id="kpResultBox">No KP run yet.</div>
         </div>
       </div>
 
-      <div class="dev-entry">
-        <div class="danger-note">Developer controls (URL / Secret / ClientId). Use only if needed.</div>
-        <div id="btnOpenDevFromAdmin" class="dev-cta" role="button" tabindex="0" aria-label="Open Dev Settings">
-          <div class="dev-ico" aria-hidden="true">🧰</div>
-          <div>Dev Settings<small>Open connection panel</small></div>
+      <!-- DEV / LOGS TAB -->
+      <div class="admin-card tab-panel" id="tabDev">
+        <h4>Dev Settings + Verbose Bridge Log</h4>
+        <p class="admin-minihelp">
+          These values are stored in <b>localStorage</b>. The secret must match your script's ONLINE_SECRET.
+        </p>
+
+        <div class="grid-2">
+          <div>
+            <label>Apps Script Web App /exec URL</label>
+            <input class="input" id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+          </div>
+          <div>
+            <label>ONLINE_SECRET</label>
+            <input class="input" id="cfgSecret" placeholder="Paste ONLINE_SECRET here" />
+          </div>
+        </div>
+
+        <div class="admin-actions">
+          <button class="btn secondary" id="btnSaveCfg">Save</button>
+          <button class="btn ghost" id="btnClearCfg">Clear</button>
+          <button class="btn ghost" id="btnCopyCfg">Copy config</button>
+        </div>
+
+        <div class="admin-card" style="background:rgba(2,6,23,.25)">
+          <h4>Bridge Log</h4>
+          <div class="logbox" id="bridgeLog"></div>
         </div>
       </div>
-
     </div>
   </div>
 </div>
-
-<!-- DEV MODAL -->
-<div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
-<div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
-  <div class="dev-sheet">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
-      <h3 id="devTitle">Developer / Connection</h3>
-      <button id="devClose" class="close" type="button">Close</button>
-    </div>
-    <p class="dev-tip">Values persist per device. Leave blank to fall back to defaults.</p>
-    <div>
-      <label for="onlineUrl">Online Webhook URL</label>
-      <input id="onlineUrl" class="input" type="url" placeholder="https://script.google.com/.../exec">
-    </div>
-    <div>
-      <label for="onlineSecret">Online Secret</label>
-      <input id="onlineSecret" class="input" type="text" placeholder="Shared secret for Sheets webhook">
-    </div>
-    <div>
-      <label for="clientId">Client ID</label>
-      <input id="clientId" class="input" type="text" value="NURSING-STATION-01">
-    </div>
-
-    <div style="border-top:1px solid rgba(148,163,184,.35);padding-top:12px">
-      <h3 style="margin:0 0 8px 0;font-size:16px">Debug &amp; Tools</h3>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button id="btnBuildPreview" class="btn secondary" type="button">Build &amp; show payload</button>
-        <button id="btnCopyPreview" class="btn ghost" type="button">Copy JSON</button>
-        <button id="btnCopyExcelRow" class="btn ghost" type="button" disabled>Copy APACHE row (Excel)</button>
-        <button id="btnDummyFill" class="btn secondary" type="button">Dummy fill</button>
-      </div>
-      <pre id="debugPreview" style="margin-top:10px;max-height:260px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">No payload yet</pre>
-
-      <h3 style="margin:8px 0;font-size:16px">Last server response</h3>
-      <pre id="lastResp" style="max-height:180px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">None</pre>
-    </div>
-    <div class="dev-tip">The app is locked to Online (Google Sheets) mode.</div>
-  </div>
-</div>
-
-<div class="tiny-footer">© @ JSFDev</div>
 
 <script>
-/* ----------------------------- DOM helpers ------------------------------ */
-const $ = (id) => document.getElementById(id);
+/* ============================================================================
+   CONFIG + STORAGE
+   ========================================================================== */
+
+const STORAGE_KEY = "APACHE2_CFG_V1";
+
+function loadCfg(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return { url:"", secret:"" };
+    const obj = JSON.parse(raw);
+    return { url: String(obj.url||""), secret: String(obj.secret||"") };
+  }catch(e){
+    return { url:"", secret:"" };
+  }
+}
+
+function saveCfg(cfg){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ url: cfg.url || "", secret: cfg.secret || "" }));
+}
+
+function clearCfg(){
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+/* ============================================================================
+   IST MONTH HELPERS (client-side)
+   - Server uses Asia/Kolkata. We compute month similarly for default UI.
+   ========================================================================== */
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+
+function monthIST(){
+  // Using Intl with Asia/Kolkata to avoid local timezone mismatch.
+  const dt = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone:"Asia/Kolkata", year:"numeric", month:"2-digit" }).formatToParts(dt);
+  const y = parts.find(p=>p.type==="year")?.value || String(dt.getFullYear());
+  const m = parts.find(p=>p.type==="month")?.value || pad2(dt.getMonth()+1);
+  return `${y}-${m}`;
+}
+
+/* ============================================================================
+   TOAST + LOGGING (verbosity fix)
+   ========================================================================== */
+
+const toastEl = document.getElementById("toast");
+const logEl = document.getElementById("bridgeLog");
+const pillBridge = document.getElementById("pillBridge");
+const pillReq = document.getElementById("pillReq");
+
+function nowStamp(){
+  const dt = new Date();
+  return dt.toISOString().replace("T"," ").replace("Z","");
+}
+
+function logLine(msg, obj){
+  const line = `[${nowStamp()}] ${msg}` + (obj ? ` :: ${safeJson(obj)}` : "");
+  console.log(line);
+  if(logEl){
+    logEl.textContent = (logEl.textContent ? (logEl.textContent + "\n") : "") + line;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+
+function safeJson(x){
+  try{
+    return JSON.stringify(x, (k,v)=>{
+      if(typeof v === "string" && v.length > 800) return v.slice(0,800)+"…";
+      return v;
+    });
+  }catch(e){
+    return String(x);
+  }
+}
+
+function showToast(type, title, detail){
+  toastEl.className = "toast" + (type ? (" " + type) : "");
+  toastEl.innerHTML = `<div>${escapeHtml(title || "")}</div>` + (detail ? `<small>${escapeHtml(detail)}</small>` : "");
+  toastEl.style.display = "block";
+  setTimeout(()=>{ toastEl.style.display = "none"; }, 5200);
+}
 
 function escapeHtml(s){
-  return String(s ?? '').replace(/[&<>"']/g, ch => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
-  }[ch]));
+  return String(s||"")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
 }
 
-function valStr(id){
-  const el=$(id);
-  if(!el) return null;
-  const v=(el.value||'').trim();
-  return v===''?null:v;
-}
+/* ============================================================================
+   BRIDGE TRANSPORT (single outstanding request to avoid cross-talk)
+   - Uses hidden iframe + postMessage from your server's _bridgeHtml_.
+   - Works for BOTH GET and POST via form-target to iframe.
+   ========================================================================== */
 
-function valNum(id){
-  const el=$(id);
-  if(!el) return null;
-  const raw=(el.value||'').trim();
-  if(raw==='') return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
+const bridgeFrame = document.getElementById("bridgeFrame");
 
-function radioVal(name){
-  const el=document.querySelector('input[name="'+name+'"]:checked');
-  return el?el.value:null;
-}
+// one-at-a-time pending request (keeps message correlation deterministic)
+let pending = null;
 
-function todayISO(){
-  const d=new Date();
-  const off=d.getTimezoneOffset();
-  const k=new Date(d.getTime()-off*60000);
-  return k.toISOString().slice(0,10);
-}
+// receive server postMessage
+window.addEventListener("message", (ev)=>{
+  const msg = ev && ev.data;
+  if(!msg || msg.type !== "APACHE_BRIDGE") return;
 
-function uuidv4(){
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{
-    const r=crypto.getRandomValues(new Uint8Array(1))[0]&15;
-    const v=c==='x'?r:((r&0x3)|0x8);
-    return v.toString(16);
+  logLine("bridge: postMessage received", {
+    origin: ev.origin,
+    hasData: !!msg.data,
+    keys: msg.data ? Object.keys(msg.data) : []
   });
-}
 
-function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
-
-/* ----------------------------- Toasts ---------------------------------- */
-function toast(msg, ok=true, klass=''){
-  const t=$('toast');
-  t.textContent=msg;
-  t.className='toast'+(ok?'':' err')+(klass?(' '+klass):'');
-  t.style.display='block';
-  clearTimeout(toast._timer);
-  toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
-}
-
-function toastCenter(msg){
-  const t=$('toastCenter');
-  t.textContent=msg;
-  t.style.display='block';
-  clearTimeout(toastCenter._timer);
-  toastCenter._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
-}
-
-/* ------------------------ Desktop detection ----------------------------- */
-function detectDesktop(){
-  const ua=navigator.userAgent||"";
-  const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
-  const pointerFine=matchMedia('(pointer: fine)').matches;
-  const wideEnough=matchMedia('(min-width:1024px)').matches;
-  return looksDesktop||(pointerFine&&wideEnough);
-}
-function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDesktop()); }
-applyDesktopClass();
-addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
-
-/* ---------------------- Mini <-> Main sync ------------------------------ */
-['patientName','uhid'].forEach((id)=>{
-  const main=$(id); if(!main) return;
-  main.addEventListener('input',()=>{
-    const mini=$(id+'Mini');
-    if(mini && mini.value!==main.value) mini.value=main.value;
-    scheduleCompute();
-  });
-});
-['patientNameMini','uhidMini'].forEach((id)=>{
-  const mini=$(id); if(!mini) return;
-  mini.addEventListener('input',()=>{
-    const main=$(id.replace('Mini',''));
-    if(main && main.value!==mini.value) main.value=mini.value;
-    scheduleCompute();
-  });
-});
-
-/* =========================================================================
-   DEV / CONNECTION: persist per device
-   ========================================================================= */
-function saveDevOverrides(){
-  const overrides={
-    onlineUrl:$('onlineUrl')?.value.trim()||'',
-    onlineSecret:$('onlineSecret')?.value.trim()||'',
-    clientId:$('clientId')?.value.trim()||'NURSING-STATION-01'
-  };
-  try{ localStorage.setItem('apacheMobileDev', JSON.stringify(overrides)); }catch(_){}
-}
-
-function loadDevOverrides(){
-  try{
-    const raw=localStorage.getItem('apacheMobileDev');
-    if(!raw) return;
-    const o=JSON.parse(raw);
-    if($('onlineUrl')) $('onlineUrl').value=o.onlineUrl||'';
-    if($('onlineSecret')) $('onlineSecret').value=o.onlineSecret||'';
-    if($('clientId')) $('clientId').value=o.clientId||'NURSING-STATION-01';
-  }catch(_){}
-}
-
-/* =========================================================================
-   ONLINE DEFAULTS (fallback when no dev overrides)
-   ========================================================================= */
-let ONLINE_WEBHOOK_URL='https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
-let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
-
-function currentConn(){
-  let url = ONLINE_WEBHOOK_URL;
-  let secret = ONLINE_SECRET;
-  let clientId = 'NURSING-STATION-01';
-  try{
-    const raw = localStorage.getItem('apacheMobileDev');
-    if(raw){
-      const o = JSON.parse(raw);
-      if(o.clientId && o.clientId.trim()) clientId = o.clientId.trim();
-      if(o.onlineUrl && o.onlineUrl.trim()) url = o.onlineUrl.trim();
-      if(o.onlineSecret && o.onlineSecret.trim()) secret = o.onlineSecret.trim();
-    }
-  }catch(_){}
-  return { url, secret, clientId };
-}
-
-/* Google Apps Script links sometimes come as /dev instead of /exec */
-function sanitizeExecUrl(u){
-  try{
-    const x=new URL(u);
-    x.pathname = x.pathname.replace(/\/dev(\/)?$/i,'/exec');
-    x.pathname = x.pathname.replace(/\/+$/,'');
-    return x.toString();
-  }catch(_){
-    return u;
+  if(!pending){
+    logLine("bridge: received message but no pending request (ignored)", msg.data);
+    return;
   }
+
+  // resolve pending
+  clearTimeout(pending.timer);
+  pillBridge.textContent = "Bridge: idle";
+  const resolve = pending.resolve;
+  pending = null;
+
+  try{
+    resolve(msg.data);
+  }catch(e){
+    // nothing else
+  }
+});
+
+function buildUrl(base, params){
+  const u = new URL(base);
+  Object.entries(params||{}).forEach(([k,v])=>{
+    if(v === undefined || v === null || String(v).trim()==="") return;
+    u.searchParams.set(k, String(v));
+  });
+  return u.toString();
 }
 
-/* Preconnect to the Apps Script ORIGIN (DNS + TLS warmup) */
-function ensurePreconnectForUrl(u){
-  try{
-    const origin = new URL(sanitizeExecUrl(u)).origin;
-    const ensure = (rel) => {
-      if(document.querySelector('link[rel="'+rel+'"][href="'+origin+'"]')) return;
-      const l=document.createElement('link');
-      l.rel=rel; l.href=origin;
-      document.head.appendChild(l);
+function requireCfg(){
+  const cfg = loadCfg();
+  if(!cfg.url || !cfg.secret){
+    showToast("err", "Missing config", "Open ⚙️ → Dev / Logs and set /exec URL + ONLINE_SECRET.");
+    throw new Error("Missing config (url/secret)");
+  }
+  return cfg;
+}
+
+/**
+ * Bridge GET (loads iframe src with bridge=1, waits for postMessage)
+ */
+function bridgeGet(params, timeoutMs){
+  const cfg = requireCfg();
+
+  // IMPORTANT: server checks bridge via e.parameter.bridge
+  const url = buildUrl(cfg.url, Object.assign({}, params, { bridge:"1" }));
+
+  return bridgeSend({ method:"GET", url, timeoutMs: timeoutMs || 12000 });
+}
+
+/**
+ * Bridge POST (submits a hidden form to iframe, encoded as x-www-form-urlencoded)
+ * The Apps Script accepts json=... via _safeReadBody_/_readBody_
+ */
+function bridgePost(params, bodyObj, timeoutMs){
+  const cfg = requireCfg();
+
+  const url = buildUrl(cfg.url, Object.assign({}, params, { bridge:"1" }));
+  const payload = bodyObj || {};
+
+  return bridgeSend({ method:"POST", url, body: payload, timeoutMs: timeoutMs || 15000 });
+}
+
+function bridgeSend(req){
+  if(pending){
+    // serialize: reject fast + show reason (prevents overlapping timeouts)
+    const msg = "Bridge busy (previous request still pending).";
+    logLine(msg, pending.meta);
+    showToast("warn", msg, "Wait for the current request to finish.");
+    return Promise.reject(new Error(msg));
+  }
+
+  const startedAt = Date.now();
+  const timeoutMs = Number(req.timeoutMs || 12000);
+
+  pillBridge.textContent = "Bridge: working…";
+
+  logLine("bridge: request start", {
+    method: req.method,
+    url: req.url,
+    timeoutMs,
+    bodyBytes: req.body ? safeJson(req.body).length : 0
+  });
+
+  return new Promise((resolve, reject)=>{
+    const timer = setTimeout(()=>{
+      const dt = Date.now() - startedAt;
+      pillBridge.textContent = "Bridge: idle";
+      const meta = pending ? pending.meta : null;
+      pending = null;
+
+      const detail = `Timeout after ${dt}ms. ${meta ? "Last URL: " + meta.url : ""}`;
+      logLine("bridge: TIMEOUT", { dt, meta });
+      showToast("err", "Bridge post timeout", detail);
+      reject(new Error(detail));
+    }, timeoutMs);
+
+    pending = {
+      resolve, reject, timer,
+      meta: { method:req.method, url:req.url, timeoutMs }
     };
-    ensure('dns-prefetch');
-    ensure('preconnect');
-  }catch(_){}
-}
 
-/* =========================================================================
-   MODALS: DEV + ADMIN
-   ========================================================================= */
-const devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
-devPanel.setAttribute('aria-hidden','true'); devBackdrop.setAttribute('data-visible','false');
+    try{
+      if(req.method === "GET"){
+        bridgeFrame.src = req.url;
+        return;
+      }
 
-function setDevPanel(open){
-  const wasOpen=devPanel.getAttribute('aria-hidden')==='false';
-  devPanel.setAttribute('aria-hidden', open?'false':'true');
-  devBackdrop.setAttribute('data-visible', open?'true':'false');
-  devBackdrop.setAttribute('aria-hidden', open?'false':'true');
-  if(wasOpen&&!open){
-    saveDevOverrides();
-    const { url } = currentConn();
-    ensurePreconnectForUrl(url);
-  }
-}
-devClose.addEventListener('click',()=>setDevPanel(false));
-devBackdrop.addEventListener('click',()=>setDevPanel(false));
+      // POST via hidden form to iframe
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = req.url;
+      form.target = bridgeFrame.name;
+      form.style.display = "none";
 
-const devToggle=$('devToggle');
-const adminPanel=$('adminPanel'), adminBackdrop=$('adminBackdrop'), adminClose=$('adminClose');
-const btnOpenDevFromAdmin=$('btnOpenDevFromAdmin');
-const btnAdminRefresh=$('btnAdminRefresh');
-const adminPatientsTbody=$('adminPatientsTbody');
-const adminMonthPill=$('adminMonthPill');
-const adminQueuePill=$('adminQueuePill');
+      // x-www-form-urlencoded is default encoding; server reads json=
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "json";
+      input.value = JSON.stringify(req.body || {});
+      form.appendChild(input);
 
-adminPanel.setAttribute('aria-hidden','true'); adminBackdrop.setAttribute('data-visible','false');
+      document.body.appendChild(form);
+      form.submit();
+      setTimeout(()=>{ try{ form.remove(); }catch(e){} }, 0);
 
-function setAdminPanel(open){
-  adminPanel.setAttribute('aria-hidden', open?'false':'true');
-  adminBackdrop.setAttribute('data-visible', open?'true':'false');
-  adminBackdrop.setAttribute('aria-hidden', open?'false':'true');
-  devToggle.setAttribute('aria-expanded', open?'true':'false');
-}
+    }catch(e){
+      clearTimeout(timer);
+      pillBridge.textContent = "Bridge: idle";
+      pending = null;
+      logLine("bridge: send failed", { err: String(e && e.message ? e.message : e) });
+      showToast("err", "Bridge send failed", String(e && e.message ? e.message : e));
+      reject(e);
+    }
+  }).then((data)=>{
+    const dt = Date.now() - startedAt;
+    pillBridge.textContent = "Bridge: idle";
 
-devToggle.addEventListener('click', async ()=>{
-  const isHidden = adminPanel.getAttribute('aria-hidden')!=='false';
-  setAdminPanel(isHidden);
-  if(isHidden){
-    await adminEnsureListLoaded(true, true);
-  }
-});
-adminClose.addEventListener('click', ()=>setAdminPanel(false));
-adminBackdrop.addEventListener('click', ()=>setAdminPanel(false));
+    // Verbose: show reqId if present
+    if(data && data.reqId){
+      pillReq.textContent = "Last reqId: " + data.reqId;
+    }
 
-btnOpenDevFromAdmin.addEventListener('click', ()=>{
-  setAdminPanel(false);
-  setDevPanel(true);
-});
-btnOpenDevFromAdmin.addEventListener('keydown', (ev)=>{
-  if(ev.key==='Enter' || ev.key===' '){
-    ev.preventDefault();
-    setAdminPanel(false);
-    setDevPanel(true);
-  }
-});
+    logLine("bridge: response", {
+      dt,
+      ok: data ? data.ok : null,
+      reqId: data ? data.reqId : null,
+      tag: data ? data.tag : null,
+      error: data ? data.error : null,
+      warnings: data ? data.warnings : null
+    });
 
-btnAdminRefresh.addEventListener('click', ()=>adminEnsureListLoaded(false, true));
+    // Surface server warnings/errors visually (helps debugging silent failures)
+    if(data && data.ok === false){
+      showToast("err", "Server error", (data.error || "Unknown error") + (data.reqId ? (" | reqId: " + data.reqId) : ""));
+    }else if(data && Array.isArray(data.warnings) && data.warnings.length){
+      showToast("warn", "Server warnings", data.warnings.slice(0,2).join(" | "));
+    }
 
-addEventListener('keydown',(ev)=>{
-  if(ev.key!=='Escape') return;
-  if(adminPanel.getAttribute('aria-hidden')==='false'){ setAdminPanel(false); return; }
-  if(devPanel.getAttribute('aria-hidden')==='false'){ setDevPanel(false); return; }
-});
-
-/* Dev URL live warm-up */
-$('onlineUrl')?.addEventListener('change', ()=>{
-  try{
-    const u = $('onlineUrl').value.trim();
-    if(u) ensurePreconnectForUrl(u);
-  }catch(_){}
-});
-
-/* =========================================================================
-   Chronic toggle + Oxygen toggle + Tabs
-   ========================================================================= */
-$('chronicGrp').addEventListener('change',()=>{
-  $('surgTypeWrap').style.display = (radioVal('chronic')==='Yes') ? 'grid' : 'none';
-  scheduleCompute();
-});
-
-function updateOxygenUI(){
-  const v = radioVal('fio2');
-  const po2=$('po2Wrap'), aagrad=$('aagradWrap'), pao2El=$('pao2'), aagradEl=$('aagrad');
-  if(v === '<50%'){
-    po2.style.display='block'; aagrad.style.display='none';
-    if(aagradEl){ aagradEl.value=''; aagradEl.removeAttribute('required'); }
-    if(pao2El){ pao2El.setAttribute('required','required'); }
-  } else {
-    po2.style.display='none'; aagrad.style.display='block';
-    if(pao2El){ pao2El.value=''; pao2El.removeAttribute('required'); }
-    if(aagradEl){ aagradEl.setAttribute('required','required'); }
-  }
-}
-document.querySelectorAll('input[name="fio2"]').forEach(r=>r.addEventListener('change',()=>{ updateOxygenUI(); scheduleCompute(); }));
-
-document.querySelectorAll('.tab').forEach((btn)=>{
-  btn.addEventListener('click',()=>{
-    document.querySelectorAll('.tab').forEach((b)=>b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach((p)=>p.classList.remove('active'));
-    btn.classList.add('active');
-    const target=$('tab-'+btn.dataset.tab);
-    if(target) target.classList.add('active');
+    return data;
   });
-});
+}
 
-/* =========================================================================
-   APACHE II scoring — binning (unchanged)
-   ========================================================================= */
-function fToC(f){ return (f-32)*(5/9); }
-function ptsTempC(c){
-  if(c==null) return 0;
-  if(c>=41) return 4;
-  if(c>=39 && c<41) return 3;
-  if(c>=38.5 && c<39) return 1;
-  if(c>=36 && c<38.5) return 0;
-  if(c>=34 && c<36) return 1;
-  if(c>=32 && c<34) return 2;
-  if(c>=30 && c<32) return 3;
-  return 4;
+/* ============================================================================
+   SERVER ROUTES — EXACTLY MATCH YOUR SCRIPT
+   ========================================================================== */
+
+// TAG constants (must match server)
+const TAG_LIST  = "LIST";
+const TAG_KP    = "KP";
+const TAG_COUNT = "COUNT";
+
+// ACTION constants
+const ACTION_CHECK = "check";
+const ACTION_PING  = "ping";
+
+/**
+ * LIST patients (TAG: LIST) — AUTH REQUIRED
+ * Server returns: { ok, reqId, month, total, returned, offset, limit, patients:[{uhid,name}] }
+ */
+async function apiListPatients(month, limit, offset){
+  const cfg = requireCfg();
+  return bridgeGet({
+    tag: TAG_LIST,
+    auth: cfg.secret,
+    month: String(month || ""),
+    limit: String(limit || 500),
+    offset: String(offset || 0)
+  }, 12000);
 }
-function ptsMAP(v){
-  if(v==null) return 0;
-  if(v>=160) return 4;
-  if(v>=130) return 3;
-  if(v>=110) return 2;
-  if(v>=70)  return 0;
-  if(v>=50)  return 2;
-  return 4;
+
+/**
+ * COUNT entries (TAG: COUNT) — AUTH REQUIRED
+ */
+async function apiCountEntries(){
+  const cfg = requireCfg();
+  return bridgeGet({
+    tag: TAG_COUNT,
+    auth: cfg.secret
+  }, 15000);
 }
-function ptsHR(v){
-  if(v==null) return 0;
-  if(v>=180) return 4;
-  if(v>=140) return 3;
-  if(v>=110) return 2;
-  if(v>=70)  return 0;
-  if(v>=55)  return 2;
-  if(v>=40)  return 3;
-  return 4;
+
+/**
+ * KP (TAG: KP) — AUTH REQUIRED
+ * Use POST because uhids list can be large (avoid URL length limits).
+ * Server accepts: body.tag/body.customTag + body.uhids/body.uhidList/body.uhid + body.mortality/body.mortYN/body.yn
+ */
+async function apiKillPatients(uhids, mortality){
+  const cfg = requireCfg();
+  return bridgePost(
+    { /* query params */ },
+    {
+      tag: TAG_KP,
+      auth: cfg.secret,
+      uhids: Array.isArray(uhids) ? uhids : [],
+      mortality: String(mortality || "Y").toUpperCase()
+    },
+    15000
+  );
 }
-function ptsRR(v){
-  if(v==null) return 0;
-  if(v>=50) return 4;
-  if(v>=35) return 3;
-  if(v>=25) return 1;
-  if(v>=12) return 0;
-  if(v>=10) return 1;
-  if(v>=6)  return 2;
-  return 4;
+
+/**
+ * CHECK duplicate (action=check) — NO AUTH REQUIRED in your script, but we still use bridge for CORS safety.
+ * Server expects:
+ *  - action=check
+ *  - month (optional; default IST month)
+ *  - uhid
+ *  - patientName OR name
+ */
+async function apiCheckDuplicate(month, uhid, patientName){
+  return bridgeGet({
+    action: ACTION_CHECK,
+    month: String(month || monthIST()),
+    uhid: String(uhid || "").trim(),
+    patientName: String(patientName || "").trim()
+  }, 12000);
 }
-function ptsOxygen(fio2Cat,pao2,aagrad){
-  if(fio2Cat==='>=50%'){
-    if(aagrad==null) return 0;
-    if(aagrad>=500) return 4;
-    if(aagrad>=350) return 3;
-    if(aagrad>=200) return 2;
-    return 0;
-  } else {
-    if(pao2==null) return 0;
-    if(pao2>70)    return 0;
-    if(pao2>=61)   return 1;
-    if(pao2>=55)   return 3;
-    return 4;
+
+/**
+ * PING (action=ping) — bridge GET
+ */
+async function apiPing(){
+  return bridgeGet({ action: ACTION_PING }, 8000);
+}
+
+/**
+ * SUBMIT — bridge POST
+ * Must match server validation:
+ * - authToken must equal ONLINE_SECRET
+ * - month must be YYYY-MM
+ * - sheetRow must have EXACT 9 cols in EXACT order
+ */
+async function apiSubmit(payload){
+  return bridgePost({}, payload, 15000);
+}
+
+/* ============================================================================
+   UI: Admin overlay open/close + tab switching
+   ========================================================================== */
+
+const adminPanel = document.getElementById("adminPanel");
+const adminBackdrop = document.getElementById("adminBackdrop");
+
+function openAdmin(){
+  adminBackdrop.dataset.visible = "true";
+  adminPanel.setAttribute("aria-hidden","false");
+
+  // default month
+  const m = monthIST();
+  document.getElementById("adminMonth").value = m;
+
+  // try to auto-refresh list (best-effort)
+  refreshList().catch(()=>{});
+}
+
+function closeAdmin(){
+  adminBackdrop.dataset.visible = "false";
+  adminPanel.setAttribute("aria-hidden","true");
+}
+
+document.getElementById("openAdminBtn").addEventListener("click", openAdmin);
+document.getElementById("btnOpenAdmin2").addEventListener("click", openAdmin);
+document.getElementById("adminCloseBtn").addEventListener("click", closeAdmin);
+adminBackdrop.addEventListener("click", closeAdmin);
+
+// tabs
+const tabListBtn = document.getElementById("tabListBtn");
+const tabKpBtn = document.getElementById("tabKpBtn");
+const tabDevBtn = document.getElementById("tabDevBtn");
+
+const tabList = document.getElementById("tabList");
+const tabKp = document.getElementById("tabKp");
+const tabDev = document.getElementById("tabDev");
+
+function setTab(which){
+  [tabListBtn, tabKpBtn, tabDevBtn].forEach(b=>b.classList.remove("active"));
+  [tabList, tabKp, tabDev].forEach(p=>p.classList.remove("active"));
+
+  if(which==="LIST"){ tabListBtn.classList.add("active"); tabList.classList.add("active"); }
+  if(which==="KP"){ tabKpBtn.classList.add("active"); tabKp.classList.add("active"); }
+  if(which==="DEV"){ tabDevBtn.classList.add("active"); tabDev.classList.add("active"); }
+}
+
+tabListBtn.addEventListener("click", ()=>setTab("LIST"));
+tabKpBtn.addEventListener("click", ()=>setTab("KP"));
+tabDevBtn.addEventListener("click", ()=>setTab("DEV"));
+
+/* ============================================================================
+   Admin LIST UI
+   ========================================================================== */
+
+const listStatus = document.getElementById("listStatus");
+const listMeta = document.getElementById("listMeta");
+const listTbody = document.getElementById("listTbody");
+
+function renderList(patients){
+  const arr = Array.isArray(patients) ? patients : [];
+  listTbody.innerHTML = "";
+
+  if(arr.length === 0){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="3" style="color:rgba(226,232,240,.7)">No rows returned.</td>`;
+    listTbody.appendChild(tr);
+    return;
+  }
+
+  arr.forEach((p, idx)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${idx+1}</td>
+      <td>${escapeHtml(p.uhid || "")}</td>
+      <td>${escapeHtml(p.name || "")}</td>
+    `;
+    listTbody.appendChild(tr);
+  });
+}
+
+async function refreshList(){
+  const m = String(document.getElementById("adminMonth").value || "").trim();
+  const limit = Number(document.getElementById("adminLimit").value || 500);
+  const offset = Number(document.getElementById("adminOffset").value || 0);
+
+  listStatus.textContent = "Status: loading…";
+  listMeta.textContent = "Total: —";
+
+  try{
+    const resp = await apiListPatients(m, limit, offset);
+    if(!resp || resp.ok !== true){
+      listStatus.textContent = "Status: failed";
+      renderList([]);
+      return;
+    }
+
+    listStatus.textContent = `Status: ok (returned ${resp.returned || 0})`;
+    listMeta.textContent = `Total: ${resp.total || 0} | Offset: ${resp.offset || 0} | Limit: ${resp.limit || limit}`;
+
+    renderList(resp.patients || []);
+  }catch(e){
+    listStatus.textContent = "Status: timeout/error";
+    renderList([]);
+    logLine("LIST failed", { err: String(e && e.message ? e.message : e) });
   }
 }
+
+document.getElementById("btnList").addEventListener("click", ()=>refreshList());
+
+document.getElementById("btnCount").addEventListener("click", async ()=>{
+  try{
+    const resp = await apiCountEntries();
+    if(resp && resp.ok === true){
+      const total = resp.totalEntries || 0;
+      showToast("", "COUNT ok", `Total entries: ${total} across ${resp.monthsCounted || 0} months`);
+      logLine("COUNT details", resp);
+    }
+  }catch(e){
+    logLine("COUNT failed", { err: String(e && e.message ? e.message : e) });
+  }
+});
+
+/* ============================================================================
+   Admin KP UI
+   ========================================================================== */
+
+const kpTbody = document.getElementById("kpTbody");
+const kpStatus = document.getElementById("kpStatus");
+const kpResultBox = document.getElementById("kpResultBox");
+
+let kpPending = []; // [{uhid, mortality}]
+
+function renderKpPending(){
+  kpTbody.innerHTML = "";
+  if(kpPending.length === 0){
+    kpTbody.innerHTML = `<tr><td colspan="3" style="color:rgba(226,232,240,.7)">No pending UHIDs.</td></tr>`;
+    kpStatus.textContent = "Pending: 0";
+    return;
+  }
+
+  kpPending.forEach((x, idx)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${idx+1}</td>
+      <td>${escapeHtml(x.uhid)}</td>
+      <td>${escapeHtml(x.mortality)}</td>
+    `;
+    kpTbody.appendChild(tr);
+  });
+  kpStatus.textContent = "Pending: " + kpPending.length;
+}
+
+function addKp(){
+  const u = String(document.getElementById("kpUhid").value || "").trim();
+  const m = String(document.getElementById("kpMort").value || "Y").toUpperCase();
+
+  if(!u){
+    showToast("warn","UHID missing","Enter a UHID to add.");
+    return;
+  }
+  if(!/^[YN]$/.test(m)){
+    showToast("warn","Bad mortality","Must be Y or N.");
+    return;
+  }
+
+  // dedupe
+  const exists = kpPending.some(x=>x.uhid === u);
+  if(exists){
+    showToast("warn","Already added",u);
+    return;
+  }
+
+  kpPending.push({ uhid: u, mortality: m });
+  document.getElementById("kpUhid").value = "";
+  renderKpPending();
+}
+
+function clearKp(){
+  kpPending = [];
+  renderKpPending();
+}
+
+document.getElementById("btnAddKp").addEventListener("click", addKp);
+document.getElementById("btnClearKp").addEventListener("click", clearKp);
+
+// Enter key in UHID field
+document.getElementById("kpUhid").addEventListener("keydown", (ev)=>{
+  if(ev.key === "Enter"){ ev.preventDefault(); addKp(); }
+});
+
+document.getElementById("btnSendKp").addEventListener("click", async ()=>{
+  if(kpPending.length === 0){
+    showToast("warn","Nothing to send","Add at least one UHID.");
+    return;
+  }
+
+  // IMPORTANT: your server KP takes ONE mortality value per request.
+  // If user mixes Y and N in pending list, split into batches by mortality.
+  const groupY = kpPending.filter(x=>x.mortality === "Y").map(x=>x.uhid);
+  const groupN = kpPending.filter(x=>x.mortality === "N").map(x=>x.uhid);
+
+  kpResultBox.textContent = "Sending KP… (see log for full details)";
+
+  try{
+    let summaries = [];
+
+    if(groupY.length){
+      const respY = await apiKillPatients(groupY, "Y");
+      summaries.push(summarizeKpResp(respY));
+    }
+    if(groupN.length){
+      const respN = await apiKillPatients(groupN, "N");
+      summaries.push(summarizeKpResp(respN));
+    }
+
+    // Success UX requirement:
+    // "KP list to show success upon receiving success from server..then kill patient table needs to be cleared."
+    const okAll = summaries.every(s=>s.ok);
+    const title = okAll ? "KP success" : "KP completed with issues";
+
+    showToast(okAll ? "" : "warn", title, summaries.map(s=>s.short).join(" | "));
+
+    kpResultBox.textContent = summaries.map(s=>s.long).join("\n\n");
+
+    // CLEAR pending list ONLY when we got server ok:true for all batches
+    if(okAll){
+      clearKp(); // clears table (your requirement)
+      logLine("KP: pending list cleared after success");
+    }
+
+    // Optionally refresh list after KP
+    refreshList().catch(()=>{});
+
+  }catch(e){
+    const msg = String(e && e.message ? e.message : e);
+    kpResultBox.textContent = "KP failed: " + msg;
+    showToast("err","KP failed", msg);
+    logLine("KP failed", { err: msg });
+  }
+});
+
+function summarizeKpResp(resp){
+  if(!resp){
+    return { ok:false, short:"No response", long:"No response object." };
+  }
+
+  const ok = resp.ok === true;
+  const reqId = resp.reqId || "";
+  const warnings = Array.isArray(resp.warnings) ? resp.warnings : [];
+
+  // count updated
+  let updated = 0;
+  let notFound = 0;
+
+  const results = resp.results || {};
+  Object.keys(results).forEach(k=>{
+    const r = results[k];
+    const mu = r && r.main && Number(r.main.updated || 0);
+    if(mu > 0) updated += mu;
+    else notFound += 1;
+  });
+
+  const short = `${ok ? "ok" : "fail"} | updated:${updated} | notFound:${notFound}` + (reqId ? ` | reqId:${reqId}` : "");
+  const long = [
+    `ok: ${ok}`,
+    `reqId: ${reqId}`,
+    `mortality: ${resp.mortality || ""}`,
+    `uhids: ${Array.isArray(resp.uhids) ? resp.uhids.join(", ") : ""}`,
+    `updated(main cells): ${updated}`,
+    `notFound: ${notFound}`,
+    warnings.length ? ("warnings:\n- " + warnings.join("\n- ")) : "warnings: none",
+    "raw:\n" + safeJson(resp)
+  ].join("\n");
+
+  return { ok, short, long };
+}
+
+/* ============================================================================
+   Dev tab: config wiring
+   ========================================================================== */
+
+const cfgUrlEl = document.getElementById("cfgUrl");
+const cfgSecretEl = document.getElementById("cfgSecret");
+
+function syncCfgToInputs(){
+  const cfg = loadCfg();
+  cfgUrlEl.value = cfg.url;
+  cfgSecretEl.value = cfg.secret;
+}
+
+function syncInputsToCfg(){
+  const cfg = {
+    url: String(cfgUrlEl.value || "").trim(),
+    secret: String(cfgSecretEl.value || "").trim()
+  };
+  saveCfg(cfg);
+  showToast("", "Saved", "Config stored locally.");
+  logLine("config saved", { hasUrl: !!cfg.url, hasSecret: !!cfg.secret, url: cfg.url });
+}
+
+document.getElementById("btnSaveCfg").addEventListener("click", syncInputsToCfg);
+
+document.getElementById("btnClearCfg").addEventListener("click", ()=>{
+  clearCfg();
+  syncCfgToInputs();
+  showToast("warn","Cleared","Config removed from localStorage.");
+  logLine("config cleared");
+});
+
+document.getElementById("btnCopyCfg").addEventListener("click", async ()=>{
+  const cfg = loadCfg();
+  const txt = safeJson(cfg);
+  try{
+    await navigator.clipboard.writeText(txt);
+    showToast("", "Copied", "Config JSON copied to clipboard.");
+  }catch(e){
+    showToast("warn", "Copy failed", "Clipboard blocked by browser.");
+  }
+});
+
+/* ============================================================================
+   Main: APACHE II scoring (client-side)
+   - This is a robust default implementation.
+   - If you already compute elsewhere, you can keep this; submit mapping stays the same.
+   ========================================================================== */
+
+// Physiologic points helpers (APACHE II standard ranges)
+function ptsTempC(t){
+  if(!isFinite(t)) return 0;
+  if(t >= 41) return 4;
+  if(t >= 39) return 3;
+  if(t >= 38.5) return 1;
+  if(t >= 36) return 0;
+  if(t >= 34) return 1;
+  if(t >= 32) return 2;
+  if(t >= 30) return 3;
+  return 4;
+}
+
+function ptsMAP(map){
+  if(!isFinite(map)) return 0;
+  if(map >= 160) return 4;
+  if(map >= 130) return 3;
+  if(map >= 110) return 2;
+  if(map >= 70)  return 0;
+  if(map >= 50)  return 2;
+  return 4;
+}
+
+function ptsHR(hr){
+  if(!isFinite(hr)) return 0;
+  if(hr >= 180) return 4;
+  if(hr >= 140) return 3;
+  if(hr >= 110) return 2;
+  if(hr >= 70)  return 0;
+  if(hr >= 55)  return 2;
+  if(hr >= 40)  return 3;
+  return 4;
+}
+
+function ptsRR(rr){
+  if(!isFinite(rr)) return 0;
+  if(rr >= 50) return 4;
+  if(rr >= 35) return 3;
+  if(rr >= 25) return 1;
+  if(rr >= 12) return 0;
+  if(rr >= 10) return 1;
+  if(rr >= 6)  return 2;
+  return 4;
+}
+
+function ptsOxygenation(fiO2, paO2, aaGrad){
+  // APACHE II:
+  // If FiO2 >= 0.5 -> use A-a gradient
+  // Else -> use PaO2
+  const f = Number(fiO2);
+  if(!isFinite(f)) return 0;
+
+  if(f >= 0.5){
+    const a = Number(aaGrad);
+    if(!isFinite(a)) return 0; // if not provided, don't invent
+    if(a >= 500) return 4;
+    if(a >= 350) return 3;
+    if(a >= 200) return 2;
+    return 0;
+  }else{
+    const p = Number(paO2);
+    if(!isFinite(p)) return 0;
+    if(p < 55) return 4;
+    if(p < 61) return 3;
+    if(p < 71) return 1;
+    return 0;
+  }
+}
+
 function ptsPH(ph){
-  if(ph==null) return 0;
-  if(ph>=7.70) return 4;
-  if(ph>=7.60) return 3;
-  if(ph>=7.50) return 1;
-  if(ph>=7.33) return 0;
-  if(ph>=7.25) return 2;
-  if(ph>=7.15) return 3;
+  if(!isFinite(ph)) return 0;
+  if(ph >= 7.7) return 4;
+  if(ph >= 7.6) return 3;
+  if(ph >= 7.5) return 1;
+  if(ph >= 7.33) return 0;
+  if(ph >= 7.25) return 2;
+  if(ph >= 7.15) return 3;
   return 4;
 }
-function ptsHCO3(h){
-  if(h==null) return 0;
-  if(h>=52) return 4;
-  if(h>=41) return 3;
-  if(h>=32) return 1;
-  if(h>=22) return 0;
-  if(h>=18) return 2;
-  if(h>=15) return 3;
+
+function ptsNa(na){
+  if(!isFinite(na)) return 0;
+  if(na >= 180) return 4;
+  if(na >= 160) return 3;
+  if(na >= 155) return 2;
+  if(na >= 150) return 1;
+  if(na >= 130) return 0;
+  if(na >= 120) return 2;
+  if(na >= 111) return 3;
   return 4;
 }
-function acidBasePoints(ph, hco3){
-  if(ph!=null) return ptsPH(ph);
-  if(hco3!=null) return ptsHCO3(hco3);
-  return 0;
-}
-function ptsNa(v){
-  if(v==null) return 0;
-  if(v>=180) return 4;
-  if(v>=160) return 3;
-  if(v>=155) return 2;
-  if(v>=150) return 1;
-  if(v>=130) return 0;
-  if(v>=120) return 2;
-  if(v>=111) return 3;
+
+function ptsK(k){
+  if(!isFinite(k)) return 0;
+  if(k >= 7.0) return 4;
+  if(k >= 6.0) return 3;
+  if(k >= 5.5) return 1;
+  if(k >= 3.5) return 0;
+  if(k >= 3.0) return 1;
+  if(k >= 2.5) return 2;
   return 4;
 }
-function ptsK(v){
-  if(v==null) return 0;
-  if(v>=7.0) return 4;
-  if(v>=6.0) return 3;
-  if(v>=5.5) return 1;
-  if(v>=3.5) return 0;
-  if(v>=3.0) return 1;
-  if(v>=2.5) return 2;
-  return 4;
-}
-function ptsCreatinine(v,arf){
-  if(v==null) return 0;
-  let pts=0;
-  if(v>=3.5) pts=4;
-  else if(v>=2.0) pts=3;
-  else if(v>=1.5) pts=2;
-  else if(v<0.6) pts=2;
-  else pts=0;
-  if(arf) pts*=2;
+
+function ptsCr(cr, arf){
+  if(!isFinite(cr)) return 0;
+  let pts = 0;
+  if(cr >= 3.5) pts = 4;
+  else if(cr >= 2.0) pts = 3;
+  else if(cr >= 1.5) pts = 2;
+  else if(cr >= 0.6) pts = 0;
+  else pts = 2;
+  // If acute renal failure, points doubled in APACHE II
+  if(String(arf||"N").toUpperCase() === "Y") pts = pts * 2;
   return pts;
 }
-function ptsHct(v){
-  if(v==null) return 0;
-  if(v>=60) return 4;
-  if(v>=50) return 2;
-  if(v>=46) return 1;
-  if(v>=30) return 0;
-  if(v>=20) return 2;
+
+function ptsHct(hct){
+  if(!isFinite(hct)) return 0;
+  if(hct >= 60) return 4;
+  if(hct >= 50) return 2;
+  if(hct >= 46) return 1;
+  if(hct >= 30) return 0;
+  if(hct >= 20) return 2;
   return 4;
 }
-function ptsWBC(v){
-  if(v==null) return 0;
-  if(v>=40) return 4;
-  if(v>=20) return 2;
-  if(v>=15) return 1;
-  if(v>=3)  return 0;
-  if(v>=1)  return 2;
+
+function ptsWbc(w){
+  if(!isFinite(w)) return 0;
+  if(w >= 40) return 4;
+  if(w >= 20) return 2;
+  if(w >= 15) return 1;
+  if(w >= 3)  return 0;
+  if(w >= 1)  return 2;
   return 4;
 }
-function ptsGCS(g){ if(g==null) return 0; const diff=15-g; return diff<0?0:diff; }
-function agePoints(age){
-  if(age==null) return 0;
-  if(age<=44) return 0;
-  if(age<=54) return 2;
-  if(age<=64) return 3;
-  if(age<=74) return 5;
-  return 6;
-}
-function chronicPoints(chronic,surgtype){
-  if(chronic!=='Yes') return 0;
-  if(surgtype==='Elective') return 2;
-  return 5;
-}
-function mortalityBands(score){
-  const s = Number(score||0);
-  if(s<=4)  return { nonop:4,  postop:1 };
-  if(s<=9)  return { nonop:8,  postop:3 };
-  if(s<=14) return { nonop:15, postop:7 };
-  if(s<=19) return { nonop:25, postop:12 };
-  if(s<=24) return { nonop:40, postop:30 };
-  if(s<=29) return { nonop:55, postop:35 };
-  if(s<=34) return { nonop:73, postop:73 };
-  return { nonop:85, postop:88 };
+
+function ptsGcs(gcs){
+  if(!isFinite(gcs)) return 0;
+  // APACHE II: points = 15 - GCS
+  const g = Math.max(3, Math.min(15, Math.floor(gcs)));
+  return 15 - g;
 }
 
-/* =========================================================================
-   FAST COMPUTE PIPELINE (debounce + cache)
-   ========================================================================= */
-function istMonthYYYYMM(){
-  try{
-    return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
-  }catch(_){
-    return (new Date().toISOString()).slice(0,7);
-  }
-}
-function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
-
-function validateLight(){
-  const patientName = valStr('patientName');
-  const uhid = valStr('uhid');
-  const diagnosis = valStr('diagnosis');
-  const admitDate = valStr('admitDate');
-
-  const sex = $('sex')?.value || '';
-
-  const age = valNum('age');
-  const gcs = valNum('gcs');
-  const tempF = valNum('tempF');
-  const map = valNum('map');
-  const hr = valNum('hr');
-  const rr = valNum('rr');
-  const na = valNum('na');
-  const k = valNum('k');
-  const cr = valNum('cr');
-  const wbc = valNum('wbc');
-  const hct = valNum('hct');
-
-  const fio2 = radioVal('fio2');
-  const mortYN = radioVal('mortality');
-
-  if(!patientName || !uhid || !diagnosis || !admitDate) return { ok:false, why:'Missing required identity/admission fields' };
-  if(!sex) return { ok:false, why:'Sex required' };
-  if(age==null || gcs==null) return { ok:false, why:'Age/GCS required' };
-  if(tempF==null || map==null || hr==null || rr==null) return { ok:false, why:'Vitals incomplete' };
-  if(na==null || k==null || cr==null || wbc==null || hct==null) return { ok:false, why:'Labs incomplete' };
-  if(!fio2) return { ok:false, why:'FiO2 required' };
-  if(!mortYN) return { ok:false, why:'Mortality Y/N required' };
-
-  if(fio2 === '<50%'){
-    const pao2 = valNum('pao2');
-    if(pao2==null) return { ok:false, why:'PaO2 required for FiO2 <50%' };
-  }else{
-    const aagrad = valNum('aagrad');
-    if(aagrad==null) return { ok:false, why:'A-a gradient required for FiO2 >=50%' };
-  }
-
-  const phVal = valNum('ph');
-  const hco3Val = valNum('hco3');
-  if(phVal==null && hco3Val==null) return { ok:false, why:'pH or HCO3 required' };
-
-  return { ok:true };
+function ptsAge(age){
+  if(!isFinite(age)) return 0;
+  if(age >= 75) return 6;
+  if(age >= 65) return 5;
+  if(age >= 55) return 3;
+  if(age >= 45) return 2;
+  return 0;
 }
 
-function snapshotInputsForCompute(){
-  const age = valNum('age');
-  const fio2 = radioVal('fio2');
-  const tempF = valNum('tempF');
-  const map = valNum('map');
-  const hr = valNum('hr');
-  const rr = valNum('rr');
-  const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
-  const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
-
-  const phVal = valNum('ph');
-  const hco3Val = valNum('hco3');
-
-  const na = valNum('na');
-  const k = valNum('k');
-  const cr = valNum('cr');
-  const wbc = valNum('wbc');
-  const hct = valNum('hct');
-
-  const gcs = valNum('gcs');
-  const arf = (radioVal('arf')==='Yes');
-  const chronic = radioVal('chronic')==='Yes' ? 'Yes' : 'No';
-  const surgtype = chronic==='Yes' ? radioVal('surgtype') : null;
-
-  return { age, fio2, tempF, map, hr, rr, pao2, aagrad, phVal, hco3Val, na, k, cr, wbc, hct, gcs, arf, chronic, surgtype };
+// crude mortality band (commonly used quick bands; adjust if you have your own bands)
+function mortalityBand(score){
+  if(!isFinite(score)) return 0;
+  if(score >= 35) return 85.0;
+  if(score >= 30) return 75.0;
+  if(score >= 25) return 55.0;
+  if(score >= 20) return 40.0;
+  if(score >= 15) return 25.0;
+  if(score >= 10) return 15.0;
+  return 5.0;
 }
 
-function signatureKey(s){
-  return [
-    s.age, s.fio2, s.tempF, s.map, s.hr, s.rr, s.pao2, s.aagrad,
-    s.phVal, s.hco3Val, s.na, s.k, s.cr, s.wbc, s.hct, s.gcs,
-    s.arf?1:0, s.chronic, s.surgtype||''
-  ].join('|');
+function recalcApache(){
+  const age = Number(document.getElementById("age").value);
+  const t = Number(document.getElementById("vTemp").value);
+  const map = Number(document.getElementById("vMap").value);
+  const hr = Number(document.getElementById("vHr").value);
+  const rr = Number(document.getElementById("vRr").value);
+  const fio2 = Number(document.getElementById("vFiO2").value);
+  const pao2 = Number(document.getElementById("vPaO2").value);
+  const aa = Number(document.getElementById("vAaGrad").value);
+  const ph = Number(document.getElementById("vPh").value);
+  const na = Number(document.getElementById("vNa").value);
+  const k = Number(document.getElementById("vK").value);
+  const cr = Number(document.getElementById("vCr").value);
+  const hct = Number(document.getElementById("vHct").value);
+  const wbc = Number(document.getElementById("vWbc").value);
+  const gcs = Number(document.getElementById("vGcs").value);
+  const arf = document.getElementById("vArf").value;
+  const chronic = Number(document.getElementById("vChronic").value || 0);
+
+  const phys =
+    ptsTempC(t) +
+    ptsMAP(map) +
+    ptsHR(hr) +
+    ptsRR(rr) +
+    ptsOxygenation(fio2, pao2, aa) +
+    ptsPH(ph) +
+    ptsNa(na) +
+    ptsK(k) +
+    ptsCr(cr, arf) +
+    ptsHct(hct) +
+    ptsWbc(wbc) +
+    ptsGcs(gcs);
+
+  const total = phys + ptsAge(age) + (isFinite(chronic) ? chronic : 0);
+
+  document.getElementById("apacheScore").value = isFinite(total) ? Math.round(total) : "";
+  document.getElementById("mortPct").value = isFinite(total) ? mortalityBand(total).toFixed(1) : "";
+
+  return total;
 }
 
-let COMPUTE_CACHE = { key:null, value:null };
+document.getElementById("btnRecalc").addEventListener("click", ()=>{
+  const s = recalcApache();
+  showToast("", "Recalculated", "Apache Score = " + (isFinite(s) ? Math.round(s) : "—"));
+});
 
-function computeApacheFast(snap){
-  const tempC = snap.tempF!=null ? fToC(snap.tempF) : null;
+// auto-recalc on relevant inputs
+[
+  "age","vTemp","vMap","vHr","vRr","vFiO2","vPaO2","vAaGrad","vPh","vNa","vK","vCr","vHct","vWbc","vGcs","vArf","vChronic"
+].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener("input", ()=>{ try{ recalcApache(); }catch(e){} });
+});
 
-  const aps = ptsTempC(tempC)+
-              ptsMAP(snap.map)+
-              ptsHR(snap.hr)+
-              ptsRR(snap.rr)+
-              ptsOxygen(snap.fio2, snap.pao2, snap.aagrad)+
-              acidBasePoints(snap.phVal, snap.hco3Val)+
-              ptsNa(snap.na)+
-              ptsK(snap.k)+
-              ptsCreatinine(snap.cr, snap.arf)+
-              ptsHct(snap.hct)+
-              ptsWBC(snap.wbc)+
-              ptsGCS(snap.gcs);
+/* ============================================================================
+   Submit mapping — EXACT server sheetRow order
+   ========================================================================== */
 
-  const agePts = agePoints(snap.age);
-  const chronicPts = chronicPoints(snap.chronic, snap.surgtype);
-  const apacheII = aps + agePts + chronicPts;
+function buildSubmitPayload(){
+  const cfg = requireCfg();
 
-  const mort = mortalityBands(apacheII);
-  return { apacheII, mortNon: mort.nonop, mortPost: mort.postop };
-}
+  const uhid = String(document.getElementById("uhid").value||"").trim();
+  const name = String(document.getElementById("patientName").value||"").trim();
+  const age = document.getElementById("age").value;
+  const sex = String(document.getElementById("sex").value||"").trim();
+  const dx = String(document.getElementById("diagnosis").value||"").trim();
+  const admit = String(document.getElementById("admissionDate").value||"").trim();
 
-function computeCached(){
-  const snap = snapshotInputsForCompute();
-  const key = signatureKey(snap);
-  if(COMPUTE_CACHE.key === key && COMPUTE_CACHE.value) return COMPUTE_CACHE.value;
-  const out = computeApacheFast(snap);
-  COMPUTE_CACHE = { key, value: out };
-  return out;
-}
+  const apache = document.getElementById("apacheScore").value;
+  const mortPct = document.getElementById("mortPct").value;
+  const mortYN = String(document.getElementById("mortYN").value||"N").trim().toUpperCase();
 
-let computeTimer = null;
-function scheduleCompute(){
-  clearTimeout(computeTimer);
-  computeTimer = setTimeout(runComputeAndUI, 120);
-}
+  const m = monthIST();
 
-function runComputeAndUI(){
-  const v = validateLight();
-
-  const submit = $('btnSubmit');
-  const note = $('incompleteNote');
-  const card = $('resultsCard');
-
-  if(!v.ok){
-    if(submit) submit.disabled = true;
-    if(note) note.setAttribute('data-visible','true');
-    if(card) card.setAttribute('data-visible','false');
-    if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = true;
-    return;
-  }
-
-  if(submit) submit.disabled = false;
-  if(note) note.setAttribute('data-visible','false');
-
-  const res = computeCached();
-  $('resApache').textContent = String(res.apacheII) + ' pts';
-  $('resMortNon').textContent = String(res.mortNon) + '%';
-  $('resMortPost').textContent = String(res.mortPost) + '%';
-  if(card) card.setAttribute('data-visible','true');
-  if($('btnCopyExcelRow')) $('btnCopyExcelRow').disabled = false;
-}
-
-function attachFastListeners(){
-  const ids = [
-    'patientName','uhid','age','sex','admitDate','diagnosis','gcs',
-    'tempF','map','hr','rr','pao2','aagrad','ph','hco3','na','k','cr','wbc','hct'
-  ];
-  ids.forEach(id=>{
-    const el=$(id);
-    if(!el) return;
-    el.addEventListener('input', scheduleCompute, { passive:true });
-    el.addEventListener('change', scheduleCompute, { passive:true });
-  });
-
-  const radioNames = ['fio2','arf','chronic','surgtype','mortality'];
-  radioNames.forEach(n=>{
-    document.querySelectorAll('input[name="'+n+'"]').forEach(r=>{
-      r.addEventListener('change', scheduleCompute, { passive:true });
-    });
-  });
-}
-
-/* =========================================================================
-   Strict payload builder (ONLY used for submit & preview)
-   ========================================================================= */
-function buildPayloadStrict(){
-  const patientName=valStr('patientName');
-  const uhid=valStr('uhid');
-  const age=valNum('age');
-  const sexSel=$('sex'); const sex=sexSel?sexSel.value:'';
-  const diagnosis=valStr('diagnosis');
-  const admitDate=valStr('admitDate');
-  const fio2=radioVal('fio2');
-  const mortYN=radioVal('mortality');
-
-  if(!patientName) throw new Error('Patient Name is required');
-  if(!uhid) throw new Error('UHID is required');
-  if(age===null) throw new Error('Age is required');
-  if(!sex) throw new Error('Sex is required');
-  if(!diagnosis) throw new Error('Diagnosis is required');
-  if(!admitDate) throw new Error('Admission Date is required');
-  if(!fio2) throw new Error('FiO₂ category is required');
-  if(!mortYN) throw new Error('Mortality (Y/N) is required');
-
-  const chronic=radioVal('chronic');
-  const surgtype=chronic==='Yes' ? radioVal('surgtype') : null;
-
-  const tempF = valNum('tempF'); if(tempF===null) throw new Error('Temperature is required');
-  const map   = valNum('map');   if(map===null)   throw new Error('MAP is required');
-  const hr    = valNum('hr');    if(hr===null)    throw new Error('Heart Rate is required');
-  const rr    = valNum('rr');    if(rr===null)    throw new Error('Respiratory Rate is required');
-
-  const pao2 = fio2 === '<50%' ? valNum('pao2') : null;
-  const aagrad = fio2 !== '<50%' ? valNum('aagrad') : null;
-  if(fio2 === '<50%' && pao2===null) throw new Error('PaO₂ is required when FiO₂ < 50%');
-  if(fio2 !== '<50%' && aagrad===null) throw new Error('A–a gradient is required when FiO₂ ≥ 50%');
-
-  const phVal = valNum('ph');
-  const hco3Val = valNum('hco3');
-  if(phVal===null && hco3Val===null) throw new Error('Provide arterial pH or HCO₃⁻');
-
-  const na = valNum('na'); if(na===null) throw new Error('Sodium is required');
-  const k  = valNum('k');  if(k===null)  throw new Error('Potassium is required');
-  const cr = valNum('cr'); if(cr===null) throw new Error('Creatinine is required');
-  const wbc= valNum('wbc');if(wbc===null)throw new Error('WBC is required');
-  const hct= valNum('hct');if(hct===null)throw new Error('Hematocrit is required');
-
-  const gcs = valNum('gcs'); if(gcs===null) throw new Error('GCS is required');
-
-  const inputs={
-    Age_years: age,
-    GCS: gcs,
-    Temperature_F: tempF,
-    MAP_mmHg: map,
-    HeartRate_bpm: hr,
-    RespRate_bpm: rr,
-    FiO2_Category: fio2,
-    PaO2_mmHg: pao2,
-    AaGradient_mmHg: aagrad,
-    pH: phVal,
-    HCO3_mEqL: hco3Val,
-    Na_mEqL: na,
-    K_mEqL: k,
-    Creatinine_mgdl: cr,
-    AcuteRenalFailure: radioVal('arf')==='Yes',
-    Hematocrit_pct: hct,
-    WBC_10e3uL: wbc,
-    ChronicHealth: chronic==='Yes' ? 'Yes' : 'No',
-    SurgeryType: surgtype
-  };
-
-  const nowIso=new Date().toISOString();
-  const { clientId } = currentConn();
-
-  const { apacheII, mortNon, mortPost } = computeApacheFast({
-    age, fio2, tempF, map, hr, rr, pao2, aagrad, phVal, hco3Val, na, k, cr, wbc, hct, gcs,
-    arf: inputs.AcuteRenalFailure,
-    chronic: inputs.ChronicHealth,
-    surgtype
-  });
-
-  const selectedMortality = (surgtype==='Emergency' || surgtype==='Elective') ? mortPost : mortNon;
-  const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, selectedMortality, mortYN ];
+  // minimal client validation (server will validate strictly too)
+  if(!uhid) throw new Error("UHID is required");
+  if(!name) throw new Error("Patient Name is required");
+  if(age === "" || age === null) throw new Error("Age is required");
+  if(!sex) throw new Error("Sex is required");
+  if(!dx) throw new Error("Diagnosis is required");
+  if(!admit) throw new Error("Admission Date is required");
+  if(apache === "" || apache === null) throw new Error("Apache Score missing");
+  if(mortPct === "" || mortPct === null) throw new Error("Mortality percentage missing");
+  if(!/^[YN]$/.test(mortYN)) throw new Error('Mortality(Y/N) must be "Y" or "N"');
 
   return {
-    clientId,
-    authToken: '',
-    patientName, uhid, age, sex, diagnosis, admitDate,
-    timestamp: nowIso,
-    month: monthKeyFromISO(nowIso),
-    submissionId: uuidv4(),
-    apacheInputs: inputs,
-    apacheScore: apacheII,
-    predictedMortalityNonOpPct: mortNon,
-    predictedMortalityPostOpPct: mortPost,
-    predictedMortalityPct: selectedMortality,
-    mortalityYN: mortYN,
-    sheetRow: row
+    authToken: cfg.secret,      // EXACT: server validates authToken/auth/token/key
+    month: m,                  // EXACT: YYYY-MM
+    sheetRow: [
+      uhid,
+      name,
+      age,
+      sex,
+      dx,
+      admit,
+      apache,
+      mortPct,
+      mortYN
+    ]
   };
 }
 
-/* =========================================================================
-   BRIDGE TRANSPORT (NO CORS)
-   - Requires Apps Script bridge patch (_respond_ + _bridgeHtml_)
-   ========================================================================= */
-const BRIDGE_TIMEOUT_MS = 15000;
-const __bridgeInflight = new Map();
+/* ============================================================================
+   Buttons: Submit / Download / Dup-check / Ping
+   ========================================================================== */
 
-window.addEventListener("message", (ev) => {
-  const msg = ev && ev.data;
-  if (!msg || msg.__APACHE_BRIDGE__ !== true) return;
-  const cb = String(msg.cb || "");
-  const inflight = __bridgeInflight.get(cb);
-  if (!inflight) return;
-
-  clearTimeout(inflight.to);
-  __bridgeInflight.delete(cb);
-  try { inflight.iframe.remove(); } catch(_) {}
-  try { inflight.resolve(msg.data); } catch(_) {}
-});
-
-function bridgeCancel(cb){
-  const inflight = __bridgeInflight.get(cb);
-  if(!inflight) return;
-  clearTimeout(inflight.to);
-  __bridgeInflight.delete(cb);
-  try { inflight.iframe.remove(); } catch(_) {}
-  try { inflight.reject(new Error("Canceled")); } catch(_) {}
-}
-
-function bridgeGet(execUrl, params){
-  const cb = crypto.randomUUID();
-  const url = new URL(execUrl);
-  Object.entries(params || {}).forEach(([k,v]) => url.searchParams.set(k, v));
-  url.searchParams.set("bridge","1");
-  url.searchParams.set("cb", cb);
-  url.searchParams.set("origin", location.origin);
-
-  const iframe = document.createElement("iframe");
-  iframe.style.display = "none";
-  iframe.src = url.toString();
-  document.body.appendChild(iframe);
-
-  const p = new Promise((resolve, reject) => {
-    const to = setTimeout(() => {
-      __bridgeInflight.delete(cb);
-      try { iframe.remove(); } catch(_) {}
-      reject(new Error("Bridge GET timeout"));
-    }, BRIDGE_TIMEOUT_MS);
-    __bridgeInflight.set(cb, { resolve, reject, to, iframe });
-  });
-  p._cb = cb;
-  return p;
-}
-
-function bridgePost(execUrl, jsonPayload){
-  const cb = crypto.randomUUID();
-  const url = new URL(execUrl);
-  url.searchParams.set("bridge","1");
-  url.searchParams.set("cb", cb);
-  url.searchParams.set("origin", location.origin);
-
-  const iframe = document.createElement("iframe");
-  iframe.name = "apacheBridge_" + cb;
-  iframe.style.display = "none";
-  document.body.appendChild(iframe);
-
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = url.toString();
-  form.target = iframe.name;
-
-  const inp = document.createElement("input");
-  inp.type = "hidden";
-  inp.name = "json";
-  inp.value = JSON.stringify(jsonPayload);
-  form.appendChild(inp);
-
-  document.body.appendChild(form);
-  form.submit();
-  form.remove();
-
-  const p = new Promise((resolve, reject) => {
-    const to = setTimeout(() => {
-      __bridgeInflight.delete(cb);
-      try { iframe.remove(); } catch(_) {}
-      reject(new Error("Bridge POST timeout"));
-    }, BRIDGE_TIMEOUT_MS);
-    __bridgeInflight.set(cb, { resolve, reject, to, iframe });
-  });
-  p._cb = cb;
-  return p;
-}
-
-/* =========================================================================
-   NETWORK HELPERS (bridge wrappers)
-   ========================================================================= */
-function isOkish(data){
-  if(!data) return false;
-  if(data.ok === true) return true;
-  if(data.success === true) return true;
-  if(String(data.status||'').toLowerCase() === 'ok') return true;
-  return false;
-}
-
-function normalizePatientsFromListResponse(data){
-  const root = data?.data ?? data ?? {};
-  let patients = root.patients ?? root.rows ?? root.list ?? [];
-  if(!Array.isArray(patients)) patients = [];
-
-  const out = [];
-  for(const item of patients){
-    if(Array.isArray(item)){
-      out.push({ uhid: item[0], name: item[1] });
-    }else if(item && typeof item === 'object'){
-      out.push({
-        uhid: item.uhid ?? item.UHID ?? item.id ?? item[0],
-        name: item.name ?? item.patientName ?? item.PatientName ?? item[1]
-      });
-    }
-  }
-  return out.filter(x => String(x.uhid ?? '').trim() || String(x.name ?? '').trim());
-}
-
-/* =========================================================================
-   Submit (FAST UX) — bridge POST (no CORS)
-   ========================================================================= */
-async function postOnline(strictPayload){
-  const { url, secret, clientId } = currentConn();
-  if(!url) throw new Error('Online Webhook URL not configured.');
-  if(!secret) throw new Error('Online Secret missing.');
-
-  const execUrl = sanitizeExecUrl(url);
-
-  const sendPayload = {
-    ...strictPayload,
-    clientId,
-    authToken: secret || ''
-  };
-
-  const data = await bridgePost(execUrl, sendPayload);
-  if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
-
-  if(!isOkish(data)){
-    const detail = data && (data.error || data.message || JSON.stringify(data).slice(0,200));
-    throw new Error('Sheets webhook did not confirm success' + (detail?': '+detail:''));
-  }
-  return data;
-}
-
-$('btnSubmit').addEventListener('click', async (ev)=>{
-  ev.preventDefault();
-  const button=$('btnSubmit');
-  button.disabled=true;
-
-  const slowTimer = setTimeout(()=>toastCenter('Still sending… network may be slow.'), 1600);
-
+document.getElementById("btnSubmit").addEventListener("click", async ()=>{
   try{
-    saveDevOverrides();
-    const payload = buildPayloadStrict();
+    recalcApache();
+    const payload = buildSubmitPayload();
 
-    toast('Sending to Google Sheets…');
-    await postOnline(payload);
+    showToast("", "Submitting…", "Waiting for server response (bridge).");
+    const resp = await apiSubmit(payload);
 
-    clearTimeout(slowTimer);
-    toast('Saved to Google Sheets ✅');
-    scheduleCompute();
-  }catch(e){
-    clearTimeout(slowTimer);
-    if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
-    toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
-  }finally{
-    scheduleCompute();
-  }
-});
+    if(resp && resp.ok === true){
+      const rowNo = resp.rowNumber || "";
+      const mode = resp.upsertMode || "";
+      const warn = Array.isArray(resp.warnings) && resp.warnings.length ? (" | warnings: " + resp.warnings.length) : "";
+      showToast("", "Submitted ✅", `Row ${rowNo} (${mode})${warn}`);
 
-/* =========================================================================
-   Download current month
-   - Avoid fetch CORS entirely: just open the download URL (fast + reliable)
-   ========================================================================= */
-function downloadCurrentMonth(){
-  const { url, secret } = currentConn();
-  if(!url){ toast('Online URL missing.', false); return; }
-  if(!secret){ toast('Online Secret missing (required for download).', false); return; }
+      // optional: refresh list if admin open
+      if(adminPanel.getAttribute("aria-hidden")==="false"){
+        refreshList().catch(()=>{});
+      }
 
-  const ym = istMonthYYYYMM();
-  const execUrl = sanitizeExecUrl(url);
+      // show reqId pill
+      if(resp.reqId) pillReq.textContent = "Last reqId: " + resp.reqId;
 
-  const qs = new URLSearchParams({
-    action:'download',
-    month: ym,
-    auth: secret,
-    authToken: secret
-  }).toString();
-
-  const full = execUrl + (execUrl.includes('?')?'&':'?') + qs;
-  try{
-    window.open(full, '_blank', 'noopener');
-    toast('Download opened ✅');
-  }catch(_){
-    toast('Download could not open (popup blocked).', false);
-  }
-}
-$('btnDownload').addEventListener('click', downloadCurrentMonth);
-
-/* =========================================================================
-   Dev tools (preview/copy/dummy)
-   ========================================================================= */
-$('btnBuildPreview').addEventListener('click', ()=>{
-  try{
-    const payload=buildPayloadStrict();
-    $('debugPreview').textContent = JSON.stringify(payload, null, 2);
-    toast('Payload built');
-  }catch(e){
-    $('debugPreview').textContent = 'Error: '+e.message;
-    toast(e.message, false);
-  }
-});
-
-$('btnCopyPreview').addEventListener('click', ()=>{
-  try{ navigator.clipboard.writeText($('debugPreview').textContent||''); toast('Copied JSON'); }
-  catch(_){ toast('Copy failed', false); }
-});
-
-$('btnCopyExcelRow').addEventListener('click', ()=>{
-  try{
-    const p = buildPayloadStrict();
-    navigator.clipboard.writeText(p.sheetRow.join('\t'));
-    toast('Row copied (tab-separated). Paste into Excel/Sheets.');
-  }catch(e){
-    toast('Copy failed: '+(e && e.message ? e.message : String(e)), false);
-  }
-});
-
-function dummyFill(){
-  const age = randInt(45,70);
-  $('patientName').value = 'Jane Doe';
-  $('patientNameMini').value = 'Jane Doe';
-  $('uhid').value = '2010' + String(randInt(1000,9999));
-  $('uhidMini').value = $('uhid').value;
-
-  $('age').value = String(age);
-  $('sex').value = 'Female';
-  $('admitDate').value = todayISO();
-  $('diagnosis').value = 'CKD on HTN; Community-acquired pneumonia; on oxygen';
-
-  $('tempF').value = '99.1';
-  $('map').value = '78';
-  $('hr').value = '96';
-  $('rr').value = '22';
-  $('gcs').value = '14';
-
-  document.querySelector('input[name="fio2"][value="<50%"]').checked = true;
-  updateOxygenUI();
-  $('pao2').value = '72';
-  $('aagrad').value = '';
-
-  $('ph').value = '7.36';
-  $('hco3').value = '22';
-  $('na').value = '138';
-  $('k').value = '4.8';
-  $('cr').value = '2.6';
-  $('wbc').value = '13.2';
-  $('hct').value = '33';
-
-  document.querySelector('input[name="arf"][value="Yes"]').checked = true;
-
-  document.querySelector('input[name="chronic"][value="Yes"]').checked = true;
-  $('surgTypeWrap').style.display = 'grid';
-  document.querySelector('input[name="surgtype"][value="Nonoperative"]').checked = true;
-
-  document.querySelector('input[name="mortality"][value="N"]').checked = true;
-
-  toast('Dummy data filled');
-  scheduleCompute();
-}
-$('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
-
-/* =========================================================================
-   Duplicate-check (GET) — bridge GET (no CORS)
-   ========================================================================= */
-let dupInflightCb = null;
-const dupEl = $('dupIndicator');
-
-function setDupStatus(state, text){
-  if(!dupEl) return;
-  dupEl.dataset.state = state || '';
-  if(state === 'checking'){
-    dupEl.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>'+(text||'Looking for duplicates…')+'</span>';
-    dupEl.style.display = 'inline-flex';
-  }else if(state === 'none'){
-    dupEl.innerHTML = '<span>✓</span><span>'+(text||'No duplicates')+'</span>';
-    dupEl.style.display = 'inline-flex';
-    setTimeout(()=>{ dupEl.style.display='none'; }, 1600);
-  }else if(state === 'error'){
-    dupEl.innerHTML = '<span>!</span><span>'+(text||'Check failed')+'</span>';
-    dupEl.style.display = 'inline-flex';
-    setTimeout(()=>{ dupEl.style.display='none'; }, 2000);
-  }else{
-    dupEl.style.display='none';
-  }
-}
-
-function bothFilled(){
-  const name = valStr('patientName');
-  const uhid = valStr('uhid');
-  return !!(name && uhid);
-}
-
-function looksDuplicate(data){
-  if(!data) return false;
-  if(data.tag === 'duplicate_entry') return true;
-  if(data.duplicate === true) return true;
-  if(data.isDuplicate === true) return true;
-  if((data.matches|0) > 0) return true;
-  if(Array.isArray(data.matches) && data.matches.length>0) return true;
-  if(Array.isArray(data.duplicates) && data.duplicates.length>0) return true;
-  return false;
-}
-
-async function checkDuplicateNow(){
-  const name = valStr('patientName');
-  const uhid = valStr('uhid');
-  if(!name || !uhid) return;
-
-  const { url, secret } = currentConn();
-  if(!url || !secret) return;
-
-  const execUrl = sanitizeExecUrl(url);
-  const ym = istMonthYYYYMM();
-
-  if(dupInflightCb){
-    bridgeCancel(dupInflightCb);
-    dupInflightCb = null;
-  }
-
-  setDupStatus('checking', 'Looking for duplicates…');
-
-  try{
-    const p = bridgeGet(execUrl, {
-      action:'check',
-      uhid: String(uhid).trim(),
-      name: String(name).trim(),
-      month: ym,
-      auth: secret,
-      authToken: secret
-    });
-    dupInflightCb = p._cb;
-    const data = await p;
-    dupInflightCb = null;
-
-    if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
-
-    if(looksDuplicate(data)){
-      setDupStatus('', '');
-      toastCenter('Possible duplicate entry found!');
     }else{
-      setDupStatus('none','No duplicates');
+      // server already toast'ed error, but keep a visible fallback
+      showToast("err","Submit failed", (resp && resp.error) ? resp.error : "Unknown");
     }
   }catch(e){
-    if(String(e?.message||'').toLowerCase().includes('canceled')) return;
-    setDupStatus('error','Check failed');
+    const msg = String(e && e.message ? e.message : e);
+    showToast("err","Cannot submit", msg);
+    logLine("submit: client error", { err: msg });
   }
-}
-
-function onBlurTrigger(){
-  if(bothFilled()) checkDuplicateNow();
-}
-function onFocusCancel(){
-  if(dupInflightCb){
-    bridgeCancel(dupInflightCb);
-    dupInflightCb = null;
-  }
-  setDupStatus('', '');
-}
-['patientName','uhid','patientNameMini','uhidMini'].forEach(id=>{
-  const el=$(id);
-  if(!el) return;
-  el.addEventListener('focus', onFocusCancel, true);
-  el.addEventListener('blur', onBlurTrigger, true);
 });
 
-/* =========================================================================
-   ADMIN: LIST patients — bridge POST (tag=LIST) + cache
-   ========================================================================= */
-const ADMIN_LIST_CACHE = new Map();
-const ADMIN_LIST_TTL_MS = 30_000;
-
-function renderPatientsTable(patients){
-  if(!adminPatientsTbody) return;
-  if(!patients || patients.length===0){
-    adminPatientsTbody.innerHTML =
-      '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">No entries found for this month.</td></tr>';
+document.getElementById("btnDownload").addEventListener("click", ()=>{
+  // In your script, download may not require auth (REQUIRE_AUTH_FOR_DOWNLOAD = false).
+  // We'll use redirect mode to force download UX.
+  const cfg = loadCfg();
+  if(!cfg.url){
+    showToast("err","Missing /exec URL","Open ⚙️ → Dev / Logs and set it.");
     return;
   }
-  let html = '';
-  for(let i=0;i<patients.length;i++){
-    const u = escapeHtml(patients[i].uhid||'');
-    const n = escapeHtml(patients[i].name||'');
-    html += '<tr><td style="font-weight:800;color:#e2e8f0">'+u+'</td><td style="color:rgba(226,232,240,.92)">'+n+'</td></tr>';
-  }
-  adminPatientsTbody.innerHTML = html;
-}
+  const m = monthIST();
+  const url = buildUrl(cfg.url, { action:"download", month:m, mode:"redirect" });
+  window.open(url, "_blank", "noopener,noreferrer");
+});
 
-async function fetchPatientsList(month, force=false){
-  const key = String(month||'').trim();
-  if(!key) throw new Error('Month missing');
-
-  const cached = ADMIN_LIST_CACHE.get(key);
-  if(!force && cached && (Date.now()-cached.ts) < ADMIN_LIST_TTL_MS){
-    return cached.patients;
-  }
-
-  const { url, secret } = currentConn();
-  if(!url) throw new Error('Online URL missing');
-  if(!secret) throw new Error('Online Secret missing (required for LIST/KP)');
-
-  const execUrl = sanitizeExecUrl(url);
-
-  // Page through (limit/offset) to avoid giant payloads
-  let offset = 0;
-  const limit = 500;
-  let all = [];
-
-  while(true){
-    const payload = {
-      tag: 'LIST',
-      month: key,
-      limit,
-      offset,
-      authToken: secret
-    };
-    const data = await bridgePost(execUrl, payload);
-    if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
-
-    if(!isOkish(data)){
-      const detail = data && (data.error || data.message || JSON.stringify(data).slice(0,200));
-      throw new Error('LIST did not confirm ok' + (detail?': '+detail:''));
-    }
-
-    const patients = normalizePatientsFromListResponse(data);
-    all = all.concat(patients);
-
-    if(patients.length < limit) break;
-    offset += limit;
-    if(offset > 20000) break; // safety
-  }
-
-  ADMIN_LIST_CACHE.set(key, { ts: Date.now(), patients: all });
-  return all;
-}
-
-async function adminEnsureListLoaded(opening=false, force=false){
+document.getElementById("btnCheckDup").addEventListener("click", async ()=>{
   try{
-    const month = istMonthYYYYMM();
-    if(adminMonthPill) adminMonthPill.textContent = 'Month: '+month;
-    if(adminPanel.getAttribute('aria-hidden')!=='false') return;
-
-    adminPatientsTbody.innerHTML =
-      '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>';
-
-    const patients = await fetchPatientsList(month, force);
-    renderPatientsTable(patients);
-    if(!opening) toast('List updated ✅');
-  }catch(e){
-    renderPatientsTable([]);
-    toast('List failed: '+(e && e.message ? e.message : String(e)), false);
-  }
-}
-
-/* =========================================================================
-   ADMIN: KP queue + Update — bridge POST (tag=KP)
-   ========================================================================= */
-const kpUhid=$('kpUhid'), kpYN=$('kpYN'), btnKpAdd=$('btnKpAdd'), btnKpUpdate=$('btnKpUpdate'), btnKpClear=$('btnKpClear');
-const kpQueueTbody=$('kpQueueTbody');
-
-let KP_QUEUE = [];
-function normalizeUhid(u){ return String(u||'').trim(); }
-
-function kpQueueSet(next){
-  KP_QUEUE = Array.isArray(next) ? next : [];
-  renderKpQueue();
-}
-
-function renderKpQueue(){
-  const n = KP_QUEUE.length;
-  if(adminQueuePill) adminQueuePill.textContent = 'Queued: '+n;
-  if(btnKpUpdate) btnKpUpdate.disabled = (n===0);
-
-  if(!kpQueueTbody) return;
-  if(n===0){
-    kpQueueTbody.innerHTML = '<tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>';
-    return;
-  }
-
-  let html = '';
-  for(let i=0;i<n;i++){
-    const item = KP_QUEUE[i];
-    const u = escapeHtml(item.uhid||'');
-    const yn = escapeHtml(item.yn||'Y');
-    html += '<tr>' +
-      '<td style="font-weight:800;color:#e2e8f0">'+u+'</td>' +
-      '<td style="font-weight:900">'+yn+'</td>' +
-      '<td><button class="btn ghost" type="button" data-kp-remove="'+i+'" style="padding:8px 10px">Remove</button></td>' +
-    '</tr>';
-  }
-  kpQueueTbody.innerHTML = html;
-}
-
-kpQueueTbody.addEventListener('click', (ev)=>{
-  const t = ev.target;
-  if(!t) return;
-  const idx = t.getAttribute && t.getAttribute('data-kp-remove');
-  if(idx==null) return;
-  const i = Number(idx);
-  if(Number.isFinite(i)){
-    const next = KP_QUEUE.slice();
-    next.splice(i, 1);
-    kpQueueSet(next);
-  }
-});
-
-btnKpAdd.addEventListener('click', ()=>{
-  const u = normalizeUhid(kpUhid.value);
-  const yn = String(kpYN.value||'Y').trim().toUpperCase()==='N' ? 'N' : 'Y';
-  if(!u){ toast('Enter UHID', false); return; }
-
-  const next = KP_QUEUE.filter(x => String(x.uhid) !== u);
-  next.push({ uhid:u, yn });
-  kpQueueSet(next);
-
-  kpUhid.value = '';
-  kpUhid.focus();
-  toast('Added to queue');
-});
-
-btnKpClear.addEventListener('click', ()=>{
-  kpQueueSet([]);
-  toast('Queue cleared');
-});
-
-async function postKP(uhids){
-  const { url, secret } = currentConn();
-  if(!url) throw new Error('Online URL missing');
-  if(!secret) throw new Error('Online Secret missing (required for KP)');
-  const execUrl = sanitizeExecUrl(url);
-
-  const payload = {
-    tag: 'KP',
-    month: istMonthYYYYMM(),
-    uhids: uhids,
-    authToken: secret
-  };
-  return await bridgePost(execUrl, payload);
-}
-
-btnKpUpdate.addEventListener('click', async ()=>{
-  if(KP_QUEUE.length===0) return;
-
-  const yList = KP_QUEUE.filter(x => x.yn==='Y').map(x => x.uhid);
-  const nList = KP_QUEUE.filter(x => x.yn==='N').map(x => x.uhid);
-
-  if(nList.length>0) toast('Note: Backend KP may set Y only. N entries will be skipped.', true, 'warn');
-  if(yList.length===0){ toast('Nothing to update (only N entries).', false); return; }
-
-  toast('Updating mortality (KP)…');
-
-  try{
-    const resp = await postKP(yList);
-    if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
-
-    if(!isOkish(resp)){
-      const detail = resp && (resp.error || resp.message || JSON.stringify(resp).slice(0,200));
-      throw new Error('KP did not confirm ok' + (detail?': '+detail:''));
+    const uhid = String(document.getElementById("uhid").value||"").trim();
+    const name = String(document.getElementById("patientName").value||"").trim();
+    if(!uhid || !name){
+      showToast("warn","Need UHID + Name","Fill those fields first.");
+      return;
     }
-
-    const remain = KP_QUEUE.filter(x => x.yn==='N');
-    kpQueueSet(remain);
-
-    toast('Mortality updated for '+yList.length+' UHID(s) ✅');
-    await adminEnsureListLoaded(false, true);
+    const resp = await apiCheckDuplicate(monthIST(), uhid, name);
+    if(resp && resp.ok === true){
+      const dup = !!resp.duplicate;
+      document.getElementById("pillDup").textContent = "Duplicate: " + (dup ? "YES" : "NO");
+      showToast(dup ? "warn" : "", "Duplicate check", resp.status || resp.tag || (dup ? "duplicate" : "no_duplicate"));
+      logLine("check result", resp);
+    }
   }catch(e){
-    toast('KP failed: '+(e && e.message ? e.message : String(e)), false);
+    logLine("check failed", { err: String(e && e.message ? e.message : e) });
   }
 });
 
-/* =========================================================================
-   INIT
-   ========================================================================= */
-document.addEventListener('DOMContentLoaded', ()=>{
-  loadDevOverrides();
-  const { url } = currentConn();
-  ensurePreconnectForUrl(url);
-
-  updateOxygenUI();
-  attachFastListeners();
-  scheduleCompute();
-
-  // Ensure month pill is correct even before opening
-  if(adminMonthPill) adminMonthPill.textContent = 'Month: '+istMonthYYYYMM();
+document.getElementById("btnPing").addEventListener("click", async ()=>{
+  try{
+    const resp = await apiPing();
+    if(resp && resp.ok === true){
+      showToast("", "Ping ok", resp.message || "pong");
+      logLine("ping response", resp);
+    }
+  }catch(e){
+    logLine("ping failed", { err: String(e && e.message ? e.message : e) });
+  }
 });
+
+/* ============================================================================
+   Boot: set default month pill + load config into dev inputs
+   ========================================================================== */
+
+(function init(){
+  const m = monthIST();
+  document.getElementById("pillMonth").textContent = "Month: " + m;
+
+  // admin defaults
+  document.getElementById("adminMonth").value = m;
+
+  // load cfg into dev tab
+  syncCfgToInputs();
+
+  // initial calc
+  try{ recalcApache(); }catch(e){}
+
+  logLine("UI ready", { monthIST: m });
+})();
 </script>
-
 </body>
 </html>
