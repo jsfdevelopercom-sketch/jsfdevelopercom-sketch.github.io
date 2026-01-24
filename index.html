@@ -799,7 +799,17 @@ addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDe
 });
 
 /* =========================================================================
-   DEV / CONNECTION: persist per device
+   ONLINE DEFAULTS (AUTOMATIC — NO MANUAL ENTRY REQUIRED)
+   ========================================================================= */
+const ONLINE_WEBHOOK_URL =
+  'https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
+
+const ONLINE_SECRET =
+  'F8p^7m2bUqW!c4Z9Lh3@r6N0';
+
+/* =========================================================================
+   DEV / CONNECTION OVERRIDES (OPTIONAL ONLY)
+   - If user never opens Dev panel, defaults are still used.
    ========================================================================= */
 function saveDevOverrides(){
   const overrides={
@@ -813,33 +823,35 @@ function saveDevOverrides(){
 function loadDevOverrides(){
   try{
     const raw=localStorage.getItem('apacheMobileDev');
-    if(!raw) return;
-    const o=JSON.parse(raw);
-    if($('onlineUrl')) $('onlineUrl').value=o.onlineUrl||'';
-    if($('onlineSecret')) $('onlineSecret').value=o.onlineSecret||'';
-    if($('clientId')) $('clientId').value=o.clientId||'NURSING-STATION-01';
-  }catch(_){}
+    const o = raw ? JSON.parse(raw) : {};
+    // Show defaults inside the Dev panel so user sees what is being used
+    if($('onlineUrl')) $('onlineUrl').value = (o.onlineUrl && o.onlineUrl.trim()) ? o.onlineUrl.trim() : ONLINE_WEBHOOK_URL;
+    if($('onlineSecret')) $('onlineSecret').value = (o.onlineSecret && o.onlineSecret.trim()) ? o.onlineSecret.trim() : ONLINE_SECRET;
+    if($('clientId')) $('clientId').value = (o.clientId && o.clientId.trim()) ? o.clientId.trim() : 'NURSING-STATION-01';
+  }catch(_){
+    if($('onlineUrl')) $('onlineUrl').value = ONLINE_WEBHOOK_URL;
+    if($('onlineSecret')) $('onlineSecret').value = ONLINE_SECRET;
+    if($('clientId')) $('clientId').value = 'NURSING-STATION-01';
+  }
 }
 
-/* =========================================================================
-   ONLINE DEFAULTS (fallback when no dev overrides)
-   ========================================================================= */
-let ONLINE_WEBHOOK_URL='https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
-let ONLINE_SECRET='F8p^7m2bUqW!c4Z9Lh3@r6N0';
-
 function currentConn(){
+  // ALWAYS start from defaults; overrides are optional
   let url = ONLINE_WEBHOOK_URL;
   let secret = ONLINE_SECRET;
   let clientId = 'NURSING-STATION-01';
+
   try{
     const raw = localStorage.getItem('apacheMobileDev');
     if(raw){
       const o = JSON.parse(raw);
       if(o.clientId && o.clientId.trim()) clientId = o.clientId.trim();
+      // Only override if user intentionally set something non-empty AND different
       if(o.onlineUrl && o.onlineUrl.trim()) url = o.onlineUrl.trim();
       if(o.onlineSecret && o.onlineSecret.trim()) secret = o.onlineSecret.trim();
     }
   }catch(_){}
+
   return { url, secret, clientId };
 }
 
@@ -871,12 +883,13 @@ function ensurePreconnectForUrl(u){
 }
 
 /* =========================================================================
-   MODALS: DEV + ADMIN
+   MODALS: DEV + ADMIN (UI unchanged)
    ========================================================================= */
 const devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
-devPanel.setAttribute('aria-hidden','true'); devBackdrop.setAttribute('data-visible','false');
+devPanel?.setAttribute('aria-hidden','true'); devBackdrop?.setAttribute('data-visible','false');
 
 function setDevPanel(open){
+  if(!devPanel || !devBackdrop) return;
   const wasOpen=devPanel.getAttribute('aria-hidden')==='false';
   devPanel.setAttribute('aria-hidden', open?'false':'true');
   devBackdrop.setAttribute('data-visible', open?'true':'false');
@@ -887,8 +900,8 @@ function setDevPanel(open){
     ensurePreconnectForUrl(url);
   }
 }
-devClose.addEventListener('click',()=>setDevPanel(false));
-devBackdrop.addEventListener('click',()=>setDevPanel(false));
+devClose?.addEventListener('click',()=>setDevPanel(false));
+devBackdrop?.addEventListener('click',()=>setDevPanel(false));
 
 const devToggle=$('devToggle');
 const adminPanel=$('adminPanel'), adminBackdrop=$('adminBackdrop'), adminClose=$('adminClose');
@@ -898,30 +911,31 @@ const adminPatientsTbody=$('adminPatientsTbody');
 const adminMonthPill=$('adminMonthPill');
 const adminQueuePill=$('adminQueuePill');
 
-adminPanel.setAttribute('aria-hidden','true'); adminBackdrop.setAttribute('data-visible','false');
+adminPanel?.setAttribute('aria-hidden','true'); adminBackdrop?.setAttribute('data-visible','false');
 
 function setAdminPanel(open){
+  if(!adminPanel || !adminBackdrop || !devToggle) return;
   adminPanel.setAttribute('aria-hidden', open?'false':'true');
   adminBackdrop.setAttribute('data-visible', open?'true':'false');
   adminBackdrop.setAttribute('aria-hidden', open?'false':'true');
   devToggle.setAttribute('aria-expanded', open?'true':'false');
 }
 
-devToggle.addEventListener('click', async ()=>{
+devToggle?.addEventListener('click', async ()=>{
   const isHidden = adminPanel.getAttribute('aria-hidden')!=='false';
   setAdminPanel(isHidden);
   if(isHidden){
     await adminEnsureListLoaded(true, true);
   }
 });
-adminClose.addEventListener('click', ()=>setAdminPanel(false));
-adminBackdrop.addEventListener('click', ()=>setAdminPanel(false));
+adminClose?.addEventListener('click', ()=>setAdminPanel(false));
+adminBackdrop?.addEventListener('click', ()=>setAdminPanel(false));
 
-btnOpenDevFromAdmin.addEventListener('click', ()=>{
+btnOpenDevFromAdmin?.addEventListener('click', ()=>{
   setAdminPanel(false);
   setDevPanel(true);
 });
-btnOpenDevFromAdmin.addEventListener('keydown', (ev)=>{
+btnOpenDevFromAdmin?.addEventListener('keydown', (ev)=>{
   if(ev.key==='Enter' || ev.key===' '){
     ev.preventDefault();
     setAdminPanel(false);
@@ -929,12 +943,12 @@ btnOpenDevFromAdmin.addEventListener('keydown', (ev)=>{
   }
 });
 
-btnAdminRefresh.addEventListener('click', ()=>adminEnsureListLoaded(false, true));
+btnAdminRefresh?.addEventListener('click', ()=>adminEnsureListLoaded(false, true));
 
 addEventListener('keydown',(ev)=>{
   if(ev.key!=='Escape') return;
-  if(adminPanel.getAttribute('aria-hidden')==='false'){ setAdminPanel(false); return; }
-  if(devPanel.getAttribute('aria-hidden')==='false'){ setDevPanel(false); return; }
+  if(adminPanel && adminPanel.getAttribute('aria-hidden')==='false'){ setAdminPanel(false); return; }
+  if(devPanel && devPanel.getAttribute('aria-hidden')==='false'){ setDevPanel(false); return; }
 });
 
 /* Dev URL live warm-up */
@@ -948,7 +962,7 @@ $('onlineUrl')?.addEventListener('change', ()=>{
 /* =========================================================================
    Chronic toggle + Oxygen toggle + Tabs
    ========================================================================= */
-$('chronicGrp').addEventListener('change',()=>{
+$('chronicGrp')?.addEventListener('change',()=>{
   $('surgTypeWrap').style.display = (radioVal('chronic')==='Yes') ? 'grid' : 'none';
   scheduleCompute();
 });
@@ -956,6 +970,8 @@ $('chronicGrp').addEventListener('change',()=>{
 function updateOxygenUI(){
   const v = radioVal('fio2');
   const po2=$('po2Wrap'), aagrad=$('aagradWrap'), pao2El=$('pao2'), aagradEl=$('aagrad');
+  if(!po2 || !aagrad) return;
+
   if(v === '<50%'){
     po2.style.display='block'; aagrad.style.display='none';
     if(aagradEl){ aagradEl.value=''; aagradEl.removeAttribute('required'); }
@@ -1155,7 +1171,6 @@ function validateLight(){
   const uhid = valStr('uhid');
   const diagnosis = valStr('diagnosis');
   const admitDate = valStr('admitDate');
-
   const sex = $('sex')?.value || '';
 
   const age = valNum('age');
@@ -1319,7 +1334,7 @@ function attachFastListeners(){
 }
 
 /* =========================================================================
-   Strict payload builder (ONLY used for submit & preview)
+   Strict payload builder (used for compute + sheetRow)
    ========================================================================= */
 function buildPayloadStrict(){
   const patientName=valStr('patientName');
@@ -1365,61 +1380,26 @@ function buildPayloadStrict(){
 
   const gcs = valNum('gcs'); if(gcs===null) throw new Error('GCS is required');
 
-  const inputs={
-    Age_years: age,
-    GCS: gcs,
-    Temperature_F: tempF,
-    MAP_mmHg: map,
-    HeartRate_bpm: hr,
-    RespRate_bpm: rr,
-    FiO2_Category: fio2,
-    PaO2_mmHg: pao2,
-    AaGradient_mmHg: aagrad,
-    pH: phVal,
-    HCO3_mEqL: hco3Val,
-    Na_mEqL: na,
-    K_mEqL: k,
-    Creatinine_mgdl: cr,
-    AcuteRenalFailure: radioVal('arf')==='Yes',
-    Hematocrit_pct: hct,
-    WBC_10e3uL: wbc,
-    ChronicHealth: chronic==='Yes' ? 'Yes' : 'No',
-    SurgeryType: surgtype
-  };
-
-  const nowIso=new Date().toISOString();
-  const { clientId } = currentConn();
+  const arf = (radioVal('arf')==='Yes');
 
   const { apacheII, mortNon, mortPost } = computeApacheFast({
-    age, fio2, tempF, map, hr, rr, pao2, aagrad, phVal, hco3Val, na, k, cr, wbc, hct, gcs,
-    arf: inputs.AcuteRenalFailure,
-    chronic: inputs.ChronicHealth,
+    age, fio2, tempF, map, hr, rr, pao2, aagrad, phVal, hco3Val,
+    na, k, cr, wbc, hct, gcs,
+    arf,
+    chronic: chronic==='Yes' ? 'Yes' : 'No',
     surgtype
   });
 
   const selectedMortality = (surgtype==='Emergency' || surgtype==='Elective') ? mortPost : mortNon;
-  const row=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, selectedMortality, mortYN ];
 
-  return {
-    clientId,
-    authToken: '',
-    patientName, uhid, age, sex, diagnosis, admitDate,
-    timestamp: nowIso,
-    month: monthKeyFromISO(nowIso),
-    submissionId: uuidv4(),
-    apacheInputs: inputs,
-    apacheScore: apacheII,
-    predictedMortalityNonOpPct: mortNon,
-    predictedMortalityPostOpPct: mortPost,
-    predictedMortalityPct: selectedMortality,
-    mortalityYN: mortYN,
-    sheetRow: row
-  };
+  // ✅ This is the EXACT row order your Apps Script expects
+  const sheetRow=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, selectedMortality, mortYN ];
+
+  return { sheetRow };
 }
 
 /* =========================================================================
    BRIDGE TRANSPORT (NO CORS)
-   - Requires Apps Script bridge patch (_respond_ + _bridgeHtml_)
    ========================================================================= */
 const BRIDGE_TIMEOUT_MS = 15000;
 const __bridgeInflight = new Map();
@@ -1511,7 +1491,7 @@ function bridgePost(execUrl, jsonPayload){
 }
 
 /* =========================================================================
-   NETWORK HELPERS (bridge wrappers)
+   Response helpers
    ========================================================================= */
 function isOkish(data){
   if(!data) return false;
@@ -1541,22 +1521,21 @@ function normalizePatientsFromListResponse(data){
 }
 
 /* =========================================================================
-   Submit (FAST UX) — bridge POST (no CORS)
+   ✅ SUBMIT (TIGHT SYNC WITH LATEST SCRIPT)
+   Send ONLY what your script expects:
+   { authToken, month, sheetRow }
    ========================================================================= */
-async function postOnline(strictPayload){
-  const { url, secret, clientId } = currentConn();
-  if(!url) throw new Error('Online Webhook URL not configured.');
-  if(!secret) throw new Error('Online Secret missing.');
-
+async function postOnline(sheetRow){
+  const { url, secret } = currentConn();
   const execUrl = sanitizeExecUrl(url);
 
-  const sendPayload = {
-    ...strictPayload,
-    clientId,
-    authToken: secret || ''
+  const payload = {
+    authToken: secret,
+    month: istMonthYYYYMM(),
+    sheetRow: sheetRow
   };
 
-  const data = await bridgePost(execUrl, sendPayload);
+  const data = await bridgePost(execUrl, payload);
   if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
 
   if(!isOkish(data)){
@@ -1566,7 +1545,7 @@ async function postOnline(strictPayload){
   return data;
 }
 
-$('btnSubmit').addEventListener('click', async (ev)=>{
+$('btnSubmit')?.addEventListener('click', async (ev)=>{
   ev.preventDefault();
   const button=$('btnSubmit');
   button.disabled=true;
@@ -1574,11 +1553,13 @@ $('btnSubmit').addEventListener('click', async (ev)=>{
   const slowTimer = setTimeout(()=>toastCenter('Still sending… network may be slow.'), 1600);
 
   try{
+    // no manual entry needed; defaults already loaded
     saveDevOverrides();
-    const payload = buildPayloadStrict();
+
+    const { sheetRow } = buildPayloadStrict();
 
     toast('Sending to Google Sheets…');
-    await postOnline(payload);
+    await postOnline(sheetRow);
 
     clearTimeout(slowTimer);
     toast('Saved to Google Sheets ✅');
@@ -1594,13 +1575,10 @@ $('btnSubmit').addEventListener('click', async (ev)=>{
 
 /* =========================================================================
    Download current month
-   - Avoid fetch CORS entirely: just open the download URL (fast + reliable)
+   - Open download URL (fast + reliable)
    ========================================================================= */
 function downloadCurrentMonth(){
   const { url, secret } = currentConn();
-  if(!url){ toast('Online URL missing.', false); return; }
-  if(!secret){ toast('Online Secret missing (required for download).', false); return; }
-
   const ym = istMonthYYYYMM();
   const execUrl = sanitizeExecUrl(url);
 
@@ -1619,14 +1597,16 @@ function downloadCurrentMonth(){
     toast('Download could not open (popup blocked).', false);
   }
 }
-$('btnDownload').addEventListener('click', downloadCurrentMonth);
+$('btnDownload')?.addEventListener('click', downloadCurrentMonth);
 
 /* =========================================================================
    Dev tools (preview/copy/dummy)
    ========================================================================= */
-$('btnBuildPreview').addEventListener('click', ()=>{
+$('btnBuildPreview')?.addEventListener('click', ()=>{
   try{
-    const payload=buildPayloadStrict();
+    const { sheetRow } = buildPayloadStrict();
+    const { secret } = currentConn();
+    const payload = { authToken: secret, month: istMonthYYYYMM(), sheetRow };
     $('debugPreview').textContent = JSON.stringify(payload, null, 2);
     toast('Payload built');
   }catch(e){
@@ -1635,15 +1615,15 @@ $('btnBuildPreview').addEventListener('click', ()=>{
   }
 });
 
-$('btnCopyPreview').addEventListener('click', ()=>{
+$('btnCopyPreview')?.addEventListener('click', ()=>{
   try{ navigator.clipboard.writeText($('debugPreview').textContent||''); toast('Copied JSON'); }
   catch(_){ toast('Copy failed', false); }
 });
 
-$('btnCopyExcelRow').addEventListener('click', ()=>{
+$('btnCopyExcelRow')?.addEventListener('click', ()=>{
   try{
-    const p = buildPayloadStrict();
-    navigator.clipboard.writeText(p.sheetRow.join('\t'));
+    const { sheetRow } = buildPayloadStrict();
+    navigator.clipboard.writeText(sheetRow.join('\t'));
     toast('Row copied (tab-separated). Paste into Excel/Sheets.');
   }catch(e){
     toast('Copy failed: '+(e && e.message ? e.message : String(e)), false);
@@ -1660,7 +1640,7 @@ function dummyFill(){
   $('age').value = String(age);
   $('sex').value = 'Female';
   $('admitDate').value = todayISO();
-  $('diagnosis').value = 'CKD on HTN; Community-acquired pneumonia; on oxygen';
+  $('diagnosis').value = 'CKD on HTN; CAP; on oxygen';
 
   $('tempF').value = '99.1';
   $('map').value = '78';
@@ -1692,10 +1672,11 @@ function dummyFill(){
   toast('Dummy data filled');
   scheduleCompute();
 }
-$('btnDummyFill').addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
+$('btnDummyFill')?.addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
 
 /* =========================================================================
    Duplicate-check (GET) — bridge GET (no CORS)
+   (supports action=check; uses authToken + auth for compatibility)
    ========================================================================= */
 let dupInflightCb = null;
 const dupEl = $('dupIndicator');
@@ -1742,8 +1723,6 @@ async function checkDuplicateNow(){
   if(!name || !uhid) return;
 
   const { url, secret } = currentConn();
-  if(!url || !secret) return;
-
   const execUrl = sanitizeExecUrl(url);
   const ym = istMonthYYYYMM();
 
@@ -1758,12 +1737,14 @@ async function checkDuplicateNow(){
     const p = bridgeGet(execUrl, {
       action:'check',
       uhid: String(uhid).trim(),
-      name: String(name).trim(),
+      patientName: String(name).trim(),
+      name: String(name).trim(),          // compatibility
       month: ym,
       auth: secret,
       authToken: secret
     });
     dupInflightCb = p._cb;
+
     const data = await p;
     dupInflightCb = null;
 
@@ -1781,9 +1762,7 @@ async function checkDuplicateNow(){
   }
 }
 
-function onBlurTrigger(){
-  if(bothFilled()) checkDuplicateNow();
-}
+function onBlurTrigger(){ if(bothFilled()) checkDuplicateNow(); }
 function onFocusCancel(){
   if(dupInflightCb){
     bridgeCancel(dupInflightCb);
@@ -1830,9 +1809,6 @@ async function fetchPatientsList(month, force=false){
   }
 
   const { url, secret } = currentConn();
-  if(!url) throw new Error('Online URL missing');
-  if(!secret) throw new Error('Online Secret missing (required for LIST/KP)');
-
   const execUrl = sanitizeExecUrl(url);
 
   // Page through (limit/offset) to avoid giant payloads
@@ -1925,7 +1901,7 @@ function renderKpQueue(){
   kpQueueTbody.innerHTML = html;
 }
 
-kpQueueTbody.addEventListener('click', (ev)=>{
+kpQueueTbody?.addEventListener('click', (ev)=>{
   const t = ev.target;
   if(!t) return;
   const idx = t.getAttribute && t.getAttribute('data-kp-remove');
@@ -1938,7 +1914,7 @@ kpQueueTbody.addEventListener('click', (ev)=>{
   }
 });
 
-btnKpAdd.addEventListener('click', ()=>{
+btnKpAdd?.addEventListener('click', ()=>{
   const u = normalizeUhid(kpUhid.value);
   const yn = String(kpYN.value||'Y').trim().toUpperCase()==='N' ? 'N' : 'Y';
   if(!u){ toast('Enter UHID', false); return; }
@@ -1952,15 +1928,13 @@ btnKpAdd.addEventListener('click', ()=>{
   toast('Added to queue');
 });
 
-btnKpClear.addEventListener('click', ()=>{
+btnKpClear?.addEventListener('click', ()=>{
   kpQueueSet([]);
   toast('Queue cleared');
 });
 
 async function postKP(uhids){
   const { url, secret } = currentConn();
-  if(!url) throw new Error('Online URL missing');
-  if(!secret) throw new Error('Online Secret missing (required for KP)');
   const execUrl = sanitizeExecUrl(url);
 
   const payload = {
@@ -1972,7 +1946,7 @@ async function postKP(uhids){
   return await bridgePost(execUrl, payload);
 }
 
-btnKpUpdate.addEventListener('click', async ()=>{
+btnKpUpdate?.addEventListener('click', async ()=>{
   if(KP_QUEUE.length===0) return;
 
   const yList = KP_QUEUE.filter(x => x.yn==='Y').map(x => x.uhid);
@@ -2006,7 +1980,7 @@ btnKpUpdate.addEventListener('click', async ()=>{
    INIT
    ========================================================================= */
 document.addEventListener('DOMContentLoaded', ()=>{
-  loadDevOverrides();
+  loadDevOverrides();                // fills Dev panel with defaults automatically
   const { url } = currentConn();
   ensurePreconnectForUrl(url);
 
@@ -2018,6 +1992,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if(adminMonthPill) adminMonthPill.textContent = 'Month: '+istMonthYYYYMM();
 });
 </script>
+
 
 </body>
 </html>
