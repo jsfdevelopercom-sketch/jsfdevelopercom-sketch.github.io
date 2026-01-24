@@ -6,22 +6,25 @@
 <title>APACHE II Bedside Entry</title>
 
 <!--
-  IMPORTANT SYNC + SPEED + CORS FIX (2026)
-  ------------------------------------------------
-  This HTML is fully self-contained (complete file).
+  ✅ COMPLETE HTML (NOT PATCHES) — synced behavior goals:
+  1) LIST (UHID + Patient Name) MUST populate inside Admin overlay.
+     - Uses bridge transport (no CORS).
+     - Tries GET first (tag=LIST) then POST fallback if your script uses POST tags.
+     - Normalizes multiple response shapes.
 
-  What changed vs your old HTML:
-  1) LIST / KP / CHECK / SUBMIT now use a CORS-free "bridge" transport:
-     - Hidden iframe loads Apps Script with ?bridge=1
-     - Apps Script responds with HTML that postMessage()s JSON back
-     => No browser CORS errors, and UI stays snappy.
+  2) Webhook URL + Secret are HARD-CODED defaults in HTML.
+     - Dev modal overrides are OPTIONAL.
+     - If dev textbox values are EMPTY, defaults are used (no "blank breaks").
 
-  2) Admin overlay scrollbars are COMPULSORY (always visible):
-     - admin-body + table-wrap forced to show both scrollbars.
+  3) SUBMIT MUST NOT prematurely timeout.
+     - Uses staged UX: "Sending…" -> "Still processing…" -> waits for server confirmation.
+     - Uses SOFT timers for messaging, HARD timeout is long (default 75s for submit).
+     - LIST / CHECK / KP have their own timeouts.
 
-  REQUIREMENT:
-  - Your Apps Script must include the bridge patch ( _respond_ + _bridgeHtml_ )
-  - And the _safeReadBody_/_readBody_ patch to accept form "json=" posts.
+  NOTE:
+  - This file assumes your Apps Script supports bridge=1 and posts back:
+      { __APACHE_BRIDGE__: true, cb:"...", data: <json> }
+    to the parent window via postMessage.
 -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -137,27 +140,19 @@
     border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);
     padding:18px;display:grid;gap:14px;pointer-events:auto;
     max-height:min(84vh, 760px);
-
-    /* keep sheet fixed; inner areas scroll (forced below) */
     overflow:hidden;
   }
-  .admin-top{
-    display:flex;justify-content:space-between;align-items:center;gap:12px;
-    padding:6px 6px 0 6px;
-  }
+  .admin-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 6px 0 6px}
   .admin-title-wrap{display:grid;gap:2px}
   .admin-title{margin:0;font-size:18px;font-weight:700}
   .admin-sub{margin:0;font-size:12px;color:rgba(226,232,240,.72);line-height:1.35}
-  .admin-close{
-    border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;
-    padding:8px 14px;cursor:pointer;font-weight:700
-  }
+  .admin-close{border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:700}
 
-  /* ✅ COMPULSORY SCROLLBARS (both directions) */
+  /* ✅ COMPULSORY SCROLLBARS */
   .admin-body{
     display:grid;gap:12px;
-    overflow: scroll;                     /* ALWAYS show */
-    scrollbar-gutter: stable both-edges;  /* keep layout stable */
+    overflow: scroll;
+    scrollbar-gutter: stable both-edges;
     padding:0 6px 6px 6px;
     max-height: min(72vh, 680px);
   }
@@ -173,7 +168,6 @@
   .admin-card h4{margin:0;font-size:14px;font-weight:800}
   .admin-card .minihelp{margin:0;color:rgba(226,232,240,.70);font-size:12px;line-height:1.4}
 
-  /* ✅ COMPULSORY SCROLLBARS (both directions) */
   .table-wrap{
     border:1px solid rgba(148,163,184,.22);
     border-radius:14px;
@@ -183,11 +177,7 @@
     scrollbar-gutter: stable both-edges;
     max-height:320px;
   }
-  table.admin-table{
-    border-collapse:collapse;
-    width:max(980px,100%);  /* force horizontal scroll area */
-    font-size:13px;
-  }
+  table.admin-table{border-collapse:collapse;width:max(980px,100%);font-size:13px}
   table.admin-table th, table.admin-table td{
     padding:10px 10px;
     border-bottom:1px solid rgba(148,163,184,.16);
@@ -206,15 +196,11 @@
     padding:8px 12px;border-radius:999px;
     border:1px solid rgba(148,163,184,.22);
     background:rgba(148,163,184,.10);
-    font-weight:700;
-    color:#e2e8f0;
-    font-size:12px;
+    font-weight:700;color:#e2e8f0;font-size:12px;
   }
   .admin-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .admin-inputs{display:grid;grid-template-columns:1fr 120px auto;gap:10px;align-items:end}
-  @media (max-width:520px){
-    .admin-inputs{grid-template-columns:1fr;align-items:stretch}
-  }
+  @media (max-width:520px){ .admin-inputs{grid-template-columns:1fr;align-items:stretch} }
 
   .admin-sheet label{color:#cbd5f5}
   .admin-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
@@ -223,20 +209,18 @@
   .admin-sheet .btn.primary{box-shadow:none}
   .admin-sheet .btn.ghost{color:#e2e8f0;border-color:rgba(148,163,184,.28)}
   .admin-sheet .btn.secondary{color:#e2e8f0;background:rgba(37,99,235,.16);border-color:rgba(37,99,235,.22)}
+  .danger-note{font-size:12px;color:rgba(248,250,252,.72);line-height:1.4}
 
   .dev-entry{
     display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding-top:10px;
-    border-top:1px solid rgba(148,163,184,.22);
+    padding-top:10px;border-top:1px solid rgba(148,163,184,.22);
   }
   .dev-entry .dev-cta{
     display:flex;align-items:center;gap:10px;
     padding:10px 14px;border-radius:14px;
     background:linear-gradient(135deg, rgba(37,99,235,.28), rgba(14,165,233,.18));
     border:1px solid rgba(148,163,184,.22);
-    cursor:pointer;
-    user-select:none;
-    font-weight:800;
+    cursor:pointer;user-select:none;font-weight:800;
   }
   .dev-entry .dev-cta small{display:block;font-weight:700;color:rgba(226,232,240,.72)}
   .dev-entry .dev-ico{
@@ -244,9 +228,6 @@
     display:grid;place-items:center;
     background:rgba(15,23,42,.85);
     border:1px solid rgba(148,163,184,.22);
-  }
-  .danger-note{
-    font-size:12px;color:rgba(248,250,252,.72);line-height:1.4
   }
 
   .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:230}
@@ -575,7 +556,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="display:grid;gap:4px">
             <h4 style="margin:0">Current UHIDs &amp; Names</h4>
-            <p class="minihelp">Pulled from MAIN sheet using LIST. Scroll both directions (forced scrollbars).</p>
+            <p class="minihelp">Pulled using LIST. Scroll both directions (forced scrollbars).</p>
           </div>
           <div class="admin-actions">
             <span id="adminMonthPill" class="pill">Month: —</span>
@@ -598,7 +579,7 @@
         </div>
 
         <div class="danger-note" id="adminListNote">
-          Tip: If Dev URL/Secret are wrong, LIST won’t load. Use “Dev Settings” below.
+          Tip: If URL/Secret are wrong, LIST won’t load. Defaults are hardcoded; Dev Settings overrides are optional.
         </div>
       </div>
 
@@ -606,7 +587,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="display:grid;gap:4px">
             <h4 style="margin:0">Update Mortality</h4>
-            <p class="minihelp">Queue UHID + Y/N. Update sends KP for all “Y”. (Backend KP may only set Y.)</p>
+            <p class="minihelp">Queue UHID + Y/N. Update sends KP in two batches (Y then N) if mixed.</p>
           </div>
           <span class="pill" id="adminQueuePill">Queued: 0</span>
         </div>
@@ -669,7 +650,7 @@
       <h3 id="devTitle">Developer / Connection</h3>
       <button id="devClose" class="close" type="button">Close</button>
     </div>
-    <p class="dev-tip">Values persist per device. Leave blank to fall back to defaults.</p>
+    <p class="dev-tip">Values persist per device. Leave blank to fall back to defaults (hardcoded in this HTML).</p>
     <div>
       <label for="onlineUrl">Online Webhook URL</label>
       <input id="onlineUrl" class="input" type="url" placeholder="https://script.google.com/.../exec">
@@ -740,14 +721,6 @@ function todayISO(){
   return k.toISOString().slice(0,10);
 }
 
-function uuidv4(){
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,(c)=>{
-    const r=crypto.getRandomValues(new Uint8Array(1))[0]&15;
-    const v=c==='x'?r:((r&0x3)|0x8);
-    return v.toString(16);
-  });
-}
-
 function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 
 /* ----------------------------- Toasts ---------------------------------- */
@@ -799,7 +772,7 @@ addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDe
 });
 
 /* =========================================================================
-   ONLINE DEFAULTS (AUTOMATIC — NO MANUAL ENTRY REQUIRED)
+   ✅ HARD-CODED DEFAULTS (ALWAYS AVAILABLE)
    ========================================================================= */
 const ONLINE_WEBHOOK_URL =
   'https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
@@ -809,7 +782,7 @@ const ONLINE_SECRET =
 
 /* =========================================================================
    DEV / CONNECTION OVERRIDES (OPTIONAL ONLY)
-   - If user never opens Dev panel, defaults are still used.
+   - If Dev panel is empty => defaults are still used.
    ========================================================================= */
 function saveDevOverrides(){
   const overrides={
@@ -824,7 +797,6 @@ function loadDevOverrides(){
   try{
     const raw=localStorage.getItem('apacheMobileDev');
     const o = raw ? JSON.parse(raw) : {};
-    // Show defaults inside the Dev panel so user sees what is being used
     if($('onlineUrl')) $('onlineUrl').value = (o.onlineUrl && o.onlineUrl.trim()) ? o.onlineUrl.trim() : ONLINE_WEBHOOK_URL;
     if($('onlineSecret')) $('onlineSecret').value = (o.onlineSecret && o.onlineSecret.trim()) ? o.onlineSecret.trim() : ONLINE_SECRET;
     if($('clientId')) $('clientId').value = (o.clientId && o.clientId.trim()) ? o.clientId.trim() : 'NURSING-STATION-01';
@@ -836,7 +808,7 @@ function loadDevOverrides(){
 }
 
 function currentConn(){
-  // ALWAYS start from defaults; overrides are optional
+  // ALWAYS start from defaults; overrides are optional, only if non-empty.
   let url = ONLINE_WEBHOOK_URL;
   let secret = ONLINE_SECRET;
   let clientId = 'NURSING-STATION-01';
@@ -846,7 +818,6 @@ function currentConn(){
     if(raw){
       const o = JSON.parse(raw);
       if(o.clientId && o.clientId.trim()) clientId = o.clientId.trim();
-      // Only override if user intentionally set something non-empty AND different
       if(o.onlineUrl && o.onlineUrl.trim()) url = o.onlineUrl.trim();
       if(o.onlineSecret && o.onlineSecret.trim()) secret = o.onlineSecret.trim();
     }
@@ -867,7 +838,7 @@ function sanitizeExecUrl(u){
   }
 }
 
-/* Preconnect to the Apps Script ORIGIN (DNS + TLS warmup) */
+/* Preconnect to the Apps Script ORIGIN */
 function ensurePreconnectForUrl(u){
   try{
     const origin = new URL(sanitizeExecUrl(u)).origin;
@@ -895,6 +866,7 @@ function setDevPanel(open){
   devBackdrop.setAttribute('data-visible', open?'true':'false');
   devBackdrop.setAttribute('aria-hidden', open?'false':'true');
   if(wasOpen&&!open){
+    // Save on close
     saveDevOverrides();
     const { url } = currentConn();
     ensurePreconnectForUrl(url);
@@ -995,7 +967,7 @@ document.querySelectorAll('.tab').forEach((btn)=>{
 });
 
 /* =========================================================================
-   APACHE II scoring — binning (unchanged)
+   APACHE II scoring — binning
    ========================================================================= */
 function fToC(f){ return (f-32)*(5/9); }
 function ptsTempC(c){
@@ -1159,12 +1131,14 @@ function mortalityBands(score){
    ========================================================================= */
 function istMonthYYYYMM(){
   try{
-    return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' });
+    const d = new Date();
+    const y = d.toLocaleString('en-CA', { timeZone:'Asia/Kolkata', year:'numeric' });
+    const m = d.toLocaleString('en-CA', { timeZone:'Asia/Kolkata', month:'2-digit' });
+    return y + "-" + m;
   }catch(_){
     return (new Date().toISOString()).slice(0,7);
   }
 }
-function monthKeyFromISO(iso){ return (iso||new Date().toISOString()).slice(0,7); }
 
 function validateLight(){
   const patientName = valStr('patientName');
@@ -1211,6 +1185,30 @@ function validateLight(){
   return { ok:true };
 }
 
+function computeApacheFast(snap){
+  const tempC = snap.tempF!=null ? fToC(snap.tempF) : null;
+
+  const aps = ptsTempC(tempC)+
+              ptsMAP(snap.map)+
+              ptsHR(snap.hr)+
+              ptsRR(snap.rr)+
+              ptsOxygen(snap.fio2, snap.pao2, snap.aagrad)+
+              acidBasePoints(snap.phVal, snap.hco3Val)+
+              ptsNa(snap.na)+
+              ptsK(snap.k)+
+              ptsCreatinine(snap.cr, snap.arf)+
+              ptsHct(snap.hct)+
+              ptsWBC(snap.wbc)+
+              ptsGCS(snap.gcs);
+
+  const agePts = agePoints(snap.age);
+  const chronicPts = chronicPoints(snap.chronic, snap.surgtype);
+  const apacheII = aps + agePts + chronicPts;
+
+  const mort = mortalityBands(apacheII);
+  return { apacheII, mortNon: mort.nonop, mortPost: mort.postop };
+}
+
 function snapshotInputsForCompute(){
   const age = valNum('age');
   const fio2 = radioVal('fio2');
@@ -1248,30 +1246,6 @@ function signatureKey(s){
 
 let COMPUTE_CACHE = { key:null, value:null };
 
-function computeApacheFast(snap){
-  const tempC = snap.tempF!=null ? fToC(snap.tempF) : null;
-
-  const aps = ptsTempC(tempC)+
-              ptsMAP(snap.map)+
-              ptsHR(snap.hr)+
-              ptsRR(snap.rr)+
-              ptsOxygen(snap.fio2, snap.pao2, snap.aagrad)+
-              acidBasePoints(snap.phVal, snap.hco3Val)+
-              ptsNa(snap.na)+
-              ptsK(snap.k)+
-              ptsCreatinine(snap.cr, snap.arf)+
-              ptsHct(snap.hct)+
-              ptsWBC(snap.wbc)+
-              ptsGCS(snap.gcs);
-
-  const agePts = agePoints(snap.age);
-  const chronicPts = chronicPoints(snap.chronic, snap.surgtype);
-  const apacheII = aps + agePts + chronicPts;
-
-  const mort = mortalityBands(apacheII);
-  return { apacheII, mortNon: mort.nonop, mortPost: mort.postop };
-}
-
 function computeCached(){
   const snap = snapshotInputsForCompute();
   const key = signatureKey(snap);
@@ -1289,7 +1263,6 @@ function scheduleCompute(){
 
 function runComputeAndUI(){
   const v = validateLight();
-
   const submit = $('btnSubmit');
   const note = $('incompleteNote');
   const card = $('resultsCard');
@@ -1334,7 +1307,7 @@ function attachFastListeners(){
 }
 
 /* =========================================================================
-   Strict payload builder (used for compute + sheetRow)
+   Strict payload builder (sheetRow)
    ========================================================================= */
 function buildPayloadStrict(){
   const patientName=valStr('patientName');
@@ -1379,7 +1352,6 @@ function buildPayloadStrict(){
   const hct= valNum('hct');if(hct===null)throw new Error('Hematocrit is required');
 
   const gcs = valNum('gcs'); if(gcs===null) throw new Error('GCS is required');
-
   const arf = (radioVal('arf')==='Yes');
 
   const { apacheII, mortNon, mortPost } = computeApacheFast({
@@ -1392,26 +1364,30 @@ function buildPayloadStrict(){
 
   const selectedMortality = (surgtype==='Emergency' || surgtype==='Elective') ? mortPost : mortNon;
 
-  // ✅ This is the EXACT row order your Apps Script expects
+  // ✅ EXACT row order expected by your Apps Script
   const sheetRow=[ uhid, patientName, age, sex, diagnosis, admitDate, apacheII, selectedMortality, mortYN ];
-
   return { sheetRow };
 }
 
 /* =========================================================================
-   BRIDGE TRANSPORT (NO CORS)
+   BRIDGE TRANSPORT (NO CORS) — improved timeouts + staged UX support
    ========================================================================= */
-const BRIDGE_TIMEOUT_MS = 15000;
 const __bridgeInflight = new Map();
 
 window.addEventListener("message", (ev) => {
   const msg = ev && ev.data;
   if (!msg || msg.__APACHE_BRIDGE__ !== true) return;
+
+  // Optional origin hardening: if script sends msg.origin, we can check it.
+  // But keep permissive to avoid breaking older deployments.
   const cb = String(msg.cb || "");
   const inflight = __bridgeInflight.get(cb);
   if (!inflight) return;
 
-  clearTimeout(inflight.to);
+  clearTimeout(inflight.hardTo);
+  clearTimeout(inflight.softTo1);
+  clearTimeout(inflight.softTo2);
+
   __bridgeInflight.delete(cb);
   try { inflight.iframe.remove(); } catch(_) {}
   try { inflight.resolve(msg.data); } catch(_) {}
@@ -1420,16 +1396,18 @@ window.addEventListener("message", (ev) => {
 function bridgeCancel(cb){
   const inflight = __bridgeInflight.get(cb);
   if(!inflight) return;
-  clearTimeout(inflight.to);
+  clearTimeout(inflight.hardTo);
+  clearTimeout(inflight.softTo1);
+  clearTimeout(inflight.softTo2);
   __bridgeInflight.delete(cb);
   try { inflight.iframe.remove(); } catch(_) {}
   try { inflight.reject(new Error("Canceled")); } catch(_) {}
 }
 
-function bridgeGet(execUrl, params){
-  const cb = crypto.randomUUID();
+function bridgeGet(execUrl, params, opts){
+  const cb = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2));
   const url = new URL(execUrl);
-  Object.entries(params || {}).forEach(([k,v]) => url.searchParams.set(k, v));
+  Object.entries(params || {}).forEach(([k,v]) => url.searchParams.set(k, String(v)));
   url.searchParams.set("bridge","1");
   url.searchParams.set("cb", cb);
   url.searchParams.set("origin", location.origin);
@@ -1439,20 +1417,30 @@ function bridgeGet(execUrl, params){
   iframe.src = url.toString();
   document.body.appendChild(iframe);
 
+  const hardTimeoutMs = (opts && opts.hardTimeoutMs) ? opts.hardTimeoutMs : 20000;
+  const soft1 = (opts && opts.soft1Ms) ? opts.soft1Ms : 1600;
+  const soft2 = (opts && opts.soft2Ms) ? opts.soft2Ms : 12000;
+  const soft1Msg = (opts && opts.soft1Msg) ? opts.soft1Msg : null;
+  const soft2Msg = (opts && opts.soft2Msg) ? opts.soft2Msg : null;
+
   const p = new Promise((resolve, reject) => {
-    const to = setTimeout(() => {
+    const softTo1 = setTimeout(() => { if(soft1Msg) toastCenter(soft1Msg); }, soft1);
+    const softTo2 = setTimeout(() => { if(soft2Msg) toastCenter(soft2Msg); }, soft2);
+
+    const hardTo = setTimeout(() => {
       __bridgeInflight.delete(cb);
       try { iframe.remove(); } catch(_) {}
       reject(new Error("Bridge GET timeout"));
-    }, BRIDGE_TIMEOUT_MS);
-    __bridgeInflight.set(cb, { resolve, reject, to, iframe });
+    }, hardTimeoutMs);
+
+    __bridgeInflight.set(cb, { resolve, reject, hardTo, softTo1, softTo2, iframe });
   });
   p._cb = cb;
   return p;
 }
 
-function bridgePost(execUrl, jsonPayload){
-  const cb = crypto.randomUUID();
+function bridgePost(execUrl, jsonPayload, opts){
+  const cb = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2));
   const url = new URL(execUrl);
   url.searchParams.set("bridge","1");
   url.searchParams.set("cb", cb);
@@ -1471,20 +1459,30 @@ function bridgePost(execUrl, jsonPayload){
   const inp = document.createElement("input");
   inp.type = "hidden";
   inp.name = "json";
-  inp.value = JSON.stringify(jsonPayload);
+  inp.value = JSON.stringify(jsonPayload || {});
   form.appendChild(inp);
 
   document.body.appendChild(form);
   form.submit();
   form.remove();
 
+  const hardTimeoutMs = (opts && opts.hardTimeoutMs) ? opts.hardTimeoutMs : 25000;
+  const soft1 = (opts && opts.soft1Ms) ? opts.soft1Ms : 1600;
+  const soft2 = (opts && opts.soft2Ms) ? opts.soft2Ms : 15000;
+  const soft1Msg = (opts && opts.soft1Msg) ? opts.soft1Msg : null;
+  const soft2Msg = (opts && opts.soft2Msg) ? opts.soft2Msg : null;
+
   const p = new Promise((resolve, reject) => {
-    const to = setTimeout(() => {
+    const softTo1 = setTimeout(() => { if(soft1Msg) toastCenter(soft1Msg); }, soft1);
+    const softTo2 = setTimeout(() => { if(soft2Msg) toastCenter(soft2Msg); }, soft2);
+
+    const hardTo = setTimeout(() => {
       __bridgeInflight.delete(cb);
       try { iframe.remove(); } catch(_) {}
       reject(new Error("Bridge POST timeout"));
-    }, BRIDGE_TIMEOUT_MS);
-    __bridgeInflight.set(cb, { resolve, reject, to, iframe });
+    }, hardTimeoutMs);
+
+    __bridgeInflight.set(cb, { resolve, reject, hardTo, softTo1, softTo2, iframe });
   });
   p._cb = cb;
   return p;
@@ -1498,12 +1496,13 @@ function isOkish(data){
   if(data.ok === true) return true;
   if(data.success === true) return true;
   if(String(data.status||'').toLowerCase() === 'ok') return true;
+  if(String(data.result||'').toLowerCase() === 'ok') return true;
   return false;
 }
 
 function normalizePatientsFromListResponse(data){
   const root = data?.data ?? data ?? {};
-  let patients = root.patients ?? root.rows ?? root.list ?? [];
+  let patients = root.patients ?? root.rows ?? root.list ?? root.items ?? [];
   if(!Array.isArray(patients)) patients = [];
 
   const out = [];
@@ -1521,9 +1520,7 @@ function normalizePatientsFromListResponse(data){
 }
 
 /* =========================================================================
-   ✅ SUBMIT (TIGHT SYNC WITH LATEST SCRIPT)
-   Send ONLY what your script expects:
-   { authToken, month, sheetRow }
+   ✅ SUBMIT (waits for server confirmation; long hard timeout)
    ========================================================================= */
 async function postOnline(sheetRow){
   const { url, secret } = currentConn();
@@ -1531,11 +1528,19 @@ async function postOnline(sheetRow){
 
   const payload = {
     authToken: secret,
+    auth: secret,           // extra compatibility (harmless)
     month: istMonthYYYYMM(),
     sheetRow: sheetRow
   };
 
-  const data = await bridgePost(execUrl, payload);
+  const data = await bridgePost(execUrl, payload, {
+    hardTimeoutMs: 75000,                         // <-- long hard wait for server confirmation
+    soft1Ms: 1400,
+    soft2Ms: 14000,
+    soft1Msg: 'Sending…',
+    soft2Msg: 'Still processing… waiting for server confirmation.'
+  });
+
   if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
 
   if(!isOkish(data)){
@@ -1550,22 +1555,24 @@ $('btnSubmit')?.addEventListener('click', async (ev)=>{
   const button=$('btnSubmit');
   button.disabled=true;
 
-  const slowTimer = setTimeout(()=>toastCenter('Still sending… network may be slow.'), 1600);
-
   try{
-    // no manual entry needed; defaults already loaded
+    // Save overrides only (does NOT break defaults when empty)
     saveDevOverrides();
 
     const { sheetRow } = buildPayloadStrict();
 
     toast('Sending to Google Sheets…');
-    await postOnline(sheetRow);
+    const data = await postOnline(sheetRow);
 
-    clearTimeout(slowTimer);
+    // stage confirmation (server-confirmed)
     toast('Saved to Google Sheets ✅');
+    // If server returns rowNumber etc, show it:
+    if(data && (data.rowNumber || data.row || data.insertedRow)){
+      const r = data.rowNumber || data.row || data.insertedRow;
+      setTimeout(()=>toast('Confirmed by server ✓ Row: '+r, true), 700);
+    }
     scheduleCompute();
   }catch(e){
-    clearTimeout(slowTimer);
     if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
     toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
   }finally{
@@ -1575,7 +1582,6 @@ $('btnSubmit')?.addEventListener('click', async (ev)=>{
 
 /* =========================================================================
    Download current month
-   - Open download URL (fast + reliable)
    ========================================================================= */
 function downloadCurrentMonth(){
   const { url, secret } = currentConn();
@@ -1606,7 +1612,7 @@ $('btnBuildPreview')?.addEventListener('click', ()=>{
   try{
     const { sheetRow } = buildPayloadStrict();
     const { secret } = currentConn();
-    const payload = { authToken: secret, month: istMonthYYYYMM(), sheetRow };
+    const payload = { authToken: secret, auth: secret, month: istMonthYYYYMM(), sheetRow };
     $('debugPreview').textContent = JSON.stringify(payload, null, 2);
     toast('Payload built');
   }catch(e){
@@ -1675,8 +1681,7 @@ function dummyFill(){
 $('btnDummyFill')?.addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
 
 /* =========================================================================
-   Duplicate-check (GET) — bridge GET (no CORS)
-   (supports action=check; uses authToken + auth for compatibility)
+   Duplicate-check — bridge GET
    ========================================================================= */
 let dupInflightCb = null;
 const dupEl = $('dupIndicator');
@@ -1738,10 +1743,14 @@ async function checkDuplicateNow(){
       action:'check',
       uhid: String(uhid).trim(),
       patientName: String(name).trim(),
-      name: String(name).trim(),          // compatibility
+      name: String(name).trim(),
       month: ym,
       auth: secret,
       authToken: secret
+    }, {
+      hardTimeoutMs: 22000,
+      soft1Msg: null,
+      soft2Msg: null
     });
     dupInflightCb = p._cb;
 
@@ -1778,7 +1787,9 @@ function onFocusCancel(){
 });
 
 /* =========================================================================
-   ADMIN: LIST patients — bridge POST (tag=LIST) + cache
+   ADMIN: LIST patients — MUST populate
+   - Tries GET first (tag=LIST), then POST fallback.
+   - Paginates (limit/offset) when supported.
    ========================================================================= */
 const ADMIN_LIST_CACHE = new Map();
 const ADMIN_LIST_TTL_MS = 30_000;
@@ -1799,6 +1810,43 @@ function renderPatientsTable(patients){
   adminPatientsTbody.innerHTML = html;
 }
 
+async function listViaGet(execUrl, secret, month, limit, offset){
+  // Script style: doGet?tag=LIST&month=...&limit=...&offset=...&auth=...
+  return bridgeGet(execUrl, {
+    tag:'LIST',
+    month: month,
+    limit: String(limit||500),
+    offset: String(offset||0),
+    auth: secret,
+    authToken: secret
+  }, {
+    hardTimeoutMs: 25000,
+    soft1Ms: 1400,
+    soft2Ms: 14000,
+    soft1Msg: null,
+    soft2Msg: 'Still loading list…'
+  });
+}
+
+async function listViaPost(execUrl, secret, month, limit, offset){
+  // Script style: doPost json={ tag:"LIST", month, limit, offset, authToken }
+  const payload = {
+    tag:'LIST',
+    month: month,
+    limit: Number(limit||500),
+    offset: Number(offset||0),
+    authToken: secret,
+    auth: secret
+  };
+  return bridgePost(execUrl, payload, {
+    hardTimeoutMs: 30000,
+    soft1Ms: 1400,
+    soft2Ms: 14000,
+    soft1Msg: null,
+    soft2Msg: 'Still loading list…'
+  });
+}
+
 async function fetchPatientsList(month, force=false){
   const key = String(month||'').trim();
   if(!key) throw new Error('Month missing');
@@ -1811,37 +1859,64 @@ async function fetchPatientsList(month, force=false){
   const { url, secret } = currentConn();
   const execUrl = sanitizeExecUrl(url);
 
-  // Page through (limit/offset) to avoid giant payloads
   let offset = 0;
   const limit = 500;
   let all = [];
+  let mode = null;
 
   while(true){
-    const payload = {
-      tag: 'LIST',
-      month: key,
-      limit,
-      offset,
-      authToken: secret
-    };
-    const data = await bridgePost(execUrl, payload);
+    let data = null;
+
+    // Decide mode on first page; stick to it.
+    if(!mode){
+      // Try GET first (fast + common for LIST). If fails, fallback to POST.
+      try{
+        data = await listViaGet(execUrl, secret, key, limit, offset);
+        mode = 'GET';
+      }catch(e1){
+        data = await listViaPost(execUrl, secret, key, limit, offset);
+        mode = 'POST';
+      }
+    }else if(mode === 'GET'){
+      data = await listViaGet(execUrl, secret, key, limit, offset);
+    }else{
+      data = await listViaPost(execUrl, secret, key, limit, offset);
+    }
+
     if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
 
+    // Some scripts return {ok:true, patients:[...]} or wrap in {data:{...}}
     if(!isOkish(data)){
-      const detail = data && (data.error || data.message || JSON.stringify(data).slice(0,200));
+      const detail = data && (data.error || data.message || JSON.stringify(data).slice(0,220));
       throw new Error('LIST did not confirm ok' + (detail?': '+detail:''));
     }
 
     const patients = normalizePatientsFromListResponse(data);
     all = all.concat(patients);
 
+    // Stop condition:
+    // - If script paginates: returned < limit.
+    // - If script doesn't paginate: it will return everything at once and <limit anyway.
     if(patients.length < limit) break;
+
     offset += limit;
     if(offset > 20000) break; // safety
   }
 
-  ADMIN_LIST_CACHE.set(key, { ts: Date.now(), patients: all });
-  return all;
+  // de-dup by UHID (keep first name)
+  const seen = new Set();
+  const dedup = [];
+  for(const p of all){
+    const u = String(p.uhid||'').trim();
+    const n = String(p.name||'').trim();
+    const keyU = u ? u : ('__NAME__'+n);
+    if(seen.has(keyU)) continue;
+    seen.add(keyU);
+    dedup.push({ uhid:u, name:n });
+  }
+
+  ADMIN_LIST_CACHE.set(key, { ts: Date.now(), patients: dedup });
+  return dedup;
 }
 
 async function adminEnsureListLoaded(opening=false, force=false){
@@ -1855,7 +1930,12 @@ async function adminEnsureListLoaded(opening=false, force=false){
 
     const patients = await fetchPatientsList(month, force);
     renderPatientsTable(patients);
-    if(!opening) toast('List updated ✅');
+
+    if(opening){
+      toast('List loaded ✅');
+    }else{
+      toast('List updated ✅');
+    }
   }catch(e){
     renderPatientsTable([]);
     toast('List failed: '+(e && e.message ? e.message : String(e)), false);
@@ -1863,12 +1943,13 @@ async function adminEnsureListLoaded(opening=false, force=false){
 }
 
 /* =========================================================================
-   ADMIN: KP queue + Update — bridge POST (tag=KP)
+   ADMIN: KP queue + Update — tag=KP
+   - Supports mixed Y/N by splitting into two calls (Y then N).
    ========================================================================= */
 const kpUhid=$('kpUhid'), kpYN=$('kpYN'), btnKpAdd=$('btnKpAdd'), btnKpUpdate=$('btnKpUpdate'), btnKpClear=$('btnKpClear');
 const kpQueueTbody=$('kpQueueTbody');
 
-let KP_QUEUE = [];
+let KP_QUEUE = []; // [{uhid, yn}]
 function normalizeUhid(u){ return String(u||'').trim(); }
 
 function kpQueueSet(next){
@@ -1895,37 +1976,45 @@ function renderKpQueue(){
     html += '<tr>' +
       '<td style="font-weight:800;color:#e2e8f0">'+u+'</td>' +
       '<td style="font-weight:900">'+yn+'</td>' +
-      '<td><button class="btn ghost" type="button" data-kp-remove="'+i+'" style="padding:8px 10px">Remove</button></td>' +
-    '</tr>';
+      '<td><button class="btn ghost" type="button" style="padding:8px 10px;font-size:12px" data-kp-remove="'+i+'">Remove</button></td>' +
+      '</tr>';
   }
   kpQueueTbody.innerHTML = html;
+
+  kpQueueTbody.querySelectorAll('button[data-kp-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = Number(btn.getAttribute('data-kp-remove'));
+      if(Number.isFinite(idx)){
+        KP_QUEUE.splice(idx,1);
+        renderKpQueue();
+      }
+    });
+  });
 }
 
-kpQueueTbody?.addEventListener('click', (ev)=>{
-  const t = ev.target;
-  if(!t) return;
-  const idx = t.getAttribute && t.getAttribute('data-kp-remove');
-  if(idx==null) return;
-  const i = Number(idx);
-  if(Number.isFinite(i)){
-    const next = KP_QUEUE.slice();
-    next.splice(i, 1);
-    kpQueueSet(next);
+function kpAdd(){
+  const u = normalizeUhid(kpUhid?.value);
+  const ynRaw = String(kpYN?.value || 'Y').trim().toUpperCase();
+  const yn = (ynRaw === 'N') ? 'N' : 'Y';
+
+  if(!u){
+    toast('Enter UHID', false);
+    return;
   }
-});
 
-btnKpAdd?.addEventListener('click', ()=>{
-  const u = normalizeUhid(kpUhid.value);
-  const yn = String(kpYN.value||'Y').trim().toUpperCase()==='N' ? 'N' : 'Y';
-  if(!u){ toast('Enter UHID', false); return; }
+  // de-dupe: overwrite existing UHID
+  const existing = KP_QUEUE.findIndex(x => String(x.uhid).trim() === u);
+  if(existing >= 0) KP_QUEUE.splice(existing, 1);
 
-  const next = KP_QUEUE.filter(x => String(x.uhid) !== u);
-  next.push({ uhid:u, yn });
-  kpQueueSet(next);
-
+  KP_QUEUE.push({ uhid:u, yn:yn });
   kpUhid.value = '';
   kpUhid.focus();
-  toast('Added to queue');
+  renderKpQueue();
+}
+
+btnKpAdd?.addEventListener('click', kpAdd);
+kpUhid?.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); kpAdd(); }
 });
 
 btnKpClear?.addEventListener('click', ()=>{
@@ -1933,66 +2022,85 @@ btnKpClear?.addEventListener('click', ()=>{
   toast('Queue cleared');
 });
 
-async function postKP(uhids){
+async function doKPCall(uhids, yn){
   const { url, secret } = currentConn();
   const execUrl = sanitizeExecUrl(url);
 
+  // common expected payload: {tag:"KP", uhids:[...], mortality:"Y"|"N", authToken:"..."}
   const payload = {
     tag: 'KP',
-    month: istMonthYYYYMM(),
-    uhids: uhids,
-    authToken: secret
+    uhids: Array.isArray(uhids) ? uhids : String(uhids||''),
+    mortality: String(yn||'Y').toUpperCase(),
+    authToken: secret,
+    auth: secret
   };
-  return await bridgePost(execUrl, payload);
+
+  const data = await bridgePost(execUrl, payload, {
+    hardTimeoutMs: 45000,
+    soft1Ms: 1400,
+    soft2Ms: 14000,
+    soft1Msg: 'Updating…',
+    soft2Msg: 'Still updating mortality…'
+  });
+
+  if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
+  if(!isOkish(data)){
+    const detail = data && (data.error || data.message || JSON.stringify(data).slice(0,220));
+    throw new Error('KP did not confirm ok' + (detail?': '+detail:''));
+  }
+  return data;
 }
 
 btnKpUpdate?.addEventListener('click', async ()=>{
-  if(KP_QUEUE.length===0) return;
+  if(KP_QUEUE.length === 0) return;
 
-  const yList = KP_QUEUE.filter(x => x.yn==='Y').map(x => x.uhid);
-  const nList = KP_QUEUE.filter(x => x.yn==='N').map(x => x.uhid);
-
-  if(nList.length>0) toast('Note: Backend KP may set Y only. N entries will be skipped.', true, 'warn');
-  if(yList.length===0){ toast('Nothing to update (only N entries).', false); return; }
-
-  toast('Updating mortality (KP)…');
+  btnKpUpdate.disabled = true;
+  btnKpAdd.disabled = true;
+  btnKpClear.disabled = true;
 
   try{
-    const resp = await postKP(yList);
-    if($('lastResp')) $('lastResp').textContent = JSON.stringify(resp, null, 2);
+    saveDevOverrides();
 
-    if(!isOkish(resp)){
-      const detail = resp && (resp.error || resp.message || JSON.stringify(resp).slice(0,200));
-      throw new Error('KP did not confirm ok' + (detail?': '+detail:''));
-    }
+    const ys = KP_QUEUE.filter(x=>x.yn==='Y').map(x=>x.uhid);
+    const ns = KP_QUEUE.filter(x=>x.yn==='N').map(x=>x.uhid);
 
-    const remain = KP_QUEUE.filter(x => x.yn==='N');
-    kpQueueSet(remain);
+    toast('Submitting mortality updates…');
 
-    toast('Mortality updated for '+yList.length+' UHID(s) ✅');
-    await adminEnsureListLoaded(false, true);
+    if(ys.length) await doKPCall(ys, 'Y');
+    if(ns.length) await doKPCall(ns, 'N');
+
+    toast('Mortality updated ✅');
+    kpQueueSet([]);
+
+    // refresh list after KP (sometimes name/rows change)
+    adminEnsureListLoaded(false, true).catch(()=>{});
   }catch(e){
     toast('KP failed: '+(e && e.message ? e.message : String(e)), false);
+  }finally{
+    btnKpAdd.disabled = false;
+    btnKpClear.disabled = false;
+    renderKpQueue();
   }
 });
 
 /* =========================================================================
-   INIT
+   Final init
    ========================================================================= */
-document.addEventListener('DOMContentLoaded', ()=>{
-  loadDevOverrides();                // fills Dev panel with defaults automatically
-  const { url } = currentConn();
-  ensurePreconnectForUrl(url);
+function init(){
+  loadDevOverrides();
+
+  // preconnect to default url immediately (speed-up)
+  ensurePreconnectForUrl(currentConn().url);
+
+  // set admission date default today
+  if($('admitDate') && !$('admitDate').value) $('admitDate').value = todayISO();
 
   updateOxygenUI();
   attachFastListeners();
   scheduleCompute();
-
-  // Ensure month pill is correct even before opening
-  if(adminMonthPill) adminMonthPill.textContent = 'Month: '+istMonthYYYYMM();
-});
+  renderKpQueue();
+}
+init();
 </script>
-
-
 </body>
 </html>
