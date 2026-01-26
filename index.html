@@ -2362,40 +2362,47 @@ function renderControlsHeader(){
 }
 
 function renderControlsTable(entries){
+  if(!controlsEntriesTbody) return;
 
-  if(!adminPatientsTbody) return;
-  if(!patients || patients.length===0){
-    adminPatientsTbody.innerHTML =
-      '<tr><td colspan="9" style="color:rgba(226,232,240,.75);font-weight:700">No entries found for this month.</td></tr>';
+  const rows = Array.isArray(entries) ? entries : [];
+
+  // Update count pill
+  controlsSetCountPill(rows.length);
+
+  if(rows.length === 0){
+    controlsEntriesTbody.innerHTML =
+      '<tr><td colspan="9" style="color:rgba(226,232,240,.75);font-weight:900">No entries found for this month.</td></tr>';
     return;
   }
 
   let html = '';
-  for(const p of patients){
-    const u = escapeHtml(p.uhid||'');
-    const n = escapeHtml(p.name||'');
-    const age = escapeHtml(p.age||'');
-    const sex = escapeHtml(p.sex||'');
-    const ad = escapeHtml(p.admitDate||'');
-    const dx = escapeHtml(p.diagnosis||'');
-    const ap = escapeHtml(p.apache||'');
-    const pm = escapeHtml(p.predictedMortality||'');
-    const yn = escapeHtml(p.mortalityYN||'');
+  for(const p of rows){
+    const u  = escapeHtml(p.uhid ?? '');
+    const n  = escapeHtml(p.name ?? '');                 // normalized uses "name"
+    const ag = escapeHtml(p.age ?? '');
+    const sx = escapeHtml(p.sex ?? '');
+    const ad = escapeHtml(p.admitDate ?? '');
+    const dx = escapeHtml(p.diagnosis ?? '');
+    const ap = escapeHtml(p.apache ?? '');
+    const pm = escapeHtml(p.predictedMortality ?? '');
+    const yn = escapeHtml(p.mortalityYN ?? '');
 
     html += '<tr>'
-      + '<td style="font-weight:800;color:#e2e8f0">'+u+'</td>'
-      + '<td style="color:rgba(226,232,240,.92)">'+n+'</td>'
-      + '<td>'+age+'</td>'
-      + '<td>'+sex+'</td>'
-      + '<td>'+ad+'</td>'
-      + '<td>'+dx+'</td>'
-      + '<td style="font-weight:900">'+ap+'</td>'
-      + '<td style="font-weight:900">'+pm+'</td>'
-      + '<td style="font-weight:900">'+yn+'</td>'
+      + `<td style="font-weight:900;color:#e2e8f0">${u}</td>`
+      + `<td style="color:rgba(226,232,240,.92)">${n}</td>`
+      + `<td>${ag}</td>`
+      + `<td>${sx}</td>`
+      + `<td>${ad}</td>`
+      + `<td>${dx}</td>`
+      + `<td style="font-weight:900">${ap}</td>`
+      + `<td style="font-weight:900">${pm}</td>`
+      + `<td style="font-weight:900">${yn}</td>`
       + '</tr>';
   }
-  adminPatientsTbody.innerHTML = html;
+
+  controlsEntriesTbody.innerHTML = html;
 }
+
 
 async function listEntriesViaGet(execUrl, secret, month, limit, offset){
   // Script style: doGet?tag=LIST&month=...&limit=...&offset=...&auth=...
