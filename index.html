@@ -1005,6 +1005,147 @@ function todayISO(){
 }
 
 function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+/* =========================================================================
+   🔥 HARD CACHE + STORAGE QUASH
+   Goal:
+   - If the app version changes, wipe ALL locally persisted state
+     (cookies + localStorage + sessionStorage) so old UI/data cannot linger.
+   - Additionally, if user explicitly reloads the page, wipe “entry” storage.
+
+   Why:
+   - “New page not appearing” is typically HTTP cache, not cookies.
+   - But we also wipe cookies/storage to prevent sticky older form entries.
+   ========================================================================= */
+
+// ✅ Bump this string whenever you deploy a new HTML version.
+const APP_VERSION = "2026-01-26_v2";
+
+/** Delete all cookies for this origin (best-effort; path/domain quirks exist). */
+function wipeAllCookiesBestEffort(){
+  try{
+    const cookies = document.cookie ? document.cookie.split(";") : [];
+    const hostname = location.hostname;
+    const domainParts = hostname.split(".");
+    const candidateDomains = [];
+
+    // Build candidate domains: example a.b.c -> ["a.b.c", ".a.b.c", "b.c", ".b.c", "c", ".c"]
+    for(let i=0;i<domainParts.length;i++){
+      const d = domainParts.slice(i).join(".");
+      candidateDomains.push(d, "."+d);
+    }
+
+    for(const c of cookies){
+      const eq = c.indexOf("=");
+      const name = (eq >= 0 ? c.slice(0, eq) : c).trim();
+      if(!name) continue;
+
+      // Try multiple paths and domains
+      const paths = ["/", location.pathname.replace(/\/[^\/]*$/, "/")];
+      for(const p of paths){
+        // no domain
+        document.cookie = `${name}=; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${p}`;
+        // domain variants
+        for(const d of candidateDomains){
+          document.cookie = `${name}=; Max-Age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${p}; domain=${d}`;
+        }
+      }
+    }
+  }catch(_){}
+}
+
+/** Wipe local/session storage safely */
+function wipeWebStorage(){
+  try{ localStorage.clear(); }catch(_){}
+  try{ sessionStorage.clear(); }catch(_){}
+}
+
+/**
+ * Decide whether this navigation is a “reload”.
+ * Works in modern browsers (PerformanceNavigationTiming).
+ */
+function isReloadNavigation(){
+  try{
+    const nav = performance.getEntriesByType("navigation");
+    if(nav && nav[0] && nav[0].type) return nav[0].type === "reload";
+  }catch(_){}
+  // Fallback (older): performance.navigation.type === 1 means reload
+  try{
+    return performance.navigation && performance.navigation.type === 1;
+  }catch(_){}
+  return false;
+}
+
+/**
+ * Hard refresh helper: force a re-fetch by adding a version param.
+ * This is the closest thing to “guarantee new HTML” you can do from within HTML.
+ */
+function hardRefreshWithVersionParam(){
+  try{
+    const u = new URL(location.href);
+    u.searchParams.set("v", APP_VERSION);
+    // Replace so back button doesn’t return to stale version
+    location.replace(u.toString());
+  }catch(_){
+    // If URL parsing fails, do nothing.
+  }
+}
+
+/**
+ * Main boot guard:
+ * - If APP_VERSION changed since last run → wipe everything, then force reload with ?v=
+ * - If user performed an explicit reload → wipe entry-related storage
+ */
+function applyVersionAndReloadGuards(){
+  let prev = null;
+  try{ prev = localStorage.getItem("__APACHE_APP_VERSION__"); }catch(_){}
+
+  const versionChanged = (prev !== APP_VERSION);
+
+  if(versionChanged){
+    // ✅ Nuke everything persisted from older versions
+    wipeAllCookiesBestEffort();
+    wipeWebStorage();
+
+    // Re-seed the version so we don't loop forever
+    try{ localStorage.setItem("__APACHE_APP_VERSION__", APP_VERSION); }catch(_){}
+
+    // Force re-fetch with cache-busting query param
+    hardRefreshWithVersionParam();
+    return; // stop further boot; page will reload
+  }
+
+  // If user hit reload, wipe “entries” (but keep connection settings if you want)
+  if(isReloadNavigation()){
+    // If you want to preserve Dev Connection settings, do NOT clear all localStorage.
+    // Instead remove only “entry” keys. If you don't know keys, you can still clear all.
+    // Below: preserve apacheMobileDev but wipe everything else.
+
+    try{
+      const keep = localStorage.getItem("apacheMobileDev");
+      localStorage.clear();
+      if(keep != null) localStorage.setItem("apacheMobileDev", keep);
+      localStorage.setItem("__APACHE_APP_VERSION__", APP_VERSION);
+    }catch(_){
+      // If any error, fall back to full clear
+      wipeWebStorage();
+    }
+
+    wipeAllCookiesBestEffort();
+  }
+}
+
+// ✅ Call this BEFORE init()
+applyVersionAndReloadGuards();
+
+// Also handle bfcache restores (Safari/Chrome can “resume” old page)
+// If persisted, run guards again
+window.addEventListener("pageshow", (e) => {
+  try{
+    if(e && e.persisted){
+      applyVersionAndReloadGuards();
+    }
+  }catch(_){}
+});
 
 /* =============================================================================
    Toasts
