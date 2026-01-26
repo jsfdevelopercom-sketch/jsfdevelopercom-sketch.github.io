@@ -2480,18 +2480,8 @@ async function fetchControlsEntries(month){
     if(offset > 20000) break; // safety
   }
 
-  // de-dup by UHID (keep first)
-  const seen = new Set();
-  const dedup = [];
-  for(const r of all){
-    const u = String(r.uhid||'').trim();
-    const k = u || (String(r.patientName||'').trim());
-    if(!k) continue;
-    if(seen.has(k)) continue;
-    seen.add(k);
-    dedup.push(r);
-  }
-  return dedup;
+ 
+  return all;
 }
 
 function setControlsMonthUI(month){
