@@ -2348,8 +2348,23 @@ function normalizeEntriesFromListResponse(data){
         sex: item.sex ?? item.Sex ?? '',
         admitDate: item.admitDate ?? item.admissionDate ?? item.AdmissionDate ?? item.admit ?? '',
         diagnosis: item.diagnosis ?? item.Diagnosis ?? item.dx ?? item.DX ?? '',
-        apache: item.apache ?? item.apacheII ?? item.apacheIi ?? item.APACHE ?? item.APACHEII ?? item.apache_score ?? '',
-        predictedMortality: item.predictedMortality ?? item.predMort ?? item.predMortality ?? item.PredMortality ?? item.predicted ?? '',
+       apache: item.apache
+    ?? item.apacheScore          
+    ?? item.apacheII
+    ?? item.apacheIi
+    ?? item.APACHE
+    ?? item.APACHEII
+    ?? item.apache_score
+    ?? '',
+
+predictedMortality: item.predictedMortality
+    ?? item.mortalityPct        
+    ?? item.predMort
+    ?? item.predMortality
+    ?? item.PredMortality
+    ?? item.predicted
+    ?? '',
+
         mortalityYN: item.mortalityYN ?? item.mortality ?? item.Mortality ?? item.outcome ?? ''
       });
     }
