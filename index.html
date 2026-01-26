@@ -2155,7 +2155,7 @@ function pick(obj, keys){
   return null;
 }
 
-function normalizeEntriesFromListResponse(data){
+function normalizePatientsFromListResponse(data){
   const root = data?.data ?? data ?? {};
   let patients = root.patients ?? root.rows ?? root.list ?? root.items ?? [];
   if(!Array.isArray(patients)) patients = [];
@@ -2197,6 +2197,7 @@ function normalizeEntriesFromListResponse(data){
 
   return out.filter(x => String(x.uhid ?? '').trim() || String(x.name ?? '').trim());
 }
+
 
 
 /* Define preferred columns in display order.
