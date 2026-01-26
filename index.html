@@ -6,25 +6,55 @@
 <title>APACHE II Bedside Entry</title>
 
 <!--
-  ✅ COMPLETE HTML (NOT PATCHES) — synced behavior goals:
-  1) LIST (UHID + Patient Name) MUST populate inside Admin overlay.
-     - Uses bridge transport (no CORS).
-     - Tries GET first (tag=LIST) then POST fallback if your script uses POST tags.
-     - Normalizes multiple response shapes.
+===============================================================================
+✅ COMPLETE HTML (FULL FILE, NOT PATCHES)
+===============================================================================
 
-  2) Webhook URL + Secret are HARD-CODED defaults in HTML.
-     - Dev modal overrides are OPTIONAL.
-     - If dev textbox values are EMPTY, defaults are used (no "blank breaks").
+WHAT CHANGED (per your instructions)
+1) ✅ MAIN WEBSITE HAS 3 TOP-LEVEL TABS:
+   - Form (default selected on load)
+   - Controls (full-page “Quick Admin Console”)
+   - Help (elaborate instructions + scoring table + contact developer)
 
-  3) SUBMIT MUST NOT prematurely timeout.
-     - Uses staged UX: "Sending…" -> "Still processing…" -> waits for server confirmation.
-     - Uses SOFT timers for messaging, HARD timeout is long (default 75s for submit).
-     - LIST / CHECK / KP have their own timeouts.
+2) ✅ SETTINGS ICON MOVED:
+   - Removed from Form (header)
+   - Appears near top of Controls page (Sheet Controls)
+   - Clicking it opens the SAME Dev/Connection floating panel as before (unchanged).
 
-  NOTE:
-  - This file assumes your Apps Script supports bridge=1 and posts back:
-      { __APACHE_BRIDGE__: true, cb:"...", data: <json> }
-    to the parent window via postMessage.
+3) ✅ SUBMIT UX REDUCED:
+   - On submit click: show ONLY "Sent to Server ..."
+   - Then WAIT for server response
+   - On success: show success message
+   - On error: show error message
+   - No other intermediate toasts / “sending… still processing…” etc.
+
+4) ✅ CONTROLS PAGE TABLE:
+   - Month selector + Refresh button above the table
+   - Forced vertical + horizontal scrollbars
+   - Shows COMPLETE entries (UHID, name, age, sex, date, scores, mortality, etc.)
+   - Removes the prior little “Tip” block.
+
+5) ✅ CONTROLS PAGE CACHING:
+   - First visit loads table (unless cache already exists for that month)
+   - Stores the loaded entries locally (localStorage; iOS/Android compatible; no permissions)
+   - Switching away and back does NOT reload from server
+   - Refresh button forces reload + updates cache
+   - Month selector uses cache if available, else loads from server
+   - While reloading: shows a small waiting spinner next to table header (like before)
+
+6) ✅ SCRIPT COMPATIBILITY:
+   - Kept bridge transport (no CORS)
+   - LIST is requested with tag=LIST (GET first, then POST fallback)
+   - KP update remains tag=KP (POST)
+   - Contact Developer uses tag=CONTACT (script will be updated later)
+     -> This will not break anything else; it’s isolated to Help.
+
+DEBUGGING NOTE
+- I intentionally expanded multi-line comments in the JS so future debugging is easier.
+- I avoided touching your already-working compute/scoring logic and bridge core,
+  except where required for the new tabs + reduced submit alerts.
+
+===============================================================================
 -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -53,16 +83,34 @@
   body{margin:0;min-height:100vh;font-family:"Inter",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg-gradient);display:flex;flex-direction:column}
   a{color:inherit}
 
-  .masthead{position:relative;padding:clamp(24px,5vw,42px) clamp(18px,7vw,64px) clamp(28px,6vw,52px);display:flex;flex-direction:column;gap:clamp(18px,4vw,36px);overflow:hidden}
+  .masthead{position:relative;padding:clamp(24px,5vw,42px) clamp(18px,7vw,64px) clamp(18px,4vw,28px);display:flex;flex-direction:column;gap:clamp(14px,3vw,22px);overflow:hidden}
   .masthead::before{content:"";position:absolute;inset:12% auto -20% 50%;width:clamp(240px,40vw,520px);height:clamp(240px,45vw,560px);background:radial-gradient(circle, rgba(37,99,235,.45), transparent 70%);transform:translateX(-50%) rotate(18deg);filter:blur(42px);opacity:.6}
-  .masthead__inner{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:flex;flex-direction:column;gap:clamp(18px,4vw,36px)}
+  .masthead__inner{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:flex;flex-direction:column;gap:clamp(14px,3vw,18px)}
   .topline{display:flex;align-items:center;justify-content:space-between;gap:18px}
   .brand{display:flex;align-items:center;gap:16px}
   .brand__mark{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.7));display:grid;place-items:center;color:#fff;font-family:"Plus Jakarta Sans","Inter",sans-serif;font-weight:700;font-size:20px;letter-spacing:.04em;box-shadow:var(--shadow-soft)}
   .brand__copy h1{margin:0;font-family:"Plus Jakarta Sans","Inter",sans-serif;font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.02em}
   .brand__copy p{margin:6px 0 0;max-width:520px;color:var(--muted);font-size:clamp(15px,2.5vw,18px);line-height:1.6}
-  .dev-bubble{width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.7);background:rgba(15,23,42,.75);color:#e2e8f0;display:grid;place-items:center;cursor:pointer;box-shadow:0 16px 40px -20px rgba(15,23,42,.65);backdrop-filter:blur(12px);transition:transform .2s ease}
-  .dev-bubble:hover{transform:translateY(-2px)}
+
+  /* ---------- TOP-LEVEL NAV TABS (Form / Controls / Help) ---------- */
+  .main-tabs{
+    display:flex;gap:10px;flex-wrap:wrap;
+    padding:10px 0 0 0;
+  }
+  .main-tab{
+    border:1px solid rgba(148,163,184,.4);
+    background:rgba(255,255,255,.75);
+    padding:10px 14px;border-radius:12px;
+    font-weight:800;cursor:pointer;
+    transition:transform .15s ease, background .15s ease;
+    user-select:none;
+  }
+  .main-tab:hover{transform:translateY(-1px)}
+  .main-tab.active{
+    background:linear-gradient(135deg,#2563eb,#14a3e9);
+    color:#fff;border-color:transparent;
+    box-shadow:0 16px 36px -22px rgba(37,99,235,.65);
+  }
 
   .mode-switcher{display:grid;gap:10px;align-items:start}
   .mode-pills{display:grid;grid-template-columns:1fr;gap:12px}
@@ -80,10 +128,10 @@
   .cards-flow{display:grid;gap:clamp(18px,3vw,28px)}
   .panel{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--outline);padding:clamp(18px,3vw,28px);box-shadow:var(--shadow-soft);backdrop-filter:blur(14px);display:grid;gap:clamp(16px,2.5vw,26px)}
   .panel header{display:grid;gap:6px}
-  .panel h2{margin:0;font-size:clamp(18px,2.7vw,22px);font-weight:700;letter-spacing:-.01em}
+  .panel h2{margin:0;font-size:clamp(18px,2.7vw,22px);font-weight:800;letter-spacing:-.01em}
   .panel .hint{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
 
-  label{font-weight:600;font-size:14px;color:#1e293b;display:block;margin-bottom:6px}
+  label{font-weight:700;font-size:14px;color:#1e293b;display:block;margin-bottom:6px}
   .input,select,textarea{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid rgba(148,163,184,.5);background:rgba(248,250,252,.92);font-size:15px;transition:border .2s ease,box-shadow .2s ease,background .2s ease}
   .input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(37,99,235,.6);box-shadow:0 0 0 4px rgba(37,99,235,.15);background:#fff}
   input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -93,12 +141,13 @@
   .grid-3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 
   .chip-row{display:flex;flex-wrap:wrap;gap:12px}
-  .chip{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-md);background:rgba(148,163,184,.14);border:1px solid transparent;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s ease}
+  .chip{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-md);background:rgba(148,163,184,.14);border:1px solid transparent;font-weight:700;cursor:pointer;color:var(--muted);transition:all .2s ease}
   .chip input[type=radio]{accent-color:var(--accent)}
   .chip:hover{background:rgba(37,99,235,.1)}
 
+  /* NOTE: These ".tab" styles are for the INTERNAL Clinical Inputs tabs (Vitals/Oxygen/Labs) */
   .tab-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
-  .tab{border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.7);padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
+  .tab{border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.7);padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
   .tab.active{background:linear-gradient(135deg,#2563eb,#14a3e9);color:#fff;border-color:transparent}
   .tab-panel{display:none}
   .tab-panel.active{display:block}
@@ -113,123 +162,22 @@
     z-index:150
   }
   .action-dock__inner{max-width:var(--max-width);margin:0 auto;display:grid;gap:12px}
-  .btn{border-radius:var(--radius-md);border:1px solid transparent;padding:16px;font-weight:600;font-size:16px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+  .btn{border-radius:var(--radius-md);border:1px solid transparent;padding:16px;font-weight:800;font-size:16px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
   .btn.primary{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;box-shadow:0 20px 40px -18px rgba(37,99,235,.55)}
   .btn.primary:hover:not([disabled]){transform:translateY(-1px)}
   .btn.secondary{background:rgba(37,99,235,.08);color:var(--accent-dark);border:1px solid rgba(37,99,235,.18)}
   .btn.ghost{background:transparent;border:1px solid rgba(148,163,184,.35);color:var(--muted)}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
 
-  .incomplete-note{display:none;font-size:12px;color:#dc2626;font-weight:700}
+  .incomplete-note{display:none;font-size:12px;color:#dc2626;font-weight:900}
   .incomplete-note[data-visible="true"]{display:block}
 
-  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:600;color:var(--text);display:none;z-index:220}
+  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:800;color:var(--text);display:none;z-index:220}
   .toast.err{border-left-color:#dc2626;color:#dc2626}
   .toast.warn{border-left-color:#f59e0b;color:#92400e}
   .toast.center{left:50%;top:50%;transform:translate(-50%,-50%);right:auto;bottom:auto;min-width:min(460px,calc(100vw - 48px));text-align:center}
 
-  .admin-panel,.admin-backdrop{position:fixed;inset:0;z-index:235}
-  .admin-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
-  .admin-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
-  .admin-panel{display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
-  .admin-panel[aria-hidden="false"]{opacity:1;visibility:visible;pointer-events:auto}
-
-  .admin-sheet{
-    width:min(720px,calc(100vw - 28px));
-    background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);
-    border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);
-    padding:18px;display:grid;gap:14px;pointer-events:auto;
-    max-height:min(84vh, 760px);
-    overflow:hidden;
-  }
-  .admin-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 6px 0 6px}
-  .admin-title-wrap{display:grid;gap:2px}
-  .admin-title{margin:0;font-size:18px;font-weight:700}
-  .admin-sub{margin:0;font-size:12px;color:rgba(226,232,240,.72);line-height:1.35}
-  .admin-close{border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:700}
-
-  /* ✅ COMPULSORY SCROLLBARS */
-  .admin-body{
-    display:grid;gap:12px;
-    overflow: scroll;
-    scrollbar-gutter: stable both-edges;
-    padding:0 6px 6px 6px;
-    max-height: min(72vh, 680px);
-  }
-
-  .admin-card{
-    border:1px solid rgba(148,163,184,.28);
-    background:rgba(2,6,23,.35);
-    border-radius:18px;
-    padding:12px;
-    display:grid;
-    gap:10px;
-  }
-  .admin-card h4{margin:0;font-size:14px;font-weight:800}
-  .admin-card .minihelp{margin:0;color:rgba(226,232,240,.70);font-size:12px;line-height:1.4}
-
-  .table-wrap{
-    border:1px solid rgba(148,163,184,.22);
-    border-radius:14px;
-    background:rgba(2,6,23,.35);
-    overflow-x: scroll;
-    overflow-y: scroll;
-    scrollbar-gutter: stable both-edges;
-    max-height:320px;
-  }
-  table.admin-table{border-collapse:collapse;width:max(980px,100%);font-size:13px}
-  table.admin-table th, table.admin-table td{
-    padding:10px 10px;
-    border-bottom:1px solid rgba(148,163,184,.16);
-    white-space:nowrap;
-    text-align:left;
-    vertical-align:top;
-  }
-  table.admin-table th{
-    position:sticky;top:0;z-index:2;
-    background:rgba(15,23,42,.92);
-    color:#e2e8f0;
-    font-weight:800;
-  }
-  .pill{
-    display:inline-flex;align-items:center;gap:8px;
-    padding:8px 12px;border-radius:999px;
-    border:1px solid rgba(148,163,184,.22);
-    background:rgba(148,163,184,.10);
-    font-weight:700;color:#e2e8f0;font-size:12px;
-  }
-  .admin-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .admin-inputs{display:grid;grid-template-columns:1fr 120px auto;gap:10px;align-items:end}
-  @media (max-width:520px){ .admin-inputs{grid-template-columns:1fr;align-items:stretch} }
-
-  .admin-sheet label{color:#cbd5f5}
-  .admin-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
-  .admin-sheet select.input{appearance:none}
-  .admin-sheet .btn{padding:12px 14px;font-size:14px}
-  .admin-sheet .btn.primary{box-shadow:none}
-  .admin-sheet .btn.ghost{color:#e2e8f0;border-color:rgba(148,163,184,.28)}
-  .admin-sheet .btn.secondary{color:#e2e8f0;background:rgba(37,99,235,.16);border-color:rgba(37,99,235,.22)}
-  .danger-note{font-size:12px;color:rgba(248,250,252,.72);line-height:1.4}
-
-  .dev-entry{
-    display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding-top:10px;border-top:1px solid rgba(148,163,184,.22);
-  }
-  .dev-entry .dev-cta{
-    display:flex;align-items:center;gap:10px;
-    padding:10px 14px;border-radius:14px;
-    background:linear-gradient(135deg, rgba(37,99,235,.28), rgba(14,165,233,.18));
-    border:1px solid rgba(148,163,184,.22);
-    cursor:pointer;user-select:none;font-weight:800;
-  }
-  .dev-entry .dev-cta small{display:block;font-weight:700;color:rgba(226,232,240,.72)}
-  .dev-entry .dev-ico{
-    width:40px;height:40px;border-radius:14px;
-    display:grid;place-items:center;
-    background:rgba(15,23,42,.85);
-    border:1px solid rgba(148,163,184,.22);
-  }
-
+  /* ---------- DEV SETTINGS (unchanged floating modal) ---------- */
   .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:230}
   .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
   .dev-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
@@ -243,12 +191,13 @@
     max-height:min(80vh, 720px);
     overflow-y:auto;
   }
-  .dev-sheet h3{margin:0;font-size:20px;font-weight:600}
-  .dev-sheet .close{justify-self:end;border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:600}
+  .dev-sheet h3{margin:0;font-size:20px;font-weight:700}
+  .dev-sheet .close{justify-self:end;border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:800}
   .dev-sheet label{color:#cbd5f5}
   .dev-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
   .dev-tip{font-size:13px;color:rgba(226,232,240,.7)}
 
+  /* ---------- RESULTS CARD ---------- */
   .results-card{
     display:none;
     background:var(--surface-strong);
@@ -258,11 +207,12 @@
     padding:16px 18px;
   }
   .results-card[data-visible="true"]{display:block}
-  .results-title{margin:0 0 8px 0;font-weight:700}
+  .results-title{margin:0 0 8px 0;font-weight:900}
   .results-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .metric{padding:12px 14px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:700}
-  .metric small{display:block;font-weight:600;color:var(--muted)}
+  .metric{padding:12px 14px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:900}
+  .metric small{display:block;font-weight:700;color:var(--muted)}
 
+  /* ---------- DUP INDICATOR ---------- */
   .inline-wrap{display:flex;align-items:center;gap:8px}
   .dup-indicator{display:none;font-size:12px;color:#64748b;white-space:nowrap}
   .dup-indicator[data-state="checking"],
@@ -279,13 +229,129 @@
     *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   }
 
+  /* ---------- CONTROLS PAGE (dark themed section using prior admin styles, but embedded) ---------- */
+  .controls-shell{
+    background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);
+    border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -40px rgba(15,23,42,.6);
+    padding:18px;display:grid;gap:14px;
+  }
+  .controls-topbar{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:4px 6px 0 6px;
+  }
+  .controls-titlewrap{display:grid;gap:2px}
+  .controls-title{margin:0;font-size:20px;font-weight:900}
+  .controls-sub{margin:0;font-size:12px;color:rgba(226,232,240,.72);line-height:1.35}
+
+  .controls-gear{
+    width:42px;height:42px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.7);
+    background:rgba(15,23,42,.75);color:#e2e8f0;
+    display:grid;place-items:center;cursor:pointer;
+    box-shadow:0 16px 40px -20px rgba(15,23,42,.65);
+    backdrop-filter:blur(12px);
+    transition:transform .2s ease;
+  }
+  .controls-gear:hover{transform:translateY(-2px)}
+
+  .admin-card{
+    border:1px solid rgba(148,163,184,.28);
+    background:rgba(2,6,23,.35);
+    border-radius:18px;
+    padding:12px;
+    display:grid;
+    gap:10px;
+  }
+  .admin-card h4{margin:0;font-size:14px;font-weight:900}
+  .admin-card .minihelp{margin:0;color:rgba(226,232,240,.70);font-size:12px;line-height:1.4}
+
+  .pill{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:8px 12px;border-radius:999px;
+    border:1px solid rgba(148,163,184,.22);
+    background:rgba(148,163,184,.10);
+    font-weight:900;color:#e2e8f0;font-size:12px;
+  }
+
+  .admin-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+  /* ✅ COMPULSORY SCROLLBARS for Controls table */
+  .table-wrap{
+    border:1px solid rgba(148,163,184,.22);
+    border-radius:14px;
+    background:rgba(2,6,23,.35);
+    overflow-x: scroll;
+    overflow-y: scroll;
+    scrollbar-gutter: stable both-edges;
+    max-height:380px;
+  }
+  table.admin-table{border-collapse:collapse;width:max(1400px,100%);font-size:13px}
+  table.admin-table th, table.admin-table td{
+    padding:10px 10px;
+    border-bottom:1px solid rgba(148,163,184,.16);
+    white-space:nowrap;
+    text-align:left;
+    vertical-align:top;
+  }
+  table.admin-table th{
+    position:sticky;top:0;z-index:2;
+    background:rgba(15,23,42,.92);
+    color:#e2e8f0;
+    font-weight:900;
+  }
+
+  .admin-inputs{display:grid;grid-template-columns:1fr 120px auto;gap:10px;align-items:end}
+  @media (max-width:520px){ .admin-inputs{grid-template-columns:1fr;align-items:stretch} }
+
+  .controls-shell label{color:#cbd5f5}
+  .controls-shell .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
+  .controls-shell select.input{appearance:none}
+  .controls-shell .btn{padding:12px 14px;font-size:14px}
+  .controls-shell .btn.primary{box-shadow:none}
+  .controls-shell .btn.ghost{color:#e2e8f0;border-color:rgba(148,163,184,.28)}
+  .controls-shell .btn.secondary{color:#e2e8f0;background:rgba(37,99,235,.16);border-color:rgba(37,99,235,.22)}
+
+  /* ---------- HELP PAGE FORMATTING ---------- */
+  .help-section{
+    border:1px solid rgba(148,163,184,.35);
+    background:rgba(255,255,255,.72);
+    border-radius:18px;
+    padding:16px 18px;
+    display:grid;gap:10px;
+  }
+  .help-section h3{margin:0;font-size:18px;font-weight:900}
+  .help-bullets{
+    margin:0;padding-left:18px;
+    color:#0f172a;
+    line-height:1.6;
+  }
+  .help-note{
+    padding:12px 14px;border-radius:14px;
+    background:rgba(37,99,235,.08);
+    border:1px solid rgba(37,99,235,.18);
+    font-weight:800;
+  }
+  .help-note strong{font-weight:900}
+  .help-tablewrap{
+    overflow:auto;
+    border-radius:14px;
+    border:1px solid rgba(148,163,184,.35);
+    background:rgba(255,255,255,.85);
+  }
+  table.help-table{border-collapse:collapse;min-width:860px;width:100%;font-size:13px}
+  table.help-table th, table.help-table td{
+    padding:10px 10px;border-bottom:1px solid rgba(148,163,184,.25);
+    text-align:left;vertical-align:top;white-space:nowrap;
+  }
+  table.help-table th{position:sticky;top:0;background:#fff;font-weight:900}
+
   .tiny-footer{font-size:12px;color:#64748b;text-align:center;padding:8px 0 14px 0}
-  .dev-credit{font-size:12px;color:#64748b;font-weight:600;margin-bottom:2px}
+  .dev-credit{font-size:12px;color:#64748b;font-weight:700;margin-bottom:2px}
 </style>
 </head>
 
 <body>
-<noscript style="padding:12px 16px;background:#fee2e2;color:#7f1d1d;border-bottom:1px solid #fecaca;font-weight:700">
+<noscript style="padding:12px 16px;background:#fee2e2;color:#7f1d1d;border-bottom:1px solid #fecaca;font-weight:900">
   JavaScript is required for APACHE II calculations and Google Sheets submission.
 </noscript>
 
@@ -299,10 +365,23 @@
           <p>Direct to Google Sheets. One shared sheet per month. All doctors, one source of truth.</p>
         </div>
       </div>
-      <button id="devToggle" class="dev-bubble" aria-label="Admin" aria-haspopup="dialog" aria-expanded="false">⚙️</button>
+
+      <!--
+        NOTE:
+        - Settings icon REMOVED from header per requirement.
+        - Settings gear will appear inside Controls tab page.
+      -->
     </div>
 
-    <div class="mode-switcher" aria-label="Submission mode">
+    <!-- TOP-LEVEL TABS -->
+    <nav class="main-tabs" aria-label="Main navigation tabs">
+      <button id="mainTabForm" class="main-tab active" type="button" data-maintab="form">Form</button>
+      <button id="mainTabControls" class="main-tab" type="button" data-maintab="controls">Controls</button>
+      <button id="mainTabHelp" class="main-tab" type="button" data-maintab="help">Help</button>
+    </nav>
+
+    <!-- FORM-ONLY HEAD STRIP (keep your existing mode + mini patient fields) -->
+    <div id="formHeaderStrip" class="mode-switcher" aria-label="Submission mode">
       <div class="dev-credit">@JSF Developer 2026</div>
       <div class="mode-pills" role="group">
         <button id="modeOnline" type="button" class="mode active" disabled>Online (Google Sheets)</button>
@@ -315,12 +394,17 @@
         <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID" autocomplete="off"></div>
       </div>
     </div>
+
   </div>
 </header>
 
 <div class="workspace-wrapper">
-  <main class="workspace" id="formContent">
-    <div class="cards-flow">
+  <main class="workspace" id="mainWorkspace">
+
+    <!-- ==========================================================
+         MAIN PANEL: FORM TAB
+         ========================================================== -->
+    <section id="panelForm" class="cards-flow" aria-label="Form tab content">
 
       <section class="panel" data-span="full" aria-labelledby="patient-h">
         <header>
@@ -524,11 +608,311 @@
         </div>
       </aside>
 
-    </div>
+    </section>
+
+    <!-- ==========================================================
+         MAIN PANEL: CONTROLS TAB
+         ========================================================== -->
+    <section id="panelControls" class="cards-flow" aria-label="Controls tab content" style="display:none">
+
+      <section class="panel" aria-labelledby="controls-h">
+        <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+          <div style="display:grid;gap:6px">
+            <h2 id="controls-h">Sheet Controls</h2>
+            <p class="hint">
+              View entries for a month, refresh manually, and update mortality (KP).
+              Uses local cache to avoid reloading when you switch tabs.
+            </p>
+          </div>
+
+          <!-- SETTINGS ICON (moved here) -->
+          <button id="devToggleControls" class="controls-gear" aria-label="Developer / Connection settings" aria-haspopup="dialog" aria-expanded="false">⚙️</button>
+        </header>
+
+        <div class="controls-shell" aria-label="Controls shell">
+
+          <!-- FULL PAGE “Quick Admin Console” -->
+          <div class="controls-topbar">
+            <div class="controls-titlewrap">
+              <h3 class="controls-title">Quick Admin Console</h3>
+              <p class="controls-sub">Patient entries table + Update Mortality (KP). Forced scrollbars. Manual refresh.</p>
+            </div>
+          </div>
+
+          <!-- ENTRIES TABLE -->
+          <div class="admin-card" aria-label="Entries list block">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="display:grid;gap:4px">
+                <h4 style="margin:0">Entries</h4>
+                <p class="minihelp">
+                  Select month → table shows stored cache if available.
+                  Refresh fetches from server and overwrites cache.
+                </p>
+              </div>
+
+              <div class="admin-actions">
+                <label for="controlsMonth" style="margin:0;color:rgba(226,232,240,.85);font-weight:900;font-size:12px">Month</label>
+                <input id="controlsMonth" class="input" type="month" style="max-width:170px;padding:10px 12px">
+
+                <span id="controlsMonthPill" class="pill">Month: —</span>
+
+                <span id="controlsLoadSpinner" class="pill" style="display:none">
+                  <span class="spinner" aria-hidden="true"></span> Loading…
+                </span>
+
+                <button id="btnControlsRefresh" class="btn ghost" type="button" style="padding:10px 12px">Refresh</button>
+              </div>
+            </div>
+
+            <div class="table-wrap" aria-label="Entries table container">
+              <table class="admin-table" aria-label="Entries table">
+                <thead>
+                  <tr id="controlsEntriesTheadRow">
+                    <!-- Dynamically built columns -->
+                    <th>UHID</th>
+                    <th>Patient Name</th>
+                    <th>Age</th>
+                    <th>Sex</th>
+                    <th>Admission Date</th>
+                    <th>Diagnosis</th>
+                    <th>APACHE II</th>
+                    <th>Pred Mortality (%)</th>
+                    <th>Mortality (Y/N)</th>
+                  </tr>
+                </thead>
+                <tbody id="controlsEntriesTbody">
+                  <tr><td colspan="9" style="color:rgba(226,232,240,.75);font-weight:900">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <span id="controlsCountPill" class="pill">Rows: —</span>
+              <span class="pill" id="controlsCachePill">Cache: —</span>
+            </div>
+          </div>
+
+          <!-- UPDATE MORTALITY (KP) -->
+          <div class="admin-card" aria-label="Update mortality block">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="display:grid;gap:4px">
+                <h4 style="margin:0">Update Mortality</h4>
+                <p class="minihelp">Queue UHID + Y/N. Update sends KP in two batches (Y then N) if mixed.</p>
+              </div>
+              <span class="pill" id="adminQueuePill">Queued: 0</span>
+            </div>
+
+            <div class="admin-inputs">
+              <div>
+                <label for="kpUhid">UHID</label>
+                <input id="kpUhid" class="input" type="text" placeholder="Enter UHID" autocomplete="off">
+              </div>
+              <div>
+                <label for="kpYN">Y/N</label>
+                <select id="kpYN" class="input">
+                  <option value="Y" selected>Y</option>
+                  <option value="N">N</option>
+                </select>
+              </div>
+              <div>
+                <button id="btnKpAdd" class="btn secondary" type="button" style="padding:12px 14px">Add</button>
+              </div>
+            </div>
+
+            <div class="table-wrap" aria-label="KP queue table container" style="max-height:240px">
+              <table class="admin-table" aria-label="KP queue table">
+                <thead>
+                  <tr>
+                    <th style="width:200px">UHID</th>
+                    <th style="width:90px">Y/N</th>
+                    <th style="min-width:220px">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="kpQueueTbody">
+                  <tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:900">No entries yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="admin-actions" style="justify-content:space-between">
+              <button id="btnKpClear" class="btn ghost" type="button" style="padding:10px 12px">Clear</button>
+              <button id="btnKpUpdate" class="btn primary" type="button" disabled style="padding:12px 14px">Update</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </section>
+
+    <!-- ==========================================================
+         MAIN PANEL: HELP TAB
+         ========================================================== -->
+    <section id="panelHelp" class="cards-flow" aria-label="Help tab content" style="display:none">
+
+      <section class="panel" aria-labelledby="help-h">
+        <header>
+          <h2 id="help-h">Help</h2>
+          <p class="hint">Method, instructions, and contact developer.</p>
+        </header>
+
+        <!-- SECTION 1: METHOD -->
+        <div class="help-section">
+          <h3>Method of Apache Calculation</h3>
+          <div class="help-note">
+            This app uses a standard APACHE II point binning approach.
+            Oxygenation uses <strong>PaO₂ when FiO₂ &lt; 50%</strong> and <strong>A–a gradient when FiO₂ ≥ 50%</strong>.
+            For acid–base: <strong>pH is preferred if present</strong>, else HCO₃⁻ is used.
+          </div>
+
+          <div class="help-tablewrap" aria-label="APACHE scoring table container">
+            <table class="help-table" aria-label="APACHE scoring table">
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Ranges → Points</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Temperature (°C)</td><td>
+                  ≥41 → 4 • 39–40.9 → 3 • 38.5–38.9 → 1 • 36–38.4 → 0 • 34–35.9 → 1 • 32–33.9 → 2 • 30–31.9 → 3 • &lt;30 → 4
+                </td></tr>
+                <tr><td>MAP (mmHg)</td><td>
+                  ≥160 → 4 • 130–159 → 3 • 110–129 → 2 • 70–109 → 0 • 50–69 → 2 • &lt;50 → 4
+                </td></tr>
+                <tr><td>Heart Rate (bpm)</td><td>
+                  ≥180 → 4 • 140–179 → 3 • 110–139 → 2 • 70–109 → 0 • 55–69 → 2 • 40–54 → 3 • &lt;40 → 4
+                </td></tr>
+                <tr><td>Respiratory Rate (/min)</td><td>
+                  ≥50 → 4 • 35–49 → 3 • 25–34 → 1 • 12–24 → 0 • 10–11 → 1 • 6–9 → 2 • &lt;6 → 4
+                </td></tr>
+                <tr><td>Oxygenation</td><td>
+                  If FiO₂ ≥ 50%: A–a ≥500 → 4 • 350–499 → 3 • 200–349 → 2 • &lt;200 → 0<br>
+                  If FiO₂ &lt; 50%: PaO₂ &gt;70 → 0 • 61–70 → 1 • 55–60 → 3 • &lt;55 → 4
+                </td></tr>
+                <tr><td>pH</td><td>
+                  ≥7.70 → 4 • 7.60–7.69 → 3 • 7.50–7.59 → 1 • 7.33–7.49 → 0 • 7.25–7.32 → 2 • 7.15–7.24 → 3 • &lt;7.15 → 4
+                </td></tr>
+                <tr><td>HCO₃⁻ (mEq/L) (used only if pH missing)</td><td>
+                  ≥52 → 4 • 41–51.9 → 3 • 32–40.9 → 1 • 22–31.9 → 0 • 18–21.9 → 2 • 15–17.9 → 3 • &lt;15 → 4
+                </td></tr>
+                <tr><td>Na⁺ (mEq/L)</td><td>
+                  ≥180 → 4 • 160–179 → 3 • 155–159 → 2 • 150–154 → 1 • 130–149 → 0 • 120–129 → 2 • 111–119 → 3 • &lt;111 → 4
+                </td></tr>
+                <tr><td>K⁺ (mEq/L)</td><td>
+                  ≥7.0 → 4 • 6.0–6.9 → 3 • 5.5–5.9 → 1 • 3.5–5.4 → 0 • 3.0–3.4 → 1 • 2.5–2.9 → 2 • &lt;2.5 → 4
+                </td></tr>
+                <tr><td>Creatinine (mg/dL)</td><td>
+                  ≥3.5 → 4 • 2.0–3.4 → 3 • 1.5–1.9 → 2 • 0.6–1.4 → 0 • &lt;0.6 → 2<br>
+                  Acute renal failure = Yes → points are doubled
+                </td></tr>
+                <tr><td>Hematocrit (%)</td><td>
+                  ≥60 → 4 • 50–59.9 → 2 • 46–49.9 → 1 • 30–45.9 → 0 • 20–29.9 → 2 • &lt;20 → 4
+                </td></tr>
+                <tr><td>WBC (×10³/mm³)</td><td>
+                  ≥40 → 4 • 20–39.9 → 2 • 15–19.9 → 1 • 3–14.9 → 0 • 1–2.9 → 2 • &lt;1 → 4
+                </td></tr>
+                <tr><td>GCS</td><td>Points = 15 − GCS</td></tr>
+                <tr><td>Age points</td><td>
+                  ≤44 → 0 • 45–54 → 2 • 55–64 → 3 • 65–74 → 5 • ≥75 → 6
+                </td></tr>
+                <tr><td>Chronic health points</td><td>
+                  If chronic = No → 0<br>
+                  If chronic = Yes and surgery = Elective → 2<br>
+                  If chronic = Yes and surgery = Emergency / Non-operative → 5
+                </td></tr>
+                <tr><td>Mortality bands (display)</td><td>
+                  0–4 → 4% / 1% • 5–9 → 8% / 3% • 10–14 → 15% / 7% • 15–19 → 25% / 12% •
+                  20–24 → 40% / 30% • 25–29 → 55% / 35% • 30–34 → 73% / 73% • ≥35 → 85% / 88%
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SECTION 2: HOW TO FILL -->
+        <div class="help-section">
+          <h3>How to Fill the Form</h3>
+          <ul class="help-bullets">
+            <li>Open <strong>Form</strong> tab.</li>
+            <li>Fill Patient details (Name, UHID, Age, Sex, Admission Date, Diagnosis, GCS).</li>
+            <li>Enter Clinical inputs (Vitals, Oxygenation, Labs).</li>
+            <li>Choose Mortality Y/N.</li>
+            <li>Scroll down and click <strong>Submit to Google Sheets</strong>.</li>
+          </ul>
+          <div class="help-note">
+            <strong>Important:</strong> On clicking submit, the data is just sent to the server — it does NOT guarantee an Excel entry yet.
+          </div>
+          <ul class="help-bullets">
+            <li>If the server actually inserts the row into the monthly sheet, you will see: <strong>Successfully submitted to Google Sheets ✅</strong></li>
+            <li>If something fails (network, secret, script error), you will see an error message.</li>
+          </ul>
+        </div>
+
+        <!-- SECTION 3: CONTROLS -->
+        <div class="help-section">
+          <h3>Controls</h3>
+          <ul class="help-bullets">
+            <li>Open <strong>Controls</strong> tab to view the month’s entries.</li>
+            <li>Use the <strong>Month selector</strong> to switch months.</li>
+            <li><strong>Refresh</strong> is manual — if you want the Excel to refresh here, you must click <strong>Refresh</strong>.</li>
+          </ul>
+
+          <div class="help-note">
+            Mortality Update (KP) steps:
+            <br>➤ Enter UHID
+            <br>➤ Select Y or N
+            <br>➤ Click <strong>Add</strong> (it goes to the queue)
+            <br>➤ Repeat for multiple UHIDs
+            <br>➤ Click <strong>Update</strong> and <strong>WAIT</strong>
+          </div>
+
+          <ul class="help-bullets">
+            <li>If you switch tabs and come back, the entries table will show cached data (fast).</li>
+            <li>Only <strong>Refresh</strong> forces reloading from the server.</li>
+          </ul>
+        </div>
+
+        <!-- SECTION 4: CONTACT DEVELOPER -->
+        <div class="help-section">
+          <h3>Contact Developer</h3>
+          <p class="hint" style="margin:0">
+            If you have a suggestion or an issue, write down your query below and click submit.
+          </p>
+
+          <div class="grid-2">
+            <div>
+              <label for="contactName">Your Name</label>
+              <input id="contactName" class="input" type="text" placeholder="e.g., Dr. X">
+            </div>
+            <div>
+              <label for="contactClientId">Client ID (optional)</label>
+              <input id="contactClientId" class="input" type="text" placeholder="Defaults to device Client ID">
+            </div>
+          </div>
+
+          <div>
+            <label for="contactMsg">Your Message</label>
+            <textarea id="contactMsg" class="input" rows="6" style="resize:vertical" placeholder="Type your issue / suggestion here..."></textarea>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button id="btnContactSubmit" class="btn primary" type="button" style="padding:12px 14px">Submit</button>
+            <span id="contactStatus" class="hint" style="margin:0"></span>
+          </div>
+
+          <div class="help-note" style="background:rgba(148,163,184,.10);border-color:rgba(148,163,184,.30)">
+            Note: Contact Developer requires a script update (tag=CONTACT). If the script is not updated yet, you may see an error.
+          </div>
+        </div>
+
+      </section>
+    </section>
+
   </main>
 </div>
 
-<div class="action-dock" role="contentinfo">
+<!-- ACTION DOCK (FORM ONLY) -->
+<div id="actionDock" class="action-dock" role="contentinfo">
   <div class="action-dock__inner">
     <div id="incompleteNote" class="incomplete-note" aria-live="polite">Form incomplete: please fill all required items.</div>
     <button id="btnDownload" class="btn ghost" type="button">Download current month</button>
@@ -539,110 +923,7 @@
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="toastCenter" class="toast center warn" role="status" aria-live="assertive"></div>
 
-<!-- ADMIN OVERLAY -->
-<div id="adminBackdrop" class="admin-backdrop" aria-hidden="true"></div>
-<div id="adminPanel" class="admin-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
-  <div class="admin-sheet">
-    <div class="admin-top">
-      <div class="admin-title-wrap">
-        <h3 id="adminTitle" class="admin-title">Quick Admin Console</h3>
-        <p class="admin-sub">Patient list (current month) + Update Mortality (KP). Fast, non-blocking.</p>
-      </div>
-      <button id="adminClose" class="admin-close" type="button">Close</button>
-    </div>
-
-    <div class="admin-body">
-      <div class="admin-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-          <div style="display:grid;gap:4px">
-            <h4 style="margin:0">Current UHIDs &amp; Names</h4>
-            <p class="minihelp">Pulled using LIST. Scroll both directions (forced scrollbars).</p>
-          </div>
-          <div class="admin-actions">
-            <span id="adminMonthPill" class="pill">Month: —</span>
-            <button id="btnAdminRefresh" class="btn ghost" type="button" style="padding:10px 12px">Refresh</button>
-          </div>
-        </div>
-
-        <div class="table-wrap" aria-label="Patient list table container">
-          <table class="admin-table" aria-label="Patient list table">
-            <thead>
-              <tr>
-                <th style="width:180px">UHID</th>
-                <th style="min-width:320px">Patient Name</th>
-              </tr>
-            </thead>
-            <tbody id="adminPatientsTbody">
-              <tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="danger-note" id="adminListNote">
-          Tip: If URL/Secret are wrong, LIST won’t load. Defaults are hardcoded; Dev Settings overrides are optional.
-        </div>
-      </div>
-
-      <div class="admin-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-          <div style="display:grid;gap:4px">
-            <h4 style="margin:0">Update Mortality</h4>
-            <p class="minihelp">Queue UHID + Y/N. Update sends KP in two batches (Y then N) if mixed.</p>
-          </div>
-          <span class="pill" id="adminQueuePill">Queued: 0</span>
-        </div>
-
-        <div class="admin-inputs">
-          <div>
-            <label for="kpUhid">UHID</label>
-            <input id="kpUhid" class="input" type="text" placeholder="Enter UHID" autocomplete="off">
-          </div>
-          <div>
-            <label for="kpYN">Y/N</label>
-            <select id="kpYN" class="input">
-              <option value="Y" selected>Y</option>
-              <option value="N">N</option>
-            </select>
-          </div>
-          <div>
-            <button id="btnKpAdd" class="btn secondary" type="button" style="padding:12px 14px">Add</button>
-          </div>
-        </div>
-
-        <div class="table-wrap" aria-label="KP queue table container" style="max-height:240px">
-          <table class="admin-table" aria-label="KP queue table">
-            <thead>
-              <tr>
-                <th style="width:200px">UHID</th>
-                <th style="width:90px">Y/N</th>
-                <th style="min-width:220px">Action</th>
-              </tr>
-            </thead>
-            <tbody id="kpQueueTbody">
-              <tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="admin-actions" style="justify-content:space-between">
-          <button id="btnKpClear" class="btn ghost" type="button" style="padding:10px 12px">Clear</button>
-          <button id="btnKpUpdate" class="btn primary" type="button" disabled style="padding:12px 14px">Update</button>
-        </div>
-      </div>
-
-      <div class="dev-entry">
-        <div class="danger-note">Developer controls (URL / Secret / ClientId). Use only if needed.</div>
-        <div id="btnOpenDevFromAdmin" class="dev-cta" role="button" tabindex="0" aria-label="Open Dev Settings">
-          <div class="dev-ico" aria-hidden="true">🧰</div>
-          <div>Dev Settings<small>Open connection panel</small></div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<!-- DEV MODAL -->
+<!-- DEV MODAL (UNCHANGED) -->
 <div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
 <div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
   <div class="dev-sheet">
@@ -684,7 +965,9 @@
 <div class="tiny-footer">© @ JSFDev</div>
 
 <script>
-/* ----------------------------- DOM helpers ------------------------------ */
+/* =============================================================================
+   DOM helpers
+   ============================================================================= */
 const $ = (id) => document.getElementById(id);
 
 function escapeHtml(s){
@@ -723,7 +1006,9 @@ function todayISO(){
 
 function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 
-/* ----------------------------- Toasts ---------------------------------- */
+/* =============================================================================
+   Toasts
+   ============================================================================= */
 function toast(msg, ok=true, klass=''){
   const t=$('toast');
   t.textContent=msg;
@@ -733,6 +1018,7 @@ function toast(msg, ok=true, klass=''){
   toast._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
 }
 
+/* Center toast exists (used by duplicate checker etc). Submit flow no longer uses it. */
 function toastCenter(msg){
   const t=$('toastCenter');
   t.textContent=msg;
@@ -741,7 +1027,9 @@ function toastCenter(msg){
   toastCenter._timer=setTimeout(()=>{ t.style.display='none'; }, 5200);
 }
 
-/* ------------------------ Desktop detection ----------------------------- */
+/* =============================================================================
+   Desktop detection
+   ============================================================================= */
 function detectDesktop(){
   const ua=navigator.userAgent||"";
   const looksDesktop=/(Macintosh|Windows|Linux)/i.test(ua)&&!/(Mobile|Tablet|Android)/i.test(ua);
@@ -753,7 +1041,53 @@ function applyDesktopClass(){ document.body.classList.toggle('desktop', detectDe
 applyDesktopClass();
 addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDesktopClass._timer=setTimeout(applyDesktopClass,180); });
 
-/* ---------------------- Mini <-> Main sync ------------------------------ */
+/* =============================================================================
+   MAIN TOP-LEVEL TAB SYSTEM (Form / Controls / Help)
+   - Requirement:
+     - Form selected by default
+     - Controls shows full-page admin console
+     - Help shows instructions page
+   ============================================================================= */
+const MAIN_TABS = [
+  { key:'form', btn:'mainTabForm', panel:'panelForm' },
+  { key:'controls', btn:'mainTabControls', panel:'panelControls' },
+  { key:'help', btn:'mainTabHelp', panel:'panelHelp' }
+];
+
+let CURRENT_MAIN_TAB = 'form';
+
+function setMainTab(key){
+  const next = String(key||'form');
+  CURRENT_MAIN_TAB = next;
+
+  // toggle buttons + panels
+  for(const t of MAIN_TABS){
+    const b = $(t.btn);
+    const p = $(t.panel);
+    const on = (t.key === next);
+    if(b) b.classList.toggle('active', on);
+    if(p) p.style.display = on ? '' : 'none';
+  }
+
+  // Form-only header strip + action dock:
+  const formStrip = $('formHeaderStrip');
+  const dock = $('actionDock');
+  if(formStrip) formStrip.style.display = (next === 'form') ? '' : 'none';
+  if(dock) dock.style.display = (next === 'form') ? '' : 'none';
+
+  // When entering Controls:
+  if(next === 'controls'){
+    controlsOnEnter();
+  }
+}
+
+MAIN_TABS.forEach(t=>{
+  $(t.btn)?.addEventListener('click', ()=>setMainTab(t.key));
+});
+
+/* =============================================================================
+   Mini <-> Main sync (kept same)
+   ============================================================================= */
 ['patientName','uhid'].forEach((id)=>{
   const main=$(id); if(!main) return;
   main.addEventListener('input',()=>{
@@ -771,19 +1105,18 @@ addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDe
   });
 });
 
-/* =========================================================================
+/* =============================================================================
    ✅ HARD-CODED DEFAULTS (ALWAYS AVAILABLE)
-   ========================================================================= */
+   ============================================================================= */
 const ONLINE_WEBHOOK_URL =
   'https://script.google.com/macros/s/AKfycbywkECpffrqsV5wCfzTYQyX6oZT9iWRhkwlVZrTAHAwCOuGDFpE66AiedZHd77qu_88/exec';
 
 const ONLINE_SECRET =
   'F8p^7m2bUqW!c4Z9Lh3@r6N0';
 
-/* =========================================================================
+/* =============================================================================
    DEV / CONNECTION OVERRIDES (OPTIONAL ONLY)
-   - If Dev panel is empty => defaults are still used.
-   ========================================================================= */
+   ============================================================================= */
 function saveDevOverrides(){
   const overrides={
     onlineUrl:$('onlineUrl')?.value.trim()||'',
@@ -853,9 +1186,9 @@ function ensurePreconnectForUrl(u){
   }catch(_){}
 }
 
-/* =========================================================================
-   MODALS: DEV + ADMIN (UI unchanged)
-   ========================================================================= */
+/* =============================================================================
+   DEV MODAL: Open/Close (UNCHANGED)
+   ============================================================================= */
 const devPanel=$('devPanel'), devBackdrop=$('devBackdrop'), devClose=$('devClose');
 devPanel?.setAttribute('aria-hidden','true'); devBackdrop?.setAttribute('data-visible','false');
 
@@ -865,8 +1198,9 @@ function setDevPanel(open){
   devPanel.setAttribute('aria-hidden', open?'false':'true');
   devBackdrop.setAttribute('data-visible', open?'true':'false');
   devBackdrop.setAttribute('aria-hidden', open?'false':'true');
-  if(wasOpen&&!open){
-    // Save on close
+
+  if(wasOpen && !open){
+    // Save on close and warm preconnect for new url
     saveDevOverrides();
     const { url } = currentConn();
     ensurePreconnectForUrl(url);
@@ -875,51 +1209,14 @@ function setDevPanel(open){
 devClose?.addEventListener('click',()=>setDevPanel(false));
 devBackdrop?.addEventListener('click',()=>setDevPanel(false));
 
-const devToggle=$('devToggle');
-const adminPanel=$('adminPanel'), adminBackdrop=$('adminBackdrop'), adminClose=$('adminClose');
-const btnOpenDevFromAdmin=$('btnOpenDevFromAdmin');
-const btnAdminRefresh=$('btnAdminRefresh');
-const adminPatientsTbody=$('adminPatientsTbody');
-const adminMonthPill=$('adminMonthPill');
-const adminQueuePill=$('adminQueuePill');
-
-adminPanel?.setAttribute('aria-hidden','true'); adminBackdrop?.setAttribute('data-visible','false');
-
-function setAdminPanel(open){
-  if(!adminPanel || !adminBackdrop || !devToggle) return;
-  adminPanel.setAttribute('aria-hidden', open?'false':'true');
-  adminBackdrop.setAttribute('data-visible', open?'true':'false');
-  adminBackdrop.setAttribute('aria-hidden', open?'false':'true');
-  devToggle.setAttribute('aria-expanded', open?'true':'false');
-}
-
-devToggle?.addEventListener('click', async ()=>{
-  const isHidden = adminPanel.getAttribute('aria-hidden')!=='false';
-  setAdminPanel(isHidden);
-  if(isHidden){
-    await adminEnsureListLoaded(true, true);
-  }
-});
-adminClose?.addEventListener('click', ()=>setAdminPanel(false));
-adminBackdrop?.addEventListener('click', ()=>setAdminPanel(false));
-
-btnOpenDevFromAdmin?.addEventListener('click', ()=>{
-  setAdminPanel(false);
+/* Settings gear now lives in Controls tab */
+$('devToggleControls')?.addEventListener('click', ()=>{
   setDevPanel(true);
 });
-btnOpenDevFromAdmin?.addEventListener('keydown', (ev)=>{
-  if(ev.key==='Enter' || ev.key===' '){
-    ev.preventDefault();
-    setAdminPanel(false);
-    setDevPanel(true);
-  }
-});
 
-btnAdminRefresh?.addEventListener('click', ()=>adminEnsureListLoaded(false, true));
-
+/* ESC to close dev panel */
 addEventListener('keydown',(ev)=>{
   if(ev.key!=='Escape') return;
-  if(adminPanel && adminPanel.getAttribute('aria-hidden')==='false'){ setAdminPanel(false); return; }
   if(devPanel && devPanel.getAttribute('aria-hidden')==='false'){ setDevPanel(false); return; }
 });
 
@@ -931,9 +1228,9 @@ $('onlineUrl')?.addEventListener('change', ()=>{
   }catch(_){}
 });
 
-/* =========================================================================
-   Chronic toggle + Oxygen toggle + Tabs
-   ========================================================================= */
+/* =============================================================================
+   Chronic toggle + Oxygen toggle + INTERNAL tabs
+   ============================================================================= */
 $('chronicGrp')?.addEventListener('change',()=>{
   $('surgTypeWrap').style.display = (radioVal('chronic')==='Yes') ? 'grid' : 'none';
   scheduleCompute();
@@ -966,9 +1263,9 @@ document.querySelectorAll('.tab').forEach((btn)=>{
   });
 });
 
-/* =========================================================================
-   APACHE II scoring — binning
-   ========================================================================= */
+/* =============================================================================
+   APACHE II scoring — binning (UNCHANGED)
+   ============================================================================= */
 function fToC(f){ return (f-32)*(5/9); }
 function ptsTempC(c){
   if(c==null) return 0;
@@ -1126,9 +1423,9 @@ function mortalityBands(score){
   return { nonop:85, postop:88 };
 }
 
-/* =========================================================================
-   FAST COMPUTE PIPELINE (debounce + cache)
-   ========================================================================= */
+/* =============================================================================
+   FAST COMPUTE PIPELINE (debounce + cache) (UNCHANGED)
+   ============================================================================= */
 function istMonthYYYYMM(){
   try{
     const d = new Date();
@@ -1306,9 +1603,9 @@ function attachFastListeners(){
   });
 }
 
-/* =========================================================================
-   Strict payload builder (sheetRow)
-   ========================================================================= */
+/* =============================================================================
+   Strict payload builder (sheetRow) (UNCHANGED)
+   ============================================================================= */
 function buildPayloadStrict(){
   const patientName=valStr('patientName');
   const uhid=valStr('uhid');
@@ -1369,17 +1666,17 @@ function buildPayloadStrict(){
   return { sheetRow };
 }
 
-/* =========================================================================
-   BRIDGE TRANSPORT (NO CORS) — improved timeouts + staged UX support
-   ========================================================================= */
+/* =============================================================================
+   BRIDGE TRANSPORT (NO CORS)
+   - This is the core trick: iframe+postMessage back to this page.
+   - DO NOT break it. We keep it, and only adjust submit-stage messaging.
+   ============================================================================= */
 const __bridgeInflight = new Map();
 
 window.addEventListener("message", (ev) => {
   const msg = ev && ev.data;
   if (!msg || msg.__APACHE_BRIDGE__ !== true) return;
 
-  // Optional origin hardening: if script sends msg.origin, we can check it.
-  // But keep permissive to avoid breaking older deployments.
   const cb = String(msg.cb || "");
   const inflight = __bridgeInflight.get(cb);
   if (!inflight) return;
@@ -1488,9 +1785,9 @@ function bridgePost(execUrl, jsonPayload, opts){
   return p;
 }
 
-/* =========================================================================
+/* =============================================================================
    Response helpers
-   ========================================================================= */
+   ============================================================================= */
 function isOkish(data){
   if(!data) return false;
   if(data.ok === true) return true;
@@ -1500,45 +1797,29 @@ function isOkish(data){
   return false;
 }
 
-function normalizePatientsFromListResponse(data){
-  const root = data?.data ?? data ?? {};
-  let patients = root.patients ?? root.rows ?? root.list ?? root.items ?? [];
-  if(!Array.isArray(patients)) patients = [];
-
-  const out = [];
-  for(const item of patients){
-    if(Array.isArray(item)){
-      out.push({ uhid: item[0], name: item[1] });
-    }else if(item && typeof item === 'object'){
-      out.push({
-        uhid: item.uhid ?? item.UHID ?? item.id ?? item[0],
-        name: item.name ?? item.patientName ?? item.PatientName ?? item[1]
-      });
-    }
-  }
-  return out.filter(x => String(x.uhid ?? '').trim() || String(x.name ?? '').trim());
-}
-
-/* =========================================================================
-   ✅ SUBMIT (waits for server confirmation; long hard timeout)
-   ========================================================================= */
+/* =============================================================================
+   ✅ SUBMIT (changed UX: only “Sent To Server…” then success/error)
+   ============================================================================= */
 async function postOnline(sheetRow){
   const { url, secret } = currentConn();
   const execUrl = sanitizeExecUrl(url);
 
   const payload = {
     authToken: secret,
-    auth: secret,           // extra compatibility (harmless)
+    auth: secret,
     month: istMonthYYYYMM(),
     sheetRow: sheetRow
   };
 
+  /* IMPORTANT:
+     - We intentionally do NOT pass soft1Msg / soft2Msg here,
+       because you asked: no intermediate alerts.
+     - Hard timeout remains long to tolerate Apps Script slowness.
+  */
   const data = await bridgePost(execUrl, payload, {
-    hardTimeoutMs: 75000,                         // <-- long hard wait for server confirmation
-    soft1Ms: 1400,
-    soft2Ms: 14000,
-    soft1Msg: 'Sending…',
-    soft2Msg: 'Still processing… waiting for server confirmation.'
+    hardTimeoutMs: 75000,
+    soft1Msg: null,
+    soft2Msg: null
   });
 
   if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
@@ -1556,33 +1837,31 @@ $('btnSubmit')?.addEventListener('click', async (ev)=>{
   button.disabled=true;
 
   try{
-    // Save overrides only (does NOT break defaults when empty)
+    // Save overrides (does NOT break defaults when empty)
     saveDevOverrides();
 
     const { sheetRow } = buildPayloadStrict();
 
-    toast('Sending to Google Sheets…');
-    const data = await postOnline(sheetRow);
+    // ✅ Only message on click (per requirement)
+    toast('Sent to Server …');
 
-    // stage confirmation (server-confirmed)
-    toast('Saved to Google Sheets ✅');
-    // If server returns rowNumber etc, show it:
-    if(data && (data.rowNumber || data.row || data.insertedRow)){
-      const r = data.rowNumber || data.row || data.insertedRow;
-      setTimeout(()=>toast('Confirmed by server ✓ Row: '+r, true), 700);
-    }
+    // Wait for server confirmation (no intermediate messages)
+    await postOnline(sheetRow);
+
+    // ✅ Server-confirmed success
+    toast('Successfully submitted to Google Sheets ✅');
     scheduleCompute();
   }catch(e){
     if($('lastResp')) $('lastResp').textContent = (e && e.message) ? e.message : String(e);
-    toast('Submit failed: '+(e && e.message ? e.message : String(e)), false);
+    toast('Submission failed: '+(e && e.message ? e.message : String(e)), false);
   }finally{
     scheduleCompute();
   }
 });
 
-/* =========================================================================
-   Download current month
-   ========================================================================= */
+/* =============================================================================
+   Download current month (unchanged)
+   ============================================================================= */
 function downloadCurrentMonth(){
   const { url, secret } = currentConn();
   const ym = istMonthYYYYMM();
@@ -1605,9 +1884,9 @@ function downloadCurrentMonth(){
 }
 $('btnDownload')?.addEventListener('click', downloadCurrentMonth);
 
-/* =========================================================================
-   Dev tools (preview/copy/dummy)
-   ========================================================================= */
+/* =============================================================================
+   Dev tools (preview/copy/dummy) (unchanged)
+   ============================================================================= */
 $('btnBuildPreview')?.addEventListener('click', ()=>{
   try{
     const { sheetRow } = buildPayloadStrict();
@@ -1680,9 +1959,9 @@ function dummyFill(){
 }
 $('btnDummyFill')?.addEventListener('click', ()=>{ try{ dummyFill(); }catch(e){ toast('Dummy fill failed: '+e.message, false); } });
 
-/* =========================================================================
-   Duplicate-check — bridge GET
-   ========================================================================= */
+/* =============================================================================
+   Duplicate-check — bridge GET (unchanged)
+   ============================================================================= */
 let dupInflightCb = null;
 const dupEl = $('dupIndicator');
 
@@ -1786,31 +2065,194 @@ function onFocusCancel(){
   el.addEventListener('blur', onBlurTrigger, true);
 });
 
-/* =========================================================================
-   ADMIN: LIST patients — MUST populate
-   - Tries GET first (tag=LIST), then POST fallback.
-   - Paginates (limit/offset) when supported.
-   ========================================================================= */
-const ADMIN_LIST_CACHE = new Map();
-const ADMIN_LIST_TTL_MS = 30_000;
+/* =============================================================================
+   CONTROLS TAB: LIST entries + local cache + manual refresh
+   =============================================================================
 
-function renderPatientsTable(patients){
-  if(!adminPatientsTbody) return;
-  if(!patients || patients.length===0){
-    adminPatientsTbody.innerHTML =
-      '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">No entries found for this month.</td></tr>';
-    return;
-  }
-  let html = '';
-  for(let i=0;i<patients.length;i++){
-    const u = escapeHtml(patients[i].uhid||'');
-    const n = escapeHtml(patients[i].name||'');
-    html += '<tr><td style="font-weight:800;color:#e2e8f0">'+u+'</td><td style="color:rgba(226,232,240,.92)">'+n+'</td></tr>';
-  }
-  adminPatientsTbody.innerHTML = html;
+   Requirements met:
+   - Month selector + refresh button above table
+   - Forced scrollbars on table container
+   - First time Controls tab opened:
+       - If cached data for selected month exists -> show it immediately
+       - Else fetch from server
+   - Switching Form -> Controls -> Form -> Controls:
+       - Does NOT auto-fetch again; shows cached until Refresh is clicked
+   - Refresh button:
+       - Forces fetch from server and overwrites cache
+
+   Cache keys:
+   - apacheControlsCache::<YYYY-MM>
+   - Contains { ts, month, entries: [...] }
+
+   Entry normalization:
+   - Because Apps Script can return various shapes, we robustly normalize:
+       - root.entries / root.rows / root.patients / root.list / root.items
+       - array-of-arrays or array-of-objects
+   ============================================================================= */
+
+const controlsMonthInput = $('controlsMonth');
+const controlsMonthPill = $('controlsMonthPill');
+const controlsLoadSpinner = $('controlsLoadSpinner');
+const controlsEntriesTbody = $('controlsEntriesTbody');
+const controlsEntriesTheadRow = $('controlsEntriesTheadRow');
+const controlsCountPill = $('controlsCountPill');
+const controlsCachePill = $('controlsCachePill');
+const btnControlsRefresh = $('btnControlsRefresh');
+
+let CONTROLS_LOADED_ONCE = false;
+
+function cacheKeyForMonth(month){
+  return 'apacheControlsCache::' + String(month||'').trim();
 }
 
-async function listViaGet(execUrl, secret, month, limit, offset){
+function controlsShowSpinner(on){
+  if(!controlsLoadSpinner) return;
+  controlsLoadSpinner.style.display = on ? '' : 'none';
+}
+
+function controlsSetCachePill(text){
+  if(controlsCachePill) controlsCachePill.textContent = text;
+}
+
+function controlsSetCountPill(n){
+  if(controlsCountPill) controlsCountPill.textContent = 'Rows: ' + (Number.isFinite(n) ? n : '—');
+}
+
+function readControlsCache(month){
+  try{
+    const raw = localStorage.getItem(cacheKeyForMonth(month));
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    if(!obj || !Array.isArray(obj.entries)) return null;
+    return obj;
+  }catch(_){
+    return null;
+  }
+}
+
+function writeControlsCache(month, entries){
+  try{
+    const payload = { ts: Date.now(), month, entries: Array.isArray(entries)?entries:[] };
+    localStorage.setItem(cacheKeyForMonth(month), JSON.stringify(payload));
+    return true;
+  }catch(_){
+    return false;
+  }
+}
+
+function fmtISTMonthForInput(yyyyMm){
+  // input type=month expects YYYY-MM
+  return String(yyyyMm||'').slice(0,7);
+}
+
+/* Robust conversion:
+   - if object has fields with different naming, map to canonical keys.
+*/
+function pick(obj, keys){
+  for(const k of keys){
+    if(obj && Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) return obj[k];
+  }
+  return null;
+}
+
+function normalizeEntriesFromListResponse(data){
+  const root = data?.data ?? data ?? {};
+  let arr =
+    root.entries ??
+    root.rows ??
+    root.patients ??
+    root.list ??
+    root.items ??
+    [];
+
+  if(!Array.isArray(arr)) arr = [];
+
+  const out = [];
+  for(const item of arr){
+    if(Array.isArray(item)){
+      // Best-effort mapping if script returns array rows:
+      // [uhid, name, age, sex, diagnosis, admitDate, apache, predMort, mortYN, ...]
+      out.push({
+        uhid: item[0],
+        patientName: item[1],
+        age: item[2],
+        sex: item[3],
+        diagnosis: item[4],
+        admitDate: item[5],
+        apacheII: item[6],
+        predictedMortality: item[7],
+        mortalityYN: item[8]
+      });
+    }else if(item && typeof item === 'object'){
+      out.push({
+        uhid: pick(item, ['uhid','UHID','id','patientId']),
+        patientName: pick(item, ['patientName','name','Patient Name','PatientName']),
+        age: pick(item, ['age','Age']),
+        sex: pick(item, ['sex','Sex']),
+        admitDate: pick(item, ['admitDate','admissionDate','Admission Date','date','Date']),
+        diagnosis: pick(item, ['diagnosis','Diagnosis']),
+        apacheII: pick(item, ['apacheII','apache','score','Apache','APACHE','APACHE II']),
+        predictedMortality: pick(item, ['predictedMortality','predMort','mortalityPred','Pred Mortality','predicted']),
+        mortalityYN: pick(item, ['mortality','mortalityYN','Mortality','Mortality (Y/N)','mortYN']),
+        // Keep extras (if present) so table can show them if you add columns later:
+        _raw: item
+      });
+    }
+  }
+
+  // filter out empty rows
+  return out.filter(x => String(x.uhid??'').trim() || String(x.patientName??'').trim());
+}
+
+/* Define preferred columns in display order.
+   - If you later expand script fields, you can extend this list.
+*/
+const CONTROLS_COLUMNS = [
+  { key:'uhid', label:'UHID' },
+  { key:'patientName', label:'Patient Name' },
+  { key:'age', label:'Age' },
+  { key:'sex', label:'Sex' },
+  { key:'admitDate', label:'Admission Date' },
+  { key:'diagnosis', label:'Diagnosis' },
+  { key:'apacheII', label:'APACHE II' },
+  { key:'predictedMortality', label:'Pred Mortality (%)' },
+  { key:'mortalityYN', label:'Mortality (Y/N)' }
+];
+
+function renderControlsHeader(){
+  if(!controlsEntriesTheadRow) return;
+  controlsEntriesTheadRow.innerHTML = CONTROLS_COLUMNS.map(c => '<th>'+escapeHtml(c.label)+'</th>').join('');
+}
+
+function renderControlsTable(entries){
+  if(!controlsEntriesTbody) return;
+
+  const rows = Array.isArray(entries) ? entries : [];
+  controlsSetCountPill(rows.length);
+
+  if(rows.length === 0){
+    controlsEntriesTbody.innerHTML =
+      '<tr><td colspan="'+CONTROLS_COLUMNS.length+'" style="color:rgba(226,232,240,.75);font-weight:900">No entries found for this month.</td></tr>';
+    return;
+  }
+
+  let html = '';
+  for(const r of rows){
+    html += '<tr>';
+    for(const c of CONTROLS_COLUMNS){
+      let v = r[c.key];
+      if(v == null && r._raw && typeof r._raw === 'object'){
+        // fallback: try raw for same key
+        v = r._raw[c.key];
+      }
+      html += '<td style="color:rgba(226,232,240,.92)">' + escapeHtml(v ?? '') + '</td>';
+    }
+    html += '</tr>';
+  }
+  controlsEntriesTbody.innerHTML = html;
+}
+
+async function listEntriesViaGet(execUrl, secret, month, limit, offset){
   // Script style: doGet?tag=LIST&month=...&limit=...&offset=...&auth=...
   return bridgeGet(execUrl, {
     tag:'LIST',
@@ -1821,15 +2263,12 @@ async function listViaGet(execUrl, secret, month, limit, offset){
     authToken: secret
   }, {
     hardTimeoutMs: 25000,
-    soft1Ms: 1400,
-    soft2Ms: 14000,
     soft1Msg: null,
-    soft2Msg: 'Still loading list…'
+    soft2Msg: null
   });
 }
 
-async function listViaPost(execUrl, secret, month, limit, offset){
-  // Script style: doPost json={ tag:"LIST", month, limit, offset, authToken }
+async function listEntriesViaPost(execUrl, secret, month, limit, offset){
   const payload = {
     tag:'LIST',
     month: month,
@@ -1840,21 +2279,14 @@ async function listViaPost(execUrl, secret, month, limit, offset){
   };
   return bridgePost(execUrl, payload, {
     hardTimeoutMs: 30000,
-    soft1Ms: 1400,
-    soft2Ms: 14000,
     soft1Msg: null,
-    soft2Msg: 'Still loading list…'
+    soft2Msg: null
   });
 }
 
-async function fetchPatientsList(month, force=false){
-  const key = String(month||'').trim();
-  if(!key) throw new Error('Month missing');
-
-  const cached = ADMIN_LIST_CACHE.get(key);
-  if(!force && cached && (Date.now()-cached.ts) < ADMIN_LIST_TTL_MS){
-    return cached.patients;
-  }
+async function fetchControlsEntries(month){
+  const m = String(month||'').trim();
+  if(!m) throw new Error('Month missing');
 
   const { url, secret } = currentConn();
   const execUrl = sanitizeExecUrl(url);
@@ -1867,87 +2299,131 @@ async function fetchPatientsList(month, force=false){
   while(true){
     let data = null;
 
-    // Decide mode on first page; stick to it.
     if(!mode){
-      // Try GET first (fast + common for LIST). If fails, fallback to POST.
       try{
-        data = await listViaGet(execUrl, secret, key, limit, offset);
+        data = await listEntriesViaGet(execUrl, secret, m, limit, offset);
         mode = 'GET';
-      }catch(e1){
-        data = await listViaPost(execUrl, secret, key, limit, offset);
+      }catch(_e){
+        data = await listEntriesViaPost(execUrl, secret, m, limit, offset);
         mode = 'POST';
       }
     }else if(mode === 'GET'){
-      data = await listViaGet(execUrl, secret, key, limit, offset);
+      data = await listEntriesViaGet(execUrl, secret, m, limit, offset);
     }else{
-      data = await listViaPost(execUrl, secret, key, limit, offset);
+      data = await listEntriesViaPost(execUrl, secret, m, limit, offset);
     }
 
     if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
 
-    // Some scripts return {ok:true, patients:[...]} or wrap in {data:{...}}
     if(!isOkish(data)){
       const detail = data && (data.error || data.message || JSON.stringify(data).slice(0,220));
       throw new Error('LIST did not confirm ok' + (detail?': '+detail:''));
     }
 
-    const patients = normalizePatientsFromListResponse(data);
-    all = all.concat(patients);
+    const chunk = normalizeEntriesFromListResponse(data);
+    all = all.concat(chunk);
 
-    // Stop condition:
-    // - If script paginates: returned < limit.
-    // - If script doesn't paginate: it will return everything at once and <limit anyway.
-    if(patients.length < limit) break;
-
+    if(chunk.length < limit) break;
     offset += limit;
     if(offset > 20000) break; // safety
   }
 
-  // de-dup by UHID (keep first name)
+  // de-dup by UHID (keep first)
   const seen = new Set();
   const dedup = [];
-  for(const p of all){
-    const u = String(p.uhid||'').trim();
-    const n = String(p.name||'').trim();
-    const keyU = u ? u : ('__NAME__'+n);
-    if(seen.has(keyU)) continue;
-    seen.add(keyU);
-    dedup.push({ uhid:u, name:n });
+  for(const r of all){
+    const u = String(r.uhid||'').trim();
+    const k = u || (String(r.patientName||'').trim());
+    if(!k) continue;
+    if(seen.has(k)) continue;
+    seen.add(k);
+    dedup.push(r);
   }
-
-  ADMIN_LIST_CACHE.set(key, { ts: Date.now(), patients: dedup });
   return dedup;
 }
 
-async function adminEnsureListLoaded(opening=false, force=false){
-  try{
-    const month = istMonthYYYYMM();
-    if(adminMonthPill) adminMonthPill.textContent = 'Month: '+month;
-    if(adminPanel.getAttribute('aria-hidden')!=='false') return;
+function setControlsMonthUI(month){
+  const m = fmtISTMonthForInput(month);
+  if(controlsMonthPill) controlsMonthPill.textContent = 'Month: ' + m;
+  if(controlsMonthInput && controlsMonthInput.value !== m) controlsMonthInput.value = m;
+}
 
-    adminPatientsTbody.innerHTML =
-      '<tr><td colspan="2" style="color:rgba(226,232,240,.75);font-weight:700">Loading…</td></tr>';
+async function controlsLoadMonth(month, forceFetch){
+  const m = fmtISTMonthForInput(month);
+  setControlsMonthUI(m);
 
-    const patients = await fetchPatientsList(month, force);
-    renderPatientsTable(patients);
-
-    if(opening){
-      toast('List loaded ✅');
-    }else{
-      toast('List updated ✅');
+  // show cached immediately if allowed and present
+  if(!forceFetch){
+    const cached = readControlsCache(m);
+    if(cached && Array.isArray(cached.entries)){
+      renderControlsHeader();
+      renderControlsTable(cached.entries);
+      const dt = new Date(cached.ts || Date.now());
+      controlsSetCachePill('Cache: ' + dt.toLocaleString());
+      return;
     }
+  }
+
+  // no cache OR forced fetch
+  controlsShowSpinner(true);
+  controlsSetCachePill('Cache: fetching…');
+  renderControlsHeader();
+  if(controlsEntriesTbody){
+    controlsEntriesTbody.innerHTML =
+      '<tr><td colspan="'+CONTROLS_COLUMNS.length+'" style="color:rgba(226,232,240,.75);font-weight:900">Loading…</td></tr>';
+  }
+
+  try{
+    const entries = await fetchControlsEntries(m);
+    renderControlsHeader();
+    renderControlsTable(entries);
+
+    const ok = writeControlsCache(m, entries);
+    controlsSetCachePill(ok ? 'Cache: updated just now' : 'Cache: update failed');
   }catch(e){
-    renderPatientsTable([]);
-    toast('List failed: '+(e && e.message ? e.message : String(e)), false);
+    renderControlsHeader();
+    renderControlsTable([]);
+    controlsSetCachePill('Cache: error');
+    toast('Controls LIST failed: ' + (e?.message || String(e)), false);
+  }finally{
+    controlsShowSpinner(false);
   }
 }
 
-/* =========================================================================
-   ADMIN: KP queue + Update — tag=KP
-   - Supports mixed Y/N by splitting into two calls (Y then N).
-   ========================================================================= */
+function controlsOnEnter(){
+  // Called each time Controls tab is opened.
+  // Requirement: do NOT refetch if already loaded; show cached.
+  const m = controlsMonthInput?.value ? fmtISTMonthForInput(controlsMonthInput.value) : istMonthYYYYMM();
+  setControlsMonthUI(m);
+
+  if(!CONTROLS_LOADED_ONCE){
+    CONTROLS_LOADED_ONCE = true;
+    // On first entry, load from cache if exists else fetch
+    controlsLoadMonth(m, false).catch(()=>{});
+  }else{
+    // On later entries, just show cache (if exists). Do NOT fetch.
+    controlsLoadMonth(m, false).catch(()=>{});
+  }
+}
+
+/* Month selector: when changed, show cache if available; else fetch */
+controlsMonthInput?.addEventListener('change', ()=>{
+  const m = fmtISTMonthForInput(controlsMonthInput.value);
+  controlsLoadMonth(m, false).catch(()=>{});
+});
+
+/* Refresh: always fetch from server and overwrite cache */
+btnControlsRefresh?.addEventListener('click', ()=>{
+  const m = controlsMonthInput?.value ? fmtISTMonthForInput(controlsMonthInput.value) : istMonthYYYYMM();
+  controlsLoadMonth(m, true).catch(()=>{});
+});
+
+/* =============================================================================
+   CONTROLS: KP queue + Update (same logic, just moved out of overlay)
+   ============================================================================= */
 const kpUhid=$('kpUhid'), kpYN=$('kpYN'), btnKpAdd=$('btnKpAdd'), btnKpUpdate=$('btnKpUpdate'), btnKpClear=$('btnKpClear');
 const kpQueueTbody=$('kpQueueTbody');
+const adminQueuePill=$('adminQueuePill');
 
 let KP_QUEUE = []; // [{uhid, yn}]
 function normalizeUhid(u){ return String(u||'').trim(); }
@@ -1964,7 +2440,7 @@ function renderKpQueue(){
 
   if(!kpQueueTbody) return;
   if(n===0){
-    kpQueueTbody.innerHTML = '<tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:700">No entries yet.</td></tr>';
+    kpQueueTbody.innerHTML = '<tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:900">No entries yet.</td></tr>';
     return;
   }
 
@@ -1974,7 +2450,7 @@ function renderKpQueue(){
     const u = escapeHtml(item.uhid||'');
     const yn = escapeHtml(item.yn||'Y');
     html += '<tr>' +
-      '<td style="font-weight:800;color:#e2e8f0">'+u+'</td>' +
+      '<td style="font-weight:900;color:#e2e8f0">'+u+'</td>' +
       '<td style="font-weight:900">'+yn+'</td>' +
       '<td><button class="btn ghost" type="button" style="padding:8px 10px;font-size:12px" data-kp-remove="'+i+'">Remove</button></td>' +
       '</tr>';
@@ -2026,7 +2502,6 @@ async function doKPCall(uhids, yn){
   const { url, secret } = currentConn();
   const execUrl = sanitizeExecUrl(url);
 
-  // common expected payload: {tag:"KP", uhids:[...], mortality:"Y"|"N", authToken:"..."}
   const payload = {
     tag: 'KP',
     uhids: Array.isArray(uhids) ? uhids : String(uhids||''),
@@ -2037,10 +2512,8 @@ async function doKPCall(uhids, yn){
 
   const data = await bridgePost(execUrl, payload, {
     hardTimeoutMs: 45000,
-    soft1Ms: 1400,
-    soft2Ms: 14000,
-    soft1Msg: 'Updating…',
-    soft2Msg: 'Still updating mortality…'
+    soft1Msg: null,
+    soft2Msg: null
   });
 
   if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
@@ -2064,7 +2537,7 @@ btnKpUpdate?.addEventListener('click', async ()=>{
     const ys = KP_QUEUE.filter(x=>x.yn==='Y').map(x=>x.uhid);
     const ns = KP_QUEUE.filter(x=>x.yn==='N').map(x=>x.uhid);
 
-    toast('Submitting mortality updates…');
+    toast('Updating mortality…');
 
     if(ys.length) await doKPCall(ys, 'Y');
     if(ns.length) await doKPCall(ns, 'N');
@@ -2072,8 +2545,8 @@ btnKpUpdate?.addEventListener('click', async ()=>{
     toast('Mortality updated ✅');
     kpQueueSet([]);
 
-    // refresh list after KP (sometimes name/rows change)
-    adminEnsureListLoaded(false, true).catch(()=>{});
+    // Optional: refresh current month cache after KP if user clicks refresh later.
+    // We will NOT auto-refresh table (to respect “manual refresh” requirement).
   }catch(e){
     toast('KP failed: '+(e && e.message ? e.message : String(e)), false);
   }finally{
@@ -2083,9 +2556,75 @@ btnKpUpdate?.addEventListener('click', async ()=>{
   }
 });
 
-/* =========================================================================
+/* =============================================================================
+   HELP TAB: Contact Developer (tag=CONTACT)
+   - Script not updated yet; this will show error until it is.
+   - Kept isolated so it cannot break other features.
+   ============================================================================= */
+async function sendContactMessage(name, clientOverride, message){
+  const { url, secret, clientId } = currentConn();
+  const execUrl = sanitizeExecUrl(url);
+
+  const payload = {
+    tag: 'CONTACT',
+    authToken: secret,
+    auth: secret,
+    month: istMonthYYYYMM(),
+    clientId: (clientOverride && clientOverride.trim()) ? clientOverride.trim() : clientId,
+    name: (name && name.trim()) ? name.trim() : '',
+    message: (message && message.trim()) ? message.trim() : ''
+  };
+
+  const data = await bridgePost(execUrl, payload, {
+    hardTimeoutMs: 30000,
+    soft1Msg: null,
+    soft2Msg: null
+  });
+
+  if($('lastResp')) $('lastResp').textContent = JSON.stringify(data, null, 2);
+  if(!isOkish(data)){
+    const detail = data && (data.error || data.message || JSON.stringify(data).slice(0,220));
+    throw new Error('CONTACT did not confirm ok' + (detail?': '+detail:''));
+  }
+  return data;
+}
+
+$('btnContactSubmit')?.addEventListener('click', async ()=>{
+  const btn = $('btnContactSubmit');
+  const status = $('contactStatus');
+
+  const name = valStr('contactName') || '';
+  const clientOverride = valStr('contactClientId') || '';
+  const msg = valStr('contactMsg') || '';
+
+  if(status) status.textContent = '';
+
+  if(!msg.trim()){
+    toast('Please enter your message', false);
+    return;
+  }
+
+  btn.disabled = true;
+  try{
+    toast('Sent to Server …');
+    await sendContactMessage(name, clientOverride, msg);
+
+    // Success behavior requested:
+    // - button grays (disabled) and textarea clears and success alerted
+    if($('contactMsg')) $('contactMsg').value = '';
+    if(status) status.textContent = 'Submitted ✅';
+    toast('Query submitted ✅');
+
+    // Keep button disabled (requested). If you later want re-enable, change here.
+  }catch(e){
+    btn.disabled = false;
+    toast('Contact submit failed: ' + (e?.message || String(e)), false);
+  }
+});
+
+/* =============================================================================
    Final init
-   ========================================================================= */
+   ============================================================================= */
 function init(){
   loadDevOverrides();
 
@@ -2099,6 +2638,15 @@ function init(){
   attachFastListeners();
   scheduleCompute();
   renderKpQueue();
+
+  // Controls month default
+  const m = istMonthYYYYMM();
+  if(controlsMonthInput && !controlsMonthInput.value) controlsMonthInput.value = fmtISTMonthForInput(m);
+  setControlsMonthUI(m);
+  renderControlsHeader();
+
+  // Start in Form tab
+  setMainTab('form');
 }
 init();
 </script>
