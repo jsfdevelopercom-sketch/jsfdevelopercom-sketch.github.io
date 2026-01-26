@@ -2157,52 +2157,47 @@ function pick(obj, keys){
 
 function normalizeEntriesFromListResponse(data){
   const root = data?.data ?? data ?? {};
-  let arr =
-    root.entries ??
-    root.rows ??
-    root.patients ??
-    root.list ??
-    root.items ??
-    [];
-
-  if(!Array.isArray(arr)) arr = [];
+  let patients = root.patients ?? root.rows ?? root.list ?? root.items ?? [];
+  if(!Array.isArray(patients)) patients = [];
 
   const out = [];
-  for(const item of arr){
+  for(const item of patients){
+    // If script returns arrays (row style)
     if(Array.isArray(item)){
-      // Best-effort mapping if script returns array rows:
-      // [uhid, name, age, sex, diagnosis, admitDate, apache, predMort, mortYN, ...]
+      // EXPECTED (example): [uhid, name, age, sex, admitDate, diagnosis, apache, predictedMortality, mortYN, ...]
       out.push({
-        uhid: item[0],
-        patientName: item[1],
-        age: item[2],
-        sex: item[3],
-        diagnosis: item[4],
-        admitDate: item[5],
-        apacheII: item[6],
-        predictedMortality: item[7],
-        mortalityYN: item[8]
+        uhid: item[0] ?? '',
+        name: item[1] ?? '',
+        age: item[2] ?? '',
+        sex: item[3] ?? '',
+        admitDate: item[4] ?? '',
+        diagnosis: item[5] ?? '',
+        apache: item[6] ?? '',
+        predictedMortality: item[7] ?? '',
+        mortalityYN: item[8] ?? ''
       });
-    }else if(item && typeof item === 'object'){
+      continue;
+    }
+
+    // If script returns objects
+    if(item && typeof item === 'object'){
       out.push({
-        uhid: pick(item, ['uhid','UHID','id','patientId']),
-        patientName: pick(item, ['patientName','name','Patient Name','PatientName']),
-        age: pick(item, ['age','Age']),
-        sex: pick(item, ['sex','Sex']),
-        admitDate: pick(item, ['admitDate','admissionDate','Admission Date','date','Date']),
-        diagnosis: pick(item, ['diagnosis','Diagnosis']),
-        apacheII: pick(item, ['apacheII','apache','score','Apache','APACHE','APACHE II']),
-        predictedMortality: pick(item, ['predictedMortality','predMort','mortalityPred','Pred Mortality','predicted']),
-        mortalityYN: pick(item, ['mortality','mortalityYN','Mortality','Mortality (Y/N)','mortYN']),
-        // Keep extras (if present) so table can show them if you add columns later:
-        _raw: item
+        uhid: item.uhid ?? item.UHID ?? item.id ?? '',
+        name: item.name ?? item.patientName ?? item.PatientName ?? '',
+        age: item.age ?? item.Age ?? '',
+        sex: item.sex ?? item.Sex ?? '',
+        admitDate: item.admitDate ?? item.admissionDate ?? item.AdmissionDate ?? '',
+        diagnosis: item.diagnosis ?? item.Diagnosis ?? '',
+        apache: item.apache ?? item.apacheII ?? item.APACHE ?? item.APACHEII ?? '',
+        predictedMortality: item.predictedMortality ?? item.predMort ?? item.PredMortality ?? '',
+        mortalityYN: item.mortalityYN ?? item.mortality ?? item.Mortality ?? ''
       });
     }
   }
 
-  // filter out empty rows
-  return out.filter(x => String(x.uhid??'').trim() || String(x.patientName??'').trim());
+  return out.filter(x => String(x.uhid ?? '').trim() || String(x.name ?? '').trim());
 }
+
 
 /* Define preferred columns in display order.
    - If you later expand script fields, you can extend this list.
