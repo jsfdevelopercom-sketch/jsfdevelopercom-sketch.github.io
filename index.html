@@ -2297,22 +2297,41 @@ function pick(obj, keys){
 }
 
 function normalizeEntriesFromListResponse(data){
-  const root = data?.data ?? data ?? {};
-  let patients = root.patients ?? root.rows ?? root.list ?? root.items ?? [];
+  // Accept several common wrappers:
+  // data, data.data, data.result, etc.
+  const root =
+    (data && typeof data === 'object' && (data.data || data.result)) ? (data.data || data.result) :
+    (data && typeof data === 'object') ? data :
+    {};
+
+  // Accept multiple list keys (your comment promised entries, but code didn't include it)
+  let patients =
+    root.entries ??
+    root.patients ??
+    root.rows ??
+    root.list ??
+    root.items ??
+    root.data?.entries ??
+    root.data?.patients ??
+    root.data?.rows ??
+    [];
+
   if(!Array.isArray(patients)) patients = [];
 
   const out = [];
+
   for(const item of patients){
     // If script returns arrays (row style)
     if(Array.isArray(item)){
-      // EXPECTED (example): [uhid, name, age, sex, admitDate, diagnosis, apache, predictedMortality, mortYN, ...]
+      // Expected row order (matches buildPayloadStrict sheetRow):
+      // [uhid, name, age, sex, diagnosis, admitDate, apacheII, predMortality, mortYN, ...]
       out.push({
         uhid: item[0] ?? '',
         name: item[1] ?? '',
         age: item[2] ?? '',
         sex: item[3] ?? '',
-        admitDate: item[4] ?? '',
-        diagnosis: item[5] ?? '',
+        diagnosis: item[4] ?? '',      // ✅ correct
+        admitDate: item[5] ?? '',      // ✅ correct
         apache: item[6] ?? '',
         predictedMortality: item[7] ?? '',
         mortalityYN: item[8] ?? ''
@@ -2323,21 +2342,23 @@ function normalizeEntriesFromListResponse(data){
     // If script returns objects
     if(item && typeof item === 'object'){
       out.push({
-        uhid: item.uhid ?? item.UHID ?? item.id ?? '',
-        name: item.name ?? item.patientName ?? item.PatientName ?? '',
+        uhid: item.uhid ?? item.UHID ?? item.id ?? item.patientId ?? '',
+        name: item.name ?? item.patientName ?? item.PatientName ?? item.patient ?? '',
         age: item.age ?? item.Age ?? '',
         sex: item.sex ?? item.Sex ?? '',
-        admitDate: item.admitDate ?? item.admissionDate ?? item.AdmissionDate ?? '',
-        diagnosis: item.diagnosis ?? item.Diagnosis ?? '',
-        apache: item.apache ?? item.apacheII ?? item.APACHE ?? item.APACHEII ?? '',
-        predictedMortality: item.predictedMortality ?? item.predMort ?? item.PredMortality ?? '',
-        mortalityYN: item.mortalityYN ?? item.mortality ?? item.Mortality ?? ''
+        admitDate: item.admitDate ?? item.admissionDate ?? item.AdmissionDate ?? item.admit ?? '',
+        diagnosis: item.diagnosis ?? item.Diagnosis ?? item.dx ?? item.DX ?? '',
+        apache: item.apache ?? item.apacheII ?? item.apacheIi ?? item.APACHE ?? item.APACHEII ?? item.apache_score ?? '',
+        predictedMortality: item.predictedMortality ?? item.predMort ?? item.predMortality ?? item.PredMortality ?? item.predicted ?? '',
+        mortalityYN: item.mortalityYN ?? item.mortality ?? item.Mortality ?? item.outcome ?? ''
       });
     }
   }
 
+  // Keep rows that have at least an identifier
   return out.filter(x => String(x.uhid ?? '').trim() || String(x.name ?? '').trim());
 }
+
 
 
 
