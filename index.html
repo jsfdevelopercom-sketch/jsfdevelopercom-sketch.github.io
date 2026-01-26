@@ -666,20 +666,20 @@ DEBUGGING NOTE
 
             <div class="table-wrap" aria-label="Entries table container">
               <table class="admin-table" aria-label="Entries table">
-                <thead>
-                  <tr id="controlsEntriesTheadRow">
-                    <!-- Dynamically built columns -->
-                    <th>UHID</th>
-                    <th>Patient Name</th>
-                    <th>Age</th>
-                    <th>Sex</th>
-                    <th>Admission Date</th>
-                    <th>Diagnosis</th>
-                    <th>APACHE II</th>
-                    <th>Pred Mortality (%)</th>
-                    <th>Mortality (Y/N)</th>
-                  </tr>
-                </thead>
+              <thead>
+  <tr>
+    <th style="width:180px">UHID</th>
+    <th style="min-width:260px">Patient Name</th>
+    <th style="width:80px">Age</th>
+    <th style="width:90px">Sex</th>
+    <th style="width:140px">Admission</th>
+    <th style="min-width:320px">Diagnosis</th>
+    <th style="width:120px">APACHE II</th>
+    <th style="width:160px">Pred Mortality</th>
+    <th style="width:110px">Mortality Y/N</th>
+  </tr>
+</thead>
+
                 <tbody id="controlsEntriesTbody">
                   <tr><td colspan="9" style="color:rgba(226,232,240,.75);font-weight:900">Loading…</td></tr>
                 </tbody>
@@ -2155,7 +2155,7 @@ function pick(obj, keys){
   return null;
 }
 
-function normalizePatientsFromListResponse(data){
+function normalizeEntriesFromListResponse(data){
   const root = data?.data ?? data ?? {};
   let patients = root.patients ?? root.rows ?? root.list ?? root.items ?? [];
   if(!Array.isArray(patients)) patients = [];
@@ -2221,31 +2221,39 @@ function renderControlsHeader(){
 }
 
 function renderControlsTable(entries){
-  if(!controlsEntriesTbody) return;
 
-  const rows = Array.isArray(entries) ? entries : [];
-  controlsSetCountPill(rows.length);
-
-  if(rows.length === 0){
-    controlsEntriesTbody.innerHTML =
-      '<tr><td colspan="'+CONTROLS_COLUMNS.length+'" style="color:rgba(226,232,240,.75);font-weight:900">No entries found for this month.</td></tr>';
+  if(!adminPatientsTbody) return;
+  if(!patients || patients.length===0){
+    adminPatientsTbody.innerHTML =
+      '<tr><td colspan="9" style="color:rgba(226,232,240,.75);font-weight:700">No entries found for this month.</td></tr>';
     return;
   }
 
   let html = '';
-  for(const r of rows){
-    html += '<tr>';
-    for(const c of CONTROLS_COLUMNS){
-      let v = r[c.key];
-      if(v == null && r._raw && typeof r._raw === 'object'){
-        // fallback: try raw for same key
-        v = r._raw[c.key];
-      }
-      html += '<td style="color:rgba(226,232,240,.92)">' + escapeHtml(v ?? '') + '</td>';
-    }
-    html += '</tr>';
+  for(const p of patients){
+    const u = escapeHtml(p.uhid||'');
+    const n = escapeHtml(p.name||'');
+    const age = escapeHtml(p.age||'');
+    const sex = escapeHtml(p.sex||'');
+    const ad = escapeHtml(p.admitDate||'');
+    const dx = escapeHtml(p.diagnosis||'');
+    const ap = escapeHtml(p.apache||'');
+    const pm = escapeHtml(p.predictedMortality||'');
+    const yn = escapeHtml(p.mortalityYN||'');
+
+    html += '<tr>'
+      + '<td style="font-weight:800;color:#e2e8f0">'+u+'</td>'
+      + '<td style="color:rgba(226,232,240,.92)">'+n+'</td>'
+      + '<td>'+age+'</td>'
+      + '<td>'+sex+'</td>'
+      + '<td>'+ad+'</td>'
+      + '<td>'+dx+'</td>'
+      + '<td style="font-weight:900">'+ap+'</td>'
+      + '<td style="font-weight:900">'+pm+'</td>'
+      + '<td style="font-weight:900">'+yn+'</td>'
+      + '</tr>';
   }
-  controlsEntriesTbody.innerHTML = html;
+  adminPatientsTbody.innerHTML = html;
 }
 
 async function listEntriesViaGet(execUrl, secret, month, limit, offset){
