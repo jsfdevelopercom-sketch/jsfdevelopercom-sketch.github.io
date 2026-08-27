@@ -378,6 +378,7 @@ DEBUGGING NOTE
       <button id="mainTabForm" class="main-tab active" type="button" data-maintab="form">Form</button>
       <button id="mainTabControls" class="main-tab" type="button" data-maintab="controls">Controls</button>
       <button id="mainTabHelp" class="main-tab" type="button" data-maintab="help">Help</button>
+      <button id="mainTabAiDoc" class="main-tab" type="button" data-maintab="aidoc">AI Doc</button>
     </nav>
 
     <!-- FORM-ONLY HEAD STRIP (keep your existing mode + mini patient fields) -->
@@ -742,6 +743,13 @@ DEBUGGING NOTE
 
         </div>
       </section>
+    </section>
+
+    <!-- ==========================================================
+         MAIN PANEL: AI DOC TAB
+         ========================================================== -->
+    <section id="panelAiDoc" class="cards-flow" aria-label="AI Doc tab content" style="display:none; height: 85vh; min-height: 600px;">
+      <iframe src="https://web-production-09bf5.up.railway.app" style="width: 100%; height: 100%; border: 1px solid rgba(148,163,184,.35); border-radius: var(--radius-lg); background: var(--surface);"></iframe>
     </section>
 
     <!-- ==========================================================
@@ -1192,7 +1200,8 @@ addEventListener('resize', ()=>{ clearTimeout(applyDesktopClass._timer); applyDe
 const MAIN_TABS = [
   { key:'form', btn:'mainTabForm', panel:'panelForm' },
   { key:'controls', btn:'mainTabControls', panel:'panelControls' },
-  { key:'help', btn:'mainTabHelp', panel:'panelHelp' }
+  { key:'help', btn:'mainTabHelp', panel:'panelHelp' },
+  { key:'aidoc', btn:'mainTabAiDoc', panel:'panelAiDoc' }
 ];
 
 let CURRENT_MAIN_TAB = 'form';
