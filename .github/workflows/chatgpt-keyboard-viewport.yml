@@ -1,0 +1,83 @@
+name: ChatGPT keyboard-safe AI Doc viewport
+
+on:
+  push:
+    branches:
+      - chatgpt-keyboard-viewport-20260907
+    paths:
+      - .github/KEYBOARD_VIEWPORT_TRIGGER
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Apply host viewport patch
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/apply_keyboard_viewport.py
+          git diff --check
+
+      - name: Verify HTML and keyboard geometry
+        run: |
+          set -euo pipefail
+          grep -q 'interactive-widget=resizes-content' index.html
+          grep -q 'aidoc-keyboard-overlay' index.html
+          grep -q 'panel.style.height = `${metrics.height}px`' index.html
+          grep -q "const available = Math.max(1, Math.floor(metrics.bottom - panelTop - 8));" index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text()
+          m=re.search(r'<!-- SILICONDOCTOR_AIDOC_VIEWPORT_FIT -->\s*<script>(.*?)</script>',s,re.S)
+          assert m, 'viewport script missing'
+          Path('/tmp/aidoc-viewport.js').write_text(m.group(1))
+          PY
+          node --check /tmp/aidoc-viewport.js
+          node <<'NODE'
+          const fs=require('fs'), vm=require('vm');
+          const code=fs.readFileSync('/tmp/aidoc-viewport.js','utf8');
+          const listeners={};
+          const vvListeners={};
+          const classes=new Set();
+          const frame={};
+          const panel={
+            style:{},
+            querySelector:()=>frame,
+            getBoundingClientRect:()=>({top:200})
+          };
+          const tab={addEventListener:(n,fn)=>{listeners['tab:'+n]=fn}};
+          const body={classList:{add:c=>classes.add(c),remove:c=>classes.delete(c)}};
+          const document={getElementById:id=>id==='panelAiDoc'?panel:id==='mainTabAiDoc'?tab:null,body};
+          const visualViewport={offsetTop:0,offsetLeft:0,width:400,height:700,addEventListener:(n,fn)=>{vvListeners[n]=fn}};
+          const window={visualViewport,innerWidth:400,innerHeight:700,getComputedStyle:()=>({display:'grid'}),addEventListener:(n,fn)=>{listeners[n]=fn}};
+          const context={window,document,screen:{width:400,height:800},innerWidth:400,innerHeight:700,
+            requestAnimationFrame:fn=>{fn();return 1},cancelAnimationFrame:()=>{},setTimeout:()=>{},console};
+          vm.createContext(context); vm.runInContext(code,context);
+          if(panel.style.height!=='492px') throw new Error('normal remaining-space height '+panel.style.height);
+          visualViewport.height=350; vvListeners.resize();
+          if(!classes.has('aidoc-keyboard-overlay')) throw new Error('keyboard overlay not enabled');
+          if(panel.style.height!=='350px') throw new Error('keyboard height must equal visible viewport: '+panel.style.height);
+          if(panel.style.position!=='fixed') throw new Error('keyboard panel must be fixed');
+          visualViewport.height=700; vvListeners.resize();
+          if(classes.has('aidoc-keyboard-overlay')) throw new Error('keyboard overlay did not clear');
+          if(panel.style.position!=='') throw new Error('fixed positioning not cleared');
+          if(panel.style.height!=='492px') throw new Error('normal height not restored: '+panel.style.height);
+          console.log('host viewport geometry PASS');
+          NODE
+
+      - name: Commit tested host fix
+        run: |
+          set -euo pipefail
+          git config user.name 'ChatGPT Engineering'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git diff --cached --check
+          git commit -m 'Keep AI Doc flush to keyboard viewport'
+          git push origin HEAD:chatgpt-keyboard-viewport-20260907
