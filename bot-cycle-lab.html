@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>SiliconDoctor Bot Cycle Lab</title>
+<style>
+:root{color-scheme:dark;--bg:#070b12;--panel:#0f1722;--line:#283648;--text:#edf4ff;--muted:#95a6bb;--accent:#42b3ff;--accent2:#6de0bc;--danger:#ff7070}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 20% 0,#10243a 0,transparent 42%),var(--bg);color:var(--text);font:15px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}body{padding:22px}main{width:min(1100px,100%);margin:0 auto;display:grid;gap:14px}h1{font:700 clamp(26px,5vw,42px)/1.1 system-ui,sans-serif;margin:8px 0 0}.sub{color:var(--muted);margin:0 0 8px;max-width:900px}.panel{background:rgba(15,23,34,.92);border:1px solid var(--line);border-radius:16px;padding:14px;display:grid;gap:12px;box-shadow:0 24px 70px -40px #000}textarea,pre{width:100%;background:#0a111b;color:var(--text);border:1px solid var(--line);border-radius:12px;font:inherit}textarea{min-height:170px;resize:vertical;padding:14px;outline:none}textarea:focus{border-color:var(--accent)}pre{margin:0;min-height:320px;max-height:62vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:14px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}button{border:0;border-radius:12px;padding:13px 18px;font:800 14px/1 system-ui,sans-serif;cursor:pointer;background:var(--accent);color:#03121f}button.secondary{background:var(--accent2);color:#062118}button:disabled{opacity:.55;cursor:wait}.status{font-size:12px;color:var(--muted);min-height:18px}.hint{font-size:12px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}.error{color:var(--danger)}@media(max-width:640px){body{padding:12px}.panel{padding:11px}button{flex:1;min-height:48px}}
+</style>
+</head>
+<body>
+<main>
+<h1>SiliconDoctor Bot Cycle Lab</h1>
+<p class="sub">Paste one initiation string and press SEND. The server creates the Patient Bot, interprets the scenario, attaches Doctor GPT or Doctor Claude, and keeps the cycle running independently. REPORT shows ONGOING while the cycle is active and the complete audit when it reaches a final diagnosis or a major terminal exception.</p>
+<section class="panel">
+<textarea id="launchString" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Bot Cycle initiation string" placeholder="BC1_Ramesh%20Kumar_45_Male_SPECIFIC_acute%20on%20chronic%20pancreatitis_2_3_low-resource_illiterate_low_low_neutral_false_Hindi_2_2_1_4_3_1_2_1_42_GEMINI_LOW_2_0_GPT_true_80_0;Present with current acute upper abdominal pain radiating to the back and an alcohol use disorder. Disclose alcohol use naturally when appropriately asked."></textarea>
+<div class="row"><button id="send" type="button">SEND</button><button id="report" class="secondary" type="button">REPORT</button></div>
+<div id="status" class="status">No cycle started in this browser session.</div>
+<div class="hint">Wire rule: exactly one literal semicolon. Before it are 32 underscore-separated fields beginning with BC1. After it is the entire free-form initiation brief. Text fields containing spaces or underscores must use UTF-8 percent encoding. This page is publicly viewable; model execution remains protected by the dedicated Bot Gateway credential and a short-lived browser lease. The root credential is never stored.</div>
+</section>
+<section class="panel"><pre id="output" aria-live="polite">READY</pre></section>
+</main>
+<script>
+(() => {
+'use strict';
+const ROOT='https://web-production-09bf5.up.railway.app/api/bot-gateway';
+const LAB=ROOT+'/lab';
+const LEASE_API=ROOT+'/lease';
+const ROOT_HEADER='X-SiliconDoctor-Bot-Gateway-Token';
+const LEASE_HEADER='X-SiliconDoctor-Bot-Gateway-Lease';
+const LEASE_KEY='silicondoctor.botcycle.lab.lease.v1';
+const CYCLE_KEY='silicondoctor.botcycle.lab.cycle.v1';
+const input=document.getElementById('launchString'),send=document.getElementById('send'),report=document.getElementById('report'),output=document.getElementById('output'),status=document.getElementById('status');
+function print(v,e){output.classList.toggle('error',!!e);output.textContent=typeof v==='string'?v:JSON.stringify(v,null,2)}
+function currentCycle(){return(sessionStorage.getItem(CYCLE_KEY)||'').trim()}
+function setCycle(id){if(id)sessionStorage.setItem(CYCLE_KEY,id);else sessionStorage.removeItem(CYCLE_KEY)}
+function loadLease(){try{const p=JSON.parse(sessionStorage.getItem(LEASE_KEY)||'null');if(!p||!p.token||!p.expiresAt)return null;const x=Date.parse(p.expiresAt);if(!Number.isFinite(x)||x<=Date.now()+15000){sessionStorage.removeItem(LEASE_KEY);return null}return p}catch(_){sessionStorage.removeItem(LEASE_KEY);return null}}
+async function parseJson(r){const t=await r.text();if(!t)return{};try{return JSON.parse(t)}catch(_){return{error:t}}}
+function apiError(s,b){const e=new Error((b&&(b.code||b.error))||('HTTP_'+s));e.httpStatus=s;e.payload=b;return e}
+async function issueLease(){let credential=(window.prompt('SiliconDoctor Bot Gateway root credential')||'').trim();if(!credential)throw new Error('BOT_GATEWAY_ROOT_CREDENTIAL_REQUIRED');const response=await fetch(LEASE_API,{method:'POST',mode:'cors',cache:'no-store',credentials:'omit',redirect:'error',referrerPolicy:'no-referrer',headers:{Accept:'application/json',[ROOT_HEADER]:credential}});credential='';const body=await parseJson(response);if(!response.ok)throw apiError(response.status,body);const data=body&&body.data;if(!data||!data.leaseToken||!data.expiresAt)throw new Error('BOT_GATEWAY_LEASE_RESPONSE_INVALID');const lease={token:String(data.leaseToken),expiresAt:String(data.expiresAt)};sessionStorage.setItem(LEASE_KEY,JSON.stringify(lease));return lease}
+async function ensureLease(force){if(force)sessionStorage.removeItem(LEASE_KEY);return loadLease()||issueLease()}
+async function authorizedFetch(url,options,retried){const lease=await ensureLease(false);const headers=Object.assign({},options.headers||{},{[LEASE_HEADER]:lease.token});const response=await fetch(url,Object.assign({},options,{headers,mode:'cors',cache:'no-store',credentials:'omit',redirect:'error',referrerPolicy:'no-referrer'}));if(response.status===401&&!retried){await ensureLease(true);return authorizedFetch(url,options,true)}return response}
+function validateWireString(v){if(!v)throw new Error('BOT_CYCLE_STRING_BLANK');const f=v.indexOf(';');if(f<=0||f!==v.lastIndexOf(';'))throw new Error('BOT_CYCLE_STRING_REQUIRES_EXACTLY_ONE_SEMICOLON');if(!v.slice(f+1).trim())throw new Error('BOT_CYCLE_STRING_GUIDANCE_BLANK')}
+function renderedBody(body,fallback){const title=body&&body.title?String(body.title):fallback;if(body&&typeof body.text==='string'&&body.text)return title+'\n\n'+body.text;return title+'\n\n'+JSON.stringify(body||{},null,2)}
+async function sendCycle(){const raw=input.value.trim();validateWireString(raw);send.disabled=true;report.disabled=true;status.textContent='Sending initiation string…';try{const response=await authorizedFetch(LAB+'/start',{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8',Accept:'application/json'},body:raw},false);const body=await parseJson(response);if(body.cycleId)setCycle(String(body.cycleId));if(!response.ok)throw apiError(response.status,body);status.textContent=body.cycleId?('Cycle '+body.cycleId+' · '+body.cycleStatus):'Cycle response received';print(renderedBody(body,body.title||'ONGOING'),false)}finally{send.disabled=false;report.disabled=false}}
+async function fetchReport(){const cycleId=currentCycle();if(!cycleId)throw new Error('NO_CYCLE_IN_THIS_BROWSER_SESSION');report.disabled=true;status.textContent='Fetching report for '+cycleId+'…';try{const response=await authorizedFetch(LAB+'/cycles/'+encodeURIComponent(cycleId)+'/report',{method:'GET',headers:{Accept:'application/json'}},false);const body=await parseJson(response);if(!response.ok)throw apiError(response.status,body);const title=body.title||body.status||'ONGOING';status.textContent='Cycle '+cycleId+' · '+(body.status||title);print(renderedBody(body,title),false)}finally{report.disabled=false}}
+async function act(fn){try{await fn()}catch(error){const payload=error&&error.payload?error.payload:null;if(payload&&payload.cycleId)setCycle(String(payload.cycleId));status.textContent=payload&&payload.cycleId?('Cycle '+payload.cycleId+' · '+(payload.cycleStatus||payload.title||'FAILED')):'Request failed';print(payload&&typeof payload.text==='string'?renderedBody(payload,payload.title||'ERROR'):{title:'ERROR',code:String(error&&error.message||error),httpStatus:error&&error.httpStatus||0,payload},true)}}
+send.addEventListener('click',()=>act(sendCycle));report.addEventListener('click',()=>act(fetchReport));input.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();act(sendCycle)}});const restored=currentCycle();if(restored)status.textContent='Restored cycle '+restored+' from this browser session.';
+})();
+</script>
+</body>
+</html>
