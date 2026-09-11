@@ -19,7 +19,7 @@
     const desktopClass = isLargeScreen || uaMobile === false || (uaMobile === null && !mobileUa && (hover || fine || !coarse));
     
     if (desktopClass && params.get('mobile') !== '1') {
-        const desktopUrl = 'https://web-production-09bf5.up.railway.app/desktop.html?desktop=1';
+        const desktopUrl = 'https://silicondoctor-aidoc-backend-production.up.railway.app/desktop.html?desktop=1';
         location.replace(desktopUrl);
     }
 })();
