@@ -1,9 +1,31 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>APACHE II Bedside Entry</title>
+<meta charset="UTF-8">
+<script>
+(() => {
+    const params = new URLSearchParams(location.search);
+    const ua = String(navigator.userAgent || '').toLowerCase();
+    const uaMobile = navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean' ? navigator.userAgentData.mobile : null;
+    const coarse = matchMedia('(pointer:coarse)').matches;
+    const fine = matchMedia('(pointer:fine)').matches;
+    const hover = matchMedia('(hover:hover)').matches;
+    const mobileUa = /mobi|android|iphone|ipad|ipod/i.test(ua);
+    
+    const actualWidth = window.screen.width || 0;
+    const actualHeight = window.screen.height || 0;
+    const isLargeScreen = Math.max(actualWidth, actualHeight) >= 1000;
+    
+    const desktopClass = isLargeScreen || uaMobile === false || (uaMobile === null && !mobileUa && (hover || fine || !coarse));
+    
+    if (desktopClass && params.get('mobile') !== '1') {
+        const desktopUrl = 'https://silicondoctor-aidoc-backend-production.up.railway.app/desktop.html?desktop=1';
+        location.replace(desktopUrl);
+    }
+})();
+</script>
+<title>SiliconDoctor APACHE II Bedside</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 
 <!--
 ===============================================================================
