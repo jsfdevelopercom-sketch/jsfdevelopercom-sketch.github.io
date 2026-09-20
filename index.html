@@ -1219,8 +1219,31 @@ const MAIN_TABS = [
 
 let CURRENT_MAIN_TAB = 'form';
 
+const AI_DOC_USERNAME = 'admin';
+const AI_DOC_PASSWORD = 'admin@123';
+let AI_DOC_UNLOCKED = false;
+
+function unlockAiDoc(){
+  if(AI_DOC_UNLOCKED) return true;
+
+  const username = window.prompt('AI Doc username:');
+  if(username === null) return false;
+
+  const password = window.prompt('AI Doc password:');
+  if(password === null) return false;
+
+  if(username === AI_DOC_USERNAME && password === AI_DOC_PASSWORD){
+    AI_DOC_UNLOCKED = true;
+    return true;
+  }
+
+  window.alert('Invalid username or password.');
+  return false;
+}
+
 function setMainTab(key){
   const next = String(key||'form');
+  if(next === 'aidoc' && !unlockAiDoc()) return;
   CURRENT_MAIN_TAB = next;
 
   // toggle buttons + panels
