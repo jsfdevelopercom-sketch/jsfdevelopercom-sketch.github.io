@@ -126,6 +126,40 @@ DEBUGGING NOTE
   .workspace-wrapper{flex:1;padding:0 clamp(18px,7vw,64px) clamp(180px,12vw,220px)}
   .workspace{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:grid;gap:clamp(20px,4vw,36px)}
   .cards-flow{display:grid;gap:clamp(18px,3vw,28px)}
+
+  /* AI Doc is an embedded application, not a content card. When selected it
+     owns the full horizontal viewport below the site header/tabs. Keeping the
+     generic 7vw content gutter here shrinks the iframe to ~317 CSS px on a
+     369px phone and clips SiliconDoctor controls. */
+  body.aidoc-active .workspace-wrapper{
+    padding-left:0!important;
+    padding-right:0!important;
+  }
+  body.aidoc-active .workspace{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    gap:0!important;
+  }
+  body.aidoc-active #panelAiDoc{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0!important;
+    gap:0!important;
+    overflow:hidden!important;
+  }
+  body.aidoc-active #panelAiDoc iframe{
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    height:100%!important;
+    min-width:0!important;
+    border-left:0!important;
+    border-right:0!important;
+    border-radius:0!important;
+    touch-action:manipulation;
+  }
   .panel{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--outline);padding:clamp(18px,3vw,28px);box-shadow:var(--shadow-soft);backdrop-filter:blur(14px);display:grid;gap:clamp(16px,2.5vw,26px)}
   .panel header{display:grid;gap:6px}
   .panel h2{margin:0;font-size:clamp(18px,2.7vw,22px);font-weight:800;letter-spacing:-.01em}
@@ -1245,6 +1279,7 @@ function setMainTab(key){
   const next = String(key||'form');
   if(next === 'aidoc' && !unlockAiDoc()) return;
   CURRENT_MAIN_TAB = next;
+  document.body.classList.toggle('aidoc-active', next === 'aidoc');
 
   // toggle buttons + panels
   for(const t of MAIN_TABS){
@@ -2907,6 +2942,22 @@ init();
     }
   }
 
+  function postHostViewport(metrics) {
+    try {
+      const rect = frame.getBoundingClientRect();
+      frame.contentWindow?.postMessage({
+        type: 'SILICONDOCTOR_HOST_VIEWPORT_V1',
+        width: Math.max(1, Math.round(rect.width)),
+        height: Math.max(1, Math.round(rect.height)),
+        top: Math.max(0, Math.round(rect.top)),
+        left: Math.max(0, Math.round(rect.left)),
+        hostVisualWidth: metrics.width,
+        hostVisualHeight: metrics.height,
+        keyboard: keyboardMode
+      }, 'https://web-production-09bf5.up.railway.app');
+    } catch (_) {}
+  }
+
   function keyboardLikely(metrics) {
     const key = orientationKey();
     const current = metrics.height;
@@ -2940,6 +2991,7 @@ init();
       panel.style.minHeight = '0';
       panel.style.overflow = 'hidden';
       panel.style.zIndex = '1000';
+      postHostViewport(metrics);
       return;
     }
 
@@ -2951,10 +3003,13 @@ init();
     // space that remains below its current top edge. No fixed minimum height.
     const panelTop = Math.max(metrics.top, panel.getBoundingClientRect().top);
     const available = Math.max(1, Math.floor(metrics.bottom - panelTop - 8));
+    panel.style.width = `${metrics.width}px`;
+    panel.style.maxWidth = `${metrics.width}px`;
     panel.style.height = `${available}px`;
     panel.style.minHeight = '0';
     panel.style.maxHeight = `${available}px`;
     panel.style.overflow = 'hidden';
+    postHostViewport(metrics);
   }
 
   function scheduleAiDocFit() {
@@ -2966,6 +3021,10 @@ init();
     scheduleAiDocFit();
     setTimeout(scheduleAiDocFit, 80);
     setTimeout(scheduleAiDocFit, 260);
+  });
+  frame.addEventListener('load', () => {
+    scheduleAiDocFit();
+    setTimeout(scheduleAiDocFit, 120);
   });
   window.addEventListener('resize', scheduleAiDocFit, { passive: true });
   window.addEventListener('scroll', scheduleAiDocFit, { passive: true });
