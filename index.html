@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>APACHE II Bedside Entry</title>
+<meta name="silicondoctor-ui-release" content="compact-20261003-v1">
 
 <!--
 ===============================================================================
@@ -132,6 +133,8 @@ DEBUGGING NOTE
      generic 7vw content gutter here shrinks the iframe to ~317 CSS px on a
      369px phone and clips SiliconDoctor controls. */
   body.aidoc-active .workspace-wrapper{
+    padding-top:0!important;
+    padding-bottom:0!important;
     padding-left:0!important;
     padding-right:0!important;
   }
@@ -158,8 +161,27 @@ DEBUGGING NOTE
     border-left:0!important;
     border-right:0!important;
     border-radius:0!important;
+    border:0!important;
     touch-action:manipulation;
   }
+  /* Clinical work owns the viewport; the host contributes only its navigation. */
+  body.aidoc-active{height:100dvh;min-height:0;overflow:hidden;background:#0b121b}
+  body.aidoc-active .masthead{
+    flex:0 0 auto;min-height:44px;padding:0 max(6px,env(safe-area-inset-right)) 0 max(6px,env(safe-area-inset-left));
+    gap:0;background:#111c28;border-bottom:1px solid #2a3949;
+  }
+  body.aidoc-active .masthead::before,body.aidoc-active .topline{display:none}
+  body.aidoc-active .masthead__inner{width:100%;max-width:none;margin:0;gap:0}
+  body.aidoc-active .main-tabs{min-height:44px;padding:0;gap:4px;align-items:center;flex-wrap:nowrap}
+  body.aidoc-active .main-tab{
+    min-height:40px;padding:0 12px;font-size:12px;line-height:1;border-radius:6px;
+    color:#b7c5d6;background:transparent;border-color:transparent;box-shadow:none;transform:none;
+  }
+  body.aidoc-active .main-tab:hover{background:#1b2a3a;color:#fff}
+  body.aidoc-active .main-tab.active{color:#8cf0d8;background:#16382f;border-color:#296c5b;box-shadow:none}
+  body.aidoc-active .main-tab:focus-visible{outline:2px solid #8cf0d8;outline-offset:-2px}
+  body.aidoc-active .workspace-wrapper{min-height:0;flex:1;overflow:hidden}
+  body.aidoc-active footer{display:none}
   .panel{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--outline);padding:clamp(18px,3vw,28px);box-shadow:var(--shadow-soft);backdrop-filter:blur(14px);display:grid;gap:clamp(16px,2.5vw,26px)}
   .panel header{display:grid;gap:6px}
   .panel h2{margin:0;font-size:clamp(18px,2.7vw,22px);font-weight:800;letter-spacing:-.01em}
@@ -3002,7 +3024,7 @@ init();
     // Normal mode keeps the tabs/header visible and gives AI Doc exactly the
     // space that remains below its current top edge. No fixed minimum height.
     const panelTop = Math.max(metrics.top, panel.getBoundingClientRect().top);
-    const available = Math.max(1, Math.floor(metrics.bottom - panelTop - 8));
+    const available = Math.max(1, Math.floor(metrics.bottom - panelTop));
     panel.style.width = `${metrics.width}px`;
     panel.style.maxWidth = `${metrics.width}px`;
     panel.style.height = `${available}px`;
