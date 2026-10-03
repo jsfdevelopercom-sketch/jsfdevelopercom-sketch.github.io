@@ -1,0 +1,25 @@
+name: Host workspace layout
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real Chromium viewport, tabs, keyboard and draft checks
+        run: node tests/host-layout.cjs "$(command -v google-chrome || command -v chromium)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: host-layout
+          path: target/host-layout/
+          if-no-files-found: error
