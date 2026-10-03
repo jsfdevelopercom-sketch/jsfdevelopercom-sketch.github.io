@@ -36,11 +36,11 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
 
   await call('Network.enable');await call('Network.setBlockedURLs',{urls:['https://*']});
   await viewport(369,906);await navigate(base);
-  await evaluate('document.querySelector("#age").value="57";AI_DOC_UNLOCKED=true;setMainTab("aidoc")');await pause(600);
+  await evaluate('document.querySelector("#age").value="57";AI_DOC_UNLOCKED=true;document.querySelector("#mainTabAiDoc").click()');await pause(600);
   for(const [w,h] of [[320,568],[369,906],[390,844],[844,390],[1280,820],[1920,1080]]){
    await viewport(w,h);await pause(300);
    const g=await geometry('header:rect(".masthead"),frame:rect("#panelAiDoc iframe"),tab:rect("#mainTabAiDoc")');
-   assert(g.header.h<=46,'Host masthead oversized '+JSON.stringify(g));
+   assert(g.header.h<=46,'Host masthead oversized '+JSON.stringify(g));assert(await evaluate('getComputedStyle(document.querySelector(".tiny-footer")).display==="none"'),'Host footer consumes clinical viewport');
    assert(Math.abs(g.frame.w-w)<=1&&Math.abs(g.frame.b-h)<=2,'Host does not fill remaining viewport '+JSON.stringify(g));
    receipt.push({viewport:[w,h],...g});await shot('host-'+w+'x'+h);
   }
