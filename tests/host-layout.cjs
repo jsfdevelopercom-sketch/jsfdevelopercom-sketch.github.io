@@ -13,7 +13,13 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
  const childServer=http.createServer((q,r)=>{r.setHeader('Content-Type','text/html');r.end('<!doctype html><meta name="viewport" content="width=device-width"><style>html,body{margin:0;background:#121d28;color:#fff}</style><p>Isolated host layout surface</p>')});
  const childOrigin=await listen(childServer);
  const source=(await fs.readFile('index.html','utf8')).replaceAll('https://web-production-09bf5.up.railway.app',childOrigin);
- const server=http.createServer((q,r)=>{r.setHeader('Content-Type','text/html');r.end(source)});
+ const releaseScript=(await fs.readFile('client-release.js','utf8')).replaceAll('https://web-production-09bf5.up.railway.app',childOrigin);
+ let currentRelease=JSON.parse(await fs.readFile('ui-release.json','utf8')).release;
+ const server=http.createServer((q,r)=>{
+  if(q.url.startsWith('/client-release.js')){r.setHeader('Content-Type','text/javascript');r.end(releaseScript);return}
+  if(q.url.startsWith('/ui-release.json')){r.setHeader('Content-Type','application/json');r.end(JSON.stringify({release:currentRelease}));return}
+  r.setHeader('Content-Type','text/html');r.end(source)
+ });
  const base=await listen(server);
  const profile=await fs.mkdtemp(path.join(os.tmpdir(),'sd-layout-'));
  const child=spawn(browser,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--hide-scrollbars','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:['ignore','ignore','pipe']});
@@ -51,6 +57,16 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
   await evaluate('Object.defineProperty(visualViewport,"height",{configurable:true,get:()=>446});visualViewport.dispatchEvent(new Event("resize"))');await pause(300);
   const k=await geometry('frame:rect("#panelAiDoc iframe"),overlay:document.body.classList.contains("aidoc-keyboard-overlay")');
   assert(k.overlay&&Math.abs(k.frame.h-446)<=2,'Host keyboard overlay clipped');receipt.push({view:'keyboard',...k});
+  currentRelease='synthetic-next-release';
+  await evaluate('dispatchEvent(new PageTransitionEvent("pageshow",{persisted:true}))');await pause(250);
+  assert(await evaluate('!!document.querySelector("#website-release-notice button")'),'Host failed to detect a newer release');
+  const tree=(await call('Page.getFrameTree')).frameTree,frame=tree.childFrames.find(x=>x.frame.url.startsWith(childOrigin));
+  const context=contexts.get(frame.frame.id);assert(context,'Missing cross-origin test frame');
+  await evaluate(`parent.postMessage({type:'SILICONDOCTOR_UI_STATUS_V1',busy:true,unsavedEdits:false},${JSON.stringify(base)})`,context);await pause(100);
+  await evaluate('document.querySelector("#website-release-notice button").click()');
+  assert(await evaluate('document.querySelector("#website-release-notice").textContent.includes("Finish the current operation")'),'Website update interrupted an active child request');
+  assert(await evaluate('document.querySelector("#age").value==="57"'),'Release detection lost calculator draft');
+  receipt.push({view:'release-coherence',newReleaseDetected:true,busyUpdateBlocked:true,calculatorDraft:'preserved'});
   await fs.writeFile(path.join(out,'host-layout.json'),JSON.stringify({status:'PASS',checks:receipt},null,2)+'\n');
   console.log(JSON.stringify({status:'PASS',viewports:receipt.length,calculatorDraft:'preserved',calculatorScoring:'PASS'}));
  }finally{socket?.close();child.kill('SIGTERM');await pause(300);if(child.exitCode===null)child.kill('SIGKILL');await fs.rm(profile,{recursive:true,force:true});server.close();childServer.close()}
