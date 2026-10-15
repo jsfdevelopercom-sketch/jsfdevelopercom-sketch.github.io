@@ -1,6 +1,7 @@
 /* Presentation only. Existing calculator and Sheet functions own all clinical values and saves. */
 (() => {
 'use strict';
+document.querySelector('.host-brand').addEventListener('click',event=>{event.preventDefault();document.getElementById('mainTabAiDoc').click();});
 const steps=[...document.querySelectorAll('[data-calculator-step]')];
 const stages=[...document.querySelectorAll('[data-calculator-stage]')];
 let current=0;

@@ -58,6 +58,11 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
   await evaluate('document.querySelectorAll("[data-calculator-step]")[2].click()');
   assert(await evaluate('!document.querySelectorAll("[data-calculator-stage]")[2].hidden && document.querySelector("#age").value==="57"'),'Guided steps lost observations or identity');
   assert(await evaluate('ptsNa(140)===0 && ptsNa(180)===4 && ptsK(4)===0 && ptsK(7)===4'),'Calculator scoring smoke failed');
+  await evaluate('window.hostDraftMarker="same-document"');
+  const brand=await evaluate('(()=>{const r=document.querySelector(".host-brand").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
+  await call('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...brand});await call('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...brand});await pause(100);
+  assert(await evaluate('window.hostDraftMarker==="same-document" && document.querySelector("#age").value==="57" && CURRENT_MAIN_TAB==="aidoc"'),'Brand navigation reloaded or lost the calculator draft');
+
   if(process.env.AXE_PATH){
    await evaluate(await fs.readFile(process.env.AXE_PATH,'utf8'));
    for(const width of [390,1280]){
