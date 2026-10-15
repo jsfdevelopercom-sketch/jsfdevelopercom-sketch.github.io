@@ -38,7 +38,15 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
   const evaluate=async(expression,contextId)=>{const r=await call('Runtime.evaluate',{expression,contextId,returnByValue:true,awaitPromise:true});assert(!r.exceptionDetails,'Browser evaluation: '+JSON.stringify(r.exceptionDetails));return r.result.value};
   await call('Page.enable');await call('Runtime.enable');
   const viewport=async(w,h)=>{await call('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile:false});await pause(200)};
-  const navigate=async(url)=>{await call('Page.navigate',{url});for(let i=0;i<100;i++){await pause(100);if(await evaluate('document.readyState==="complete"'))break}await pause(600)};
+  const navigate=async(url)=>{
+   await call('Page.navigate',{url});let ready=false;
+   for(let i=0;i<100;i++){
+    await pause(100);
+    try{if(await evaluate('document.readyState==="complete" && !!document.querySelector("#mainTabAiDoc")')){ready=true;break}}
+    catch(error){if(!/navigated or closed|Execution context was destroyed|Cannot find context/.test(error.message))throw error;}
+   }
+   assert(ready,'Host did not finish its existing version-recovery navigation');await pause(600);
+  };
   const shot=async(name)=>{const r=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(out,name+'.png'),Buffer.from(r.data,'base64'))};
   const geometry=async(expression,context)=>evaluate(`(()=>{const rect=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,b:r.bottom}};return {width:innerWidth,height:innerHeight,scroll:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth),${expression}}})()`,context);
 
