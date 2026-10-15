@@ -37,5 +37,29 @@ panel.addEventListener('keydown',event=>{
  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
 });
 for(const tab of document.querySelectorAll('.tab-bar .tab')){tab.setAttribute('role','tab');tab.setAttribute('aria-controls','tab-'+tab.dataset.tab);tab.setAttribute('aria-selected',String(tab.classList.contains('active')));tab.addEventListener('click',()=>document.querySelectorAll('.tab-bar .tab').forEach(t=>t.setAttribute('aria-selected',String(t===tab))));}
+// A trusted child can reclaim the masthead space without replacing its iframe.
+const clinicalFrame=document.querySelector('#panelAiDoc iframe');
+const clinicalOrigin=new URL(clinicalFrame.src,location.href).origin;
+let immersive=false;
+function syncImmersion(){
+ const visible=getComputedStyle(document.getElementById('panelAiDoc')).display!=='none';
+ const wanted=visible&&immersive;
+ if(document.body.classList.contains('aidoc-immersive')!==wanted){document.body.classList.toggle('aidoc-immersive',wanted);window.dispatchEvent(new Event('resize'));}
+}
+function resumeDoctor(){
+ if(document.hidden)return;
+ clinicalFrame.contentWindow?.postMessage({type:'SILICONDOCTOR_HOST_RESUME_V1'},clinicalOrigin);
+}
+function handshake(){clinicalFrame.contentWindow?.postMessage({type:'SILICONDOCTOR_HOST_READY_V1'},clinicalOrigin);resumeDoctor();}
+window.addEventListener('message',event=>{
+ if(event.source!==clinicalFrame.contentWindow||event.origin!==clinicalOrigin||event.data?.type!=='SILICONDOCTOR_IMMERSIVE_V1'||typeof event.data.immersive!=='boolean')return;
+ immersive=event.data.immersive;syncImmersion();
+});
+for(const event of ['focus','pageshow','online'])window.addEventListener(event,resumeDoctor);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)resumeDoctor();});
+clinicalFrame.addEventListener('load',handshake);
+new MutationObserver(syncImmersion).observe(document.getElementById('panelAiDoc'),{attributes:true,attributeFilter:['style','hidden','class']});
+for(const button of document.querySelectorAll('[data-maintab]'))button.addEventListener('click',()=>{syncImmersion();if(button.id==='mainTabAiDoc')handshake();});
+handshake();
 show(0);
 })();
