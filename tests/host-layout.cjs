@@ -28,9 +28,16 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
  let socket,log='';child.stderr.on('data',x=>{log=(log+x).slice(-3000)});
  const receipt=[];
  try{
-  let port;for(let i=0;i<150;i++){try{port=Number((await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]);break}catch{await pause(100)}}
-  assert(port,'Chrome did not start: '+log);
-  const page=(await fetch('http://127.0.0.1:'+port+'/json/list').then(r=>r.json())).find(p=>p.type==='page');
+  let port;const launchDeadline=Date.now()+90000;
+  while(Date.now()<launchDeadline){
+   try{port=Number((await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]);break}
+   catch{const announced=log.match(/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)\//);if(announced){port=Number(announced[1]);break}assert(child.exitCode===null,'Chrome exited before startup: '+log);await pause(100)}
+  }
+  assert(port,'Chrome did not start within the bounded startup deadline: '+log);
+  let pages;const discoveryDeadline=Date.now()+30000;
+  while(Date.now()<discoveryDeadline){try{const r=await fetch('http://127.0.0.1:'+port+'/json/list');if(r.ok){pages=await r.json();break}}catch{}assert(child.exitCode===null,'Chrome exited during discovery: '+log);await pause(100)}
+  assert(pages,'Chrome debugger discovery did not become available');
+  const page=pages.find(p=>p.type==='page');assert(page,'Chrome has no test page');
   socket=new WebSocket(page.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true})});
   let id=0;const pending=new Map(),contexts=new Map(),uncaught=[];
   socket.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')uncaught.push(m.params.exceptionDetails.exception?.description||m.params.exceptionDetails.text);if(m.method==='Runtime.executionContextCreated'&&m.params.context.auxData?.isDefault)contexts.set(m.params.context.auxData.frameId,m.params.context.id);if(m.method==='Runtime.executionContextsCleared')contexts.clear();const p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(Error(m.error.message)):p.resolve(m.result)}});
