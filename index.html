@@ -1,1046 +1,459 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>APACHE II Bedside Entry</title>
-<meta name="silicondoctor-ui-release" content="interview-continuity-20261004-v2">
-
-<!--
-===============================================================================
-✅ COMPLETE HTML (FULL FILE, NOT PATCHES)
-===============================================================================
-
-WHAT CHANGED (per your instructions)
-1) ✅ MAIN WEBSITE HAS 3 TOP-LEVEL TABS:
-   - Form (default selected on load)
-   - Controls (full-page “Quick Admin Console”)
-   - Help (elaborate instructions + scoring table + contact developer)
-
-2) ✅ SETTINGS ICON MOVED:
-   - Removed from Form (header)
-   - Appears near top of Controls page (Sheet Controls)
-   - Clicking it opens the SAME Dev/Connection floating panel as before (unchanged).
-
-3) ✅ SUBMIT UX REDUCED:
-   - On submit click: show ONLY "Sent to Server ..."
-   - Then WAIT for server response
-   - On success: show success message
-   - On error: show error message
-   - No other intermediate toasts / “sending… still processing…” etc.
-
-4) ✅ CONTROLS PAGE TABLE:
-   - Month selector + Refresh button above the table
-   - Forced vertical + horizontal scrollbars
-   - Shows COMPLETE entries (UHID, name, age, sex, date, scores, mortality, etc.)
-   - Removes the prior little “Tip” block.
-
-5) ✅ CONTROLS PAGE CACHING:
-   - First visit loads table (unless cache already exists for that month)
-   - Stores the loaded entries locally (localStorage; iOS/Android compatible; no permissions)
-   - Switching away and back does NOT reload from server
-   - Refresh button forces reload + updates cache
-   - Month selector uses cache if available, else loads from server
-   - While reloading: shows a small waiting spinner next to table header (like before)
-
-6) ✅ SCRIPT COMPATIBILITY:
-   - Kept bridge transport (no CORS)
-   - LIST is requested with tag=LIST (GET first, then POST fallback)
-   - KP update remains tag=KP (POST)
-   - Contact Developer uses tag=CONTACT (script will be updated later)
-     -> This will not break anything else; it’s isolated to Help.
-
-DEBUGGING NOTE
-- I intentionally expanded multi-line comments in the JS so future debugging is easier.
-- I avoided touching your already-working compute/scoring logic and bridge core,
-  except where required for the new tabs + reduced submit alerts.
-
-===============================================================================
--->
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
-
-<style>
-  :root{
-    color-scheme: light;
-    --surface: rgba(255,255,255,0.9);
-    --surface-strong: rgba(255,255,255,0.98);
-    --outline: rgba(148,163,184,0.4);
-    --muted:#475569; --text:#0f172a;
-    --accent:#2563eb; --accent-dark:#1d4ed8;
-    --bg-gradient:
-      radial-gradient(circle at 5% 0%, rgba(59,130,246,.22), transparent 45%),
-      radial-gradient(circle at 95% 0%, rgba(14,165,233,.18), transparent 40%),
-      linear-gradient(180deg,#f1f5f9 0%,#e2e8f0 55%,#f8fafc 100%);
-    --shadow: 0 30px 60px -25px rgba(15,23,42,.35);
-    --shadow-soft: 0 20px 50px -30px rgba(15,23,42,.35);
-    --radius-lg: 26px; --radius-md:18px; --radius-sm:12px;
-    --max-width:1260px;
-    font-synthesis:none; text-rendering:optimizeLegibility;
-  }
-  *,*::before,*::after{box-sizing:border-box}
-  body{margin:0;min-height:100vh;font-family:"Inter",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg-gradient);display:flex;flex-direction:column}
-  a{color:inherit}
-
-  .masthead{position:relative;padding:clamp(24px,5vw,42px) clamp(18px,7vw,64px) clamp(18px,4vw,28px);display:flex;flex-direction:column;gap:clamp(14px,3vw,22px);overflow:hidden}
-  .masthead::before{content:"";position:absolute;inset:12% auto -20% 50%;width:clamp(240px,40vw,520px);height:clamp(240px,45vw,560px);background:radial-gradient(circle, rgba(37,99,235,.45), transparent 70%);transform:translateX(-50%) rotate(18deg);filter:blur(42px);opacity:.6}
-  .masthead__inner{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:flex;flex-direction:column;gap:clamp(14px,3vw,18px)}
-  .topline{display:flex;align-items:center;justify-content:space-between;gap:18px}
-  .brand{display:flex;align-items:center;gap:16px}
-  .brand__mark{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg, rgba(37,99,235,.92), rgba(59,130,246,.7));display:grid;place-items:center;color:#fff;font-family:"Plus Jakarta Sans","Inter",sans-serif;font-weight:700;font-size:20px;letter-spacing:.04em;box-shadow:var(--shadow-soft)}
-  .brand__copy h1{margin:0;font-family:"Plus Jakarta Sans","Inter",sans-serif;font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.02em}
-  .brand__copy p{margin:6px 0 0;max-width:520px;color:var(--muted);font-size:clamp(15px,2.5vw,18px);line-height:1.6}
-
-  /* ---------- TOP-LEVEL NAV TABS (Form / Controls / Help) ---------- */
-  .main-tabs{
-    display:flex;gap:10px;flex-wrap:wrap;
-    padding:10px 0 0 0;
-  }
-  .main-tab{
-    border:1px solid rgba(148,163,184,.4);
-    background:rgba(255,255,255,.75);
-    padding:10px 14px;border-radius:12px;
-    font-weight:800;cursor:pointer;
-    transition:transform .15s ease, background .15s ease;
-    user-select:none;
-  }
-  .main-tab:hover{transform:translateY(-1px)}
-  .main-tab.active{
-    background:linear-gradient(135deg,#2563eb,#14a3e9);
-    color:#fff;border-color:transparent;
-    box-shadow:0 16px 36px -22px rgba(37,99,235,.65);
-  }
-
-  .mode-switcher{display:grid;gap:10px;align-items:start}
-  .mode-pills{display:grid;grid-template-columns:1fr;gap:12px}
-  .mode{position:relative;border-radius:var(--radius-md);border:1px solid transparent;padding:14px 18px;background:rgba(255,255,255,.65);color:var(--muted);font-weight:600;text-align:left;cursor:default}
-  .mode.active{background:linear-gradient(135deg,#2563eb,#14a3e9);color:#fff;box-shadow:0 18px 42px -18px rgba(37,99,235,.6)}
-  .mode-hint{font-size:14px;color:var(--muted)}
-
-  .patient-mini{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted)}
-  .mini-field{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.75);box-shadow:0 12px 28px -22px rgba(15,23,42,.45)}
-  .mini-field span{font-size:16px}
-  .mini-field input{border:0;background:transparent;font-size:14px;outline:none;min-width:110px}
-
-  .workspace-wrapper{flex:1;padding:0 clamp(18px,7vw,64px) clamp(180px,12vw,220px)}
-  .workspace{position:relative;z-index:1;max-width:var(--max-width);margin:0 auto;display:grid;gap:clamp(20px,4vw,36px)}
-  .cards-flow{display:grid;gap:clamp(18px,3vw,28px)}
-
-  /* AI Doc is an embedded application, not a content card. When selected it
-     owns the full horizontal viewport below the site header/tabs. Keeping the
-     generic 7vw content gutter here shrinks the iframe to ~317 CSS px on a
-     369px phone and clips SiliconDoctor controls. */
-  body.aidoc-active .workspace-wrapper{
-    padding-top:0!important;
-    padding-bottom:0!important;
-    padding-left:0!important;
-    padding-right:0!important;
-  }
-  body.aidoc-active .workspace{
-    width:100%!important;
-    max-width:none!important;
-    margin:0!important;
-    gap:0!important;
-  }
-  body.aidoc-active #panelAiDoc{
-    width:100%!important;
-    max-width:none!important;
-    margin:0!important;
-    padding:0!important;
-    gap:0!important;
-    overflow:hidden!important;
-  }
-  body.aidoc-active #panelAiDoc iframe{
-    display:block!important;
-    width:100%!important;
-    max-width:100%!important;
-    height:100%!important;
-    min-width:0!important;
-    border-left:0!important;
-    border-right:0!important;
-    border-radius:0!important;
-    border:0!important;
-    touch-action:manipulation;
-  }
-  /* Clinical work owns the viewport; the host contributes only its navigation. */
-  body.aidoc-active{height:100dvh;min-height:0;overflow:hidden;background:#0b121b}
-  body.aidoc-active .masthead{
-    flex:0 0 auto;min-height:44px;padding:0 max(6px,env(safe-area-inset-right)) 0 max(6px,env(safe-area-inset-left));
-    gap:0;background:#111c28;border-bottom:1px solid #2a3949;
-  }
-  body.aidoc-active .masthead::before,body.aidoc-active .topline{display:none}
-  body.aidoc-active .masthead__inner{width:100%;max-width:none;margin:0;gap:0}
-  body.aidoc-active .main-tabs{min-height:44px;padding:0;gap:4px;align-items:center;flex-wrap:nowrap}
-  body.aidoc-active .main-tab{
-    min-height:40px;padding:0 12px;font-size:12px;line-height:1;border-radius:6px;
-    color:#b7c5d6;background:transparent;border-color:transparent;box-shadow:none;transform:none;
-  }
-  body.aidoc-active .main-tab:hover{background:#1b2a3a;color:#fff}
-  body.aidoc-active .main-tab.active{color:#8cf0d8;background:#16382f;border-color:#296c5b;box-shadow:none}
-  body.aidoc-active .main-tab:focus-visible{outline:2px solid #8cf0d8;outline-offset:-2px}
-  body.aidoc-active .workspace-wrapper{min-height:0;flex:1;overflow:hidden}
-  body.aidoc-active footer,body.aidoc-active .tiny-footer{display:none}
-  .panel{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--outline);padding:clamp(18px,3vw,28px);box-shadow:var(--shadow-soft);backdrop-filter:blur(14px);display:grid;gap:clamp(16px,2.5vw,26px)}
-  .panel header{display:grid;gap:6px}
-  .panel h2{margin:0;font-size:clamp(18px,2.7vw,22px);font-weight:800;letter-spacing:-.01em}
-  .panel .hint{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
-
-  label{font-weight:700;font-size:14px;color:#1e293b;display:block;margin-bottom:6px}
-  .input,select,textarea{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid rgba(148,163,184,.5);background:rgba(248,250,252,.92);font-size:15px;transition:border .2s ease,box-shadow .2s ease,background .2s ease}
-  .input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(37,99,235,.6);box-shadow:0 0 0 4px rgba(37,99,235,.15);background:#fff}
-  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-
-  .grid-2,.grid-3{display:grid;gap:18px}
-  .grid-2{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-  .grid-3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
-
-  .chip-row{display:flex;flex-wrap:wrap;gap:12px}
-  .chip{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-md);background:rgba(148,163,184,.14);border:1px solid transparent;font-weight:700;cursor:pointer;color:var(--muted);transition:all .2s ease}
-  .chip input[type=radio]{accent-color:var(--accent)}
-  .chip:hover{background:rgba(37,99,235,.1)}
-
-  /* NOTE: These ".tab" styles are for the INTERNAL Clinical Inputs tabs (Vitals/Oxygen/Labs) */
-  .tab-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
-  .tab{border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.7);padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
-  .tab.active{background:linear-gradient(135deg,#2563eb,#14a3e9);color:#fff;border-color:transparent}
-  .tab-panel{display:none}
-  .tab-panel.active{display:block}
-
-  .action-dock{
-    position:static;
-    padding:18px clamp(18px,7vw,64px) max(env(safe-area-inset-bottom,24px),28px);
-    background:rgba(255,255,255,.96);
-    border-top:1px solid rgba(148,163,184,.35);
-    box-shadow:0 -18px 42px -24px rgba(15,23,42,.45);
-    backdrop-filter:blur(16px);
-    z-index:150
-  }
-  .action-dock__inner{max-width:var(--max-width);margin:0 auto;display:grid;gap:12px}
-  .btn{border-radius:var(--radius-md);border:1px solid transparent;padding:16px;font-weight:800;font-size:16px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
-  .btn.primary{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;box-shadow:0 20px 40px -18px rgba(37,99,235,.55)}
-  .btn.primary:hover:not([disabled]){transform:translateY(-1px)}
-  .btn.secondary{background:rgba(37,99,235,.08);color:var(--accent-dark);border:1px solid rgba(37,99,235,.18)}
-  .btn.ghost{background:transparent;border:1px solid rgba(148,163,184,.35);color:var(--muted)}
-  .btn[disabled]{opacity:.6;cursor:not-allowed}
-
-  .incomplete-note{display:none;font-size:12px;color:#dc2626;font-weight:900}
-  .incomplete-note[data-visible="true"]{display:block}
-
-  .toast{position:fixed;right:clamp(18px,5vw,64px);bottom:clamp(120px,12vw,180px);min-width:min(360px,calc(100vw - 48px));background:#fff;border-radius:var(--radius-md);border-left:4px solid #16a34a;padding:16px 20px;box-shadow:var(--shadow);font-weight:800;color:var(--text);display:none;z-index:220}
-  .toast.err{border-left-color:#dc2626;color:#dc2626}
-  .toast.warn{border-left-color:#f59e0b;color:#92400e}
-  .toast.center{left:50%;top:50%;transform:translate(-50%,-50%);right:auto;bottom:auto;min-width:min(460px,calc(100vw - 48px));text-align:center}
-
-  /* ---------- DEV SETTINGS (unchanged floating modal) ---------- */
-  .dev-panel,.dev-backdrop{position:fixed;inset:0;z-index:230}
-  .dev-backdrop{background:rgba(15,23,42,.5);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease}
-  .dev-backdrop[data-visible="true"]{opacity:1;pointer-events:auto}
-  .dev-panel{display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
-  .dev-panel[aria-hidden="false"]{opacity:1;visibility:visible;pointer-events:auto}
-  .dev-sheet{
-    width:min(560px,calc(100vw - 48px));
-    background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);
-    border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -30px rgba(15,23,42,.8);
-    padding:26px;display:grid;gap:18px;pointer-events:auto;
-    max-height:min(80vh, 720px);
-    overflow-y:auto;
-  }
-  .dev-sheet h3{margin:0;font-size:20px;font-weight:700}
-  .dev-sheet .close{justify-self:end;border:0;background:rgba(148,163,184,.15);color:#e2e8f0;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:800}
-  .dev-sheet label{color:#cbd5f5}
-  .dev-sheet .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
-  .dev-tip{font-size:13px;color:rgba(226,232,240,.7)}
-
-  /* ---------- RESULTS CARD ---------- */
-  .results-card{
-    display:none;
-    background:var(--surface-strong);
-    border:1px solid rgba(148,163,184,.35);
-    border-radius:18px;
-    box-shadow:var(--shadow);
-    padding:16px 18px;
-  }
-  .results-card[data-visible="true"]{display:block}
-  .results-title{margin:0 0 8px 0;font-weight:900}
-  .results-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .metric{padding:12px 14px;border-radius:12px;background:rgba(148,163,184,.12);font-weight:900}
-  .metric small{display:block;font-weight:700;color:var(--muted)}
-
-  /* ---------- DUP INDICATOR ---------- */
-  .inline-wrap{display:flex;align-items:center;gap:8px}
-  .dup-indicator{display:none;font-size:12px;color:#64748b;white-space:nowrap}
-  .dup-indicator[data-state="checking"],
-  .dup-indicator[data-state="none"],
-  .dup-indicator[data-state="error"]{display:inline-flex;align-items:center;gap:6px}
-  .spinner{width:14px;height:14px;border:2px solid rgba(37,99,235,.25);border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-
-  body.desktop .workspace{grid-template-columns:1fr 360px;align-items:start}
-  body.desktop .cards-flow{grid-template-columns:repeat(2,minmax(0,1fr))}
-  body.desktop .action-dock__inner{grid-template-columns:repeat(3,minmax(0,1fr))}
-  @media (max-width:899px){body.desktop .workspace{grid-template-columns:1fr}}
-  @media (prefers-reduced-motion: reduce){
-    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
-  }
-
-  /* ---------- CONTROLS PAGE (dark themed section using prior admin styles, but embedded) ---------- */
-  .controls-shell{
-    background:#0f172a;color:#f8fafc;border-radius:var(--radius-lg);
-    border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px -40px rgba(15,23,42,.6);
-    padding:18px;display:grid;gap:14px;
-  }
-  .controls-topbar{
-    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
-    padding:4px 6px 0 6px;
-  }
-  .controls-titlewrap{display:grid;gap:2px}
-  .controls-title{margin:0;font-size:20px;font-weight:900}
-  .controls-sub{margin:0;font-size:12px;color:rgba(226,232,240,.72);line-height:1.35}
-
-  .controls-gear{
-    width:42px;height:42px;border-radius:50%;
-    border:1px solid rgba(255,255,255,.7);
-    background:rgba(15,23,42,.75);color:#e2e8f0;
-    display:grid;place-items:center;cursor:pointer;
-    box-shadow:0 16px 40px -20px rgba(15,23,42,.65);
-    backdrop-filter:blur(12px);
-    transition:transform .2s ease;
-  }
-  .controls-gear:hover{transform:translateY(-2px)}
-
-  .admin-card{
-    border:1px solid rgba(148,163,184,.28);
-    background:rgba(2,6,23,.35);
-    border-radius:18px;
-    padding:12px;
-    display:grid;
-    gap:10px;
-  }
-  .admin-card h4{margin:0;font-size:14px;font-weight:900}
-  .admin-card .minihelp{margin:0;color:rgba(226,232,240,.70);font-size:12px;line-height:1.4}
-
-  .pill{
-    display:inline-flex;align-items:center;gap:8px;
-    padding:8px 12px;border-radius:999px;
-    border:1px solid rgba(148,163,184,.22);
-    background:rgba(148,163,184,.10);
-    font-weight:900;color:#e2e8f0;font-size:12px;
-  }
-
-  .admin-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-
-  /* ✅ COMPULSORY SCROLLBARS for Controls table */
-  .table-wrap{
-    border:1px solid rgba(148,163,184,.22);
-    border-radius:14px;
-    background:rgba(2,6,23,.35);
-    overflow-x: scroll;
-    overflow-y: scroll;
-    scrollbar-gutter: stable both-edges;
-    max-height:380px;
-  }
-  table.admin-table{border-collapse:collapse;width:max(1400px,100%);font-size:13px}
-  table.admin-table th, table.admin-table td{
-    padding:10px 10px;
-    border-bottom:1px solid rgba(148,163,184,.16);
-    white-space:nowrap;
-    text-align:left;
-    vertical-align:top;
-  }
-  table.admin-table th{
-    position:sticky;top:0;z-index:2;
-    background:rgba(15,23,42,.92);
-    color:#e2e8f0;
-    font-weight:900;
-  }
-
-  .admin-inputs{display:grid;grid-template-columns:1fr 120px auto;gap:10px;align-items:end}
-  @media (max-width:520px){ .admin-inputs{grid-template-columns:1fr;align-items:stretch} }
-
-  .controls-shell label{color:#cbd5f5}
-  .controls-shell .input{background:rgba(15,23,42,.75);color:#f8fafc;border:1px solid rgba(148,163,184,.4)}
-  .controls-shell select.input{appearance:none}
-  .controls-shell .btn{padding:12px 14px;font-size:14px}
-  .controls-shell .btn.primary{box-shadow:none}
-  .controls-shell .btn.ghost{color:#e2e8f0;border-color:rgba(148,163,184,.28)}
-  .controls-shell .btn.secondary{color:#e2e8f0;background:rgba(37,99,235,.16);border-color:rgba(37,99,235,.22)}
-
-  /* ---------- HELP PAGE FORMATTING ---------- */
-  .help-section{
-    border:1px solid rgba(148,163,184,.35);
-    background:rgba(255,255,255,.72);
-    border-radius:18px;
-    padding:16px 18px;
-    display:grid;gap:10px;
-  }
-  .help-section h3{margin:0;font-size:18px;font-weight:900}
-  .help-bullets{
-    margin:0;padding-left:18px;
-    color:#0f172a;
-    line-height:1.6;
-  }
-  .help-note{
-    padding:12px 14px;border-radius:14px;
-    background:rgba(37,99,235,.08);
-    border:1px solid rgba(37,99,235,.18);
-    font-weight:800;
-  }
-  .help-note strong{font-weight:900}
-  .help-tablewrap{
-    overflow:auto;
-    border-radius:14px;
-    border:1px solid rgba(148,163,184,.35);
-    background:rgba(255,255,255,.85);
-  }
-  table.help-table{border-collapse:collapse;min-width:860px;width:100%;font-size:13px}
-  table.help-table th, table.help-table td{
-    padding:10px 10px;border-bottom:1px solid rgba(148,163,184,.25);
-    text-align:left;vertical-align:top;white-space:nowrap;
-  }
-  table.help-table th{position:sticky;top:0;background:#fff;font-weight:900}
-
-  .tiny-footer{font-size:12px;color:#64748b;text-align:center;padding:8px 0 14px 0}
-  .dev-credit{font-size:12px;color:#64748b;font-weight:700;margin-bottom:2px}
-
-  /* AI Doc keyboard mode: the host owns the visible viewport. The iframe fills
-     that viewport exactly; the embedded app must not be pushed below it. */
-  body.aidoc-keyboard-overlay{overflow:hidden!important}
-  body.aidoc-keyboard-overlay #panelAiDoc{
-    position:fixed!important;margin:0!important;max-width:none!important;
-    padding:0!important;gap:0!important;z-index:1000!important;
-  }
-  body.aidoc-keyboard-overlay #panelAiDoc iframe{
-    display:block!important;width:100%!important;height:100%!important;
-    min-height:0!important;max-height:none!important;border:0!important;border-radius:0!important;
-  }
-
-</style>
-</head>
-
-<body>
-<noscript style="padding:12px 16px;background:#fee2e2;color:#7f1d1d;border-bottom:1px solid #fecaca;font-weight:900">
-  JavaScript is required for APACHE II calculations and Google Sheets submission.
-</noscript>
-
-<header class="masthead" role="banner">
-  <div class="masthead__inner">
-    <div class="topline">
-      <div class="brand">
-        <div class="brand__mark" aria-hidden="true">AI</div>
-        <div class="brand__copy">
-          <h1>APACHE II bedside console</h1>
-          <p>Direct to Google Sheets. One shared sheet per month. All doctors, one source of truth.</p>
-        </div>
-      </div>
-
-      <!--
-        NOTE:
-        - Settings icon REMOVED from header per requirement.
-        - Settings gear will appear inside Controls tab page.
-      -->
-    </div>
-
-    <!-- TOP-LEVEL TABS -->
-    <nav class="main-tabs" aria-label="Main navigation tabs">
-      <button id="mainTabForm" class="main-tab active" type="button" data-maintab="form">Form</button>
-      <button id="mainTabControls" class="main-tab" type="button" data-maintab="controls">Controls</button>
-      <button id="mainTabHelp" class="main-tab" type="button" data-maintab="help">Help</button>
-      <button id="mainTabAiDoc" class="main-tab" type="button" data-maintab="aidoc">AI Doc</button>
-    </nav>
-
-    <!-- FORM-ONLY HEAD STRIP (keep your existing mode + mini patient fields) -->
-    <div id="formHeaderStrip" class="mode-switcher" aria-label="Submission mode">
-      <div class="dev-credit">@JSF Developer 2026</div>
-      <div class="mode-pills" role="group">
-        <button id="modeOnline" type="button" class="mode active" disabled>Online (Google Sheets)</button>
-      </div>
-      <div id="modeHint" class="mode-hint">
-        Data go straight to the shared ICU Google Sheet (one tab per month). Download uses the Apps Script download endpoint.
-      </div>
-      <div class="patient-mini" aria-label="Quick patient entry">
-        <div class="mini-field"><span>👤</span><input id="patientNameMini" type="text" placeholder="Patient name" autocomplete="off"></div>
-        <div class="mini-field"><span>🆔</span><input id="uhidMini" type="text" placeholder="UHID" autocomplete="off"></div>
-      </div>
-    </div>
-
-  </div>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1,interactive-widget=resizes-content" name="viewport"/><meta content="v10-public-workspace-20261015" name="silicondoctor-ui-release"/><title>SiliconDoctor · Clinical intelligence</title><link href="host-workspace.css" rel="stylesheet"/></head><body>
+<a class="skip-link" href="#mainWorkspace">Skip to workspace</a>
+<header class="masthead"><a aria-label="SiliconDoctor home" class="host-brand" href="/">SiliconDoctor<span>Clinical intelligence</span></a><nav aria-label="Workspace" class="main-tabs"><button data-maintab="aidoc" id="mainTabAiDoc" type="button">Clinical workspace</button><details class="host-tools"><summary>Tools</summary><div><button data-maintab="form" id="mainTabForm" type="button">APACHE II calculator</button><button data-maintab="controls" id="mainTabControls" type="button">Sheet records</button><button data-maintab="help" id="mainTabHelp" type="button">Methods &amp; help</button></div></details></nav></header>
+<main id="mainWorkspace"><section aria-label="Clinical workspace" id="panelAiDoc"><iframe allow="microphone" src="https://web-production-09bf5.up.railway.app/?ui=v10-public-workspace-20261015" title="SiliconDoctor clinical workspace"></iframe></section>
+<section aria-labelledby="calculator-title" class="tool-workspace" id="panelForm" style="display:none"><header class="workspace-heading"><p class="eyebrow">Bedside tools</p><h1 id="calculator-title">APACHE II</h1><p>Document the clinical observations. Review the score before submitting to your connected sheet.</p></header><div class="mode-switcher" id="formHeaderStrip"><span id="modeHint">Connected Google Sheets workflow</span><button disabled="" id="modeOnline" type="button">Online</button></div><nav aria-label="Calculator steps" class="calculator-steps"><button data-calculator-step="0" type="button">1 · Patient</button><button data-calculator-step="1" type="button">2 · History</button><button data-calculator-step="2" type="button">3 · Observations</button><button data-calculator-step="3" type="button">4 · Review</button></nav><div class="calculator-stage"><fieldset data-calculator-stage="0"><legend>Patient</legend><section aria-labelledby="patient-h" class="clinical-section" data-span="full">
+<header>
+<h2 id="patient-h">Patient</h2>
+<p class="hint">Enter the patient’s full name as per hospital record and their UHID.</p>
 </header>
-
-<div class="workspace-wrapper">
-  <main class="workspace" id="mainWorkspace">
-
-    <!-- ==========================================================
-         MAIN PANEL: FORM TAB
-         ========================================================== -->
-    <section id="panelForm" class="cards-flow" aria-label="Form tab content">
-
-      <section class="panel" data-span="full" aria-labelledby="patient-h">
-        <header>
-          <h2 id="patient-h">Patient</h2>
-          <p class="hint">Enter the patient’s full name as per hospital record and their UHID.</p>
-        </header>
-        <div class="grid-2">
-          <div>
-            <label for="patientName">Patient Name*</label>
-            <input id="patientName" class="input" type="text" required placeholder="e.g., Jane Doe" autocomplete="off">
-          </div>
-          <div>
-            <label for="uhid">
+<div class="grid-2">
+<div>
+<label for="patientName">Patient Name*</label>
+<input autocomplete="off" class="input" id="patientName" placeholder="e.g., Jane Doe" required="" type="text"/>
+</div>
+<div>
+<label for="uhid">
               UHID*
-              <span id="dupIndicator" class="dup-indicator">
-                <span class="spinner" aria-hidden="true"></span><span>Looking for duplicates…</span>
-              </span>
-            </label>
-            <div class="inline-wrap">
-              <input id="uhid" class="input" type="text" required placeholder="Hospital unique ID" autocomplete="off" aria-describedby="dupIndicator">
-            </div>
-          </div>
-        </div>
-      </section>
+              <span class="dup-indicator" id="dupIndicator">
+<span aria-hidden="true" class="spinner"></span><span>Looking for duplicates…</span>
+</span>
+</label>
+<div class="inline-wrap">
+<input aria-describedby="dupIndicator" autocomplete="off" class="input" id="uhid" placeholder="Hospital unique ID" required="" type="text"/>
+</div>
+</div>
+</div>
+</section><section aria-labelledby="demo-h" class="clinical-section">
+<header>
+<h2 id="demo-h">Demographics &amp; Admission</h2>
+<p class="hint">Age in years, sex, ICU admission date, diagnosis. GCS is required.</p>
+</header>
+<div class="grid-3">
+<div>
+<label for="age">Age (years)*</label>
+<input class="input" id="age" max="120" min="0" placeholder="Years" required="" step="1" type="number"/>
+</div>
+<div>
+<label for="sex">Sex*</label>
+<select class="input" id="sex" required="">
+<option disabled="" selected="" value="">Select</option>
+<option>Male</option>
+<option>Female</option>
+<option>Other</option>
+</select>
+</div>
+<div>
+<label for="admitDate">Admission Date*</label>
+<input class="input" id="admitDate" required="" type="date"/>
+</div>
+</div>
+<div>
+<label for="diagnosis">Diagnosis*</label>
+<input class="input" id="diagnosis" placeholder="Primary diagnosis at ICU admission" required="" type="text"/>
+</div>
+<div class="grid-2">
+<div>
+<label for="gcs">GCS (3–15)*</label>
+<input class="input" id="gcs" max="15" min="3" placeholder="e.g., 12" required="" step="1" type="number"/>
+</div>
+</div>
+</section></fieldset><fieldset data-calculator-stage="1"><legend>History</legend><section aria-labelledby="chronic-h" class="clinical-section">
+<header>
+<h2 id="chronic-h">Chronic health</h2>
+<p class="hint">Mark severe chronic organ failure/immunocompromise. If present, specify surgical context.</p>
+</header>
+<div class="chip-row" id="chronicGrp">
+<label class="chip"><input checked="" name="chronic" type="radio" value="No"/> No</label>
+<label class="chip"><input name="chronic" type="radio" value="Yes"/> Yes – severe organ failure / immunocompromise</label>
+</div>
+<div class="grid-2" id="surgTypeWrap" style="display:none">
+<div>
+<label>Type of surgery (if chronic = Yes)</label>
+<div class="chip-row">
+<label class="chip"><input checked="" name="surgtype" type="radio" value="Emergency"/> Emergency</label>
+<label class="chip"><input name="surgtype" type="radio" value="Elective"/> Elective</label>
+<label class="chip"><input name="surgtype" type="radio" value="Nonoperative"/> Non-operative</label>
+</div>
+</div>
+</div>
+</section></fieldset><fieldset data-calculator-stage="2"><legend>Observations</legend><section aria-labelledby="inputs-h" class="clinical-section" data-span="full">
+<header>
+<h2 id="inputs-h">Clinical inputs</h2>
+<p class="hint">Vitals, oxygenation branch (PaO₂ vs A–a gradient based on FiO₂), labs.</p>
+</header>
+<div class="tab-bar" role="tablist">
+<button class="tab active" data-tab="vitals" type="button">Vitals</button>
+<button class="tab" data-tab="oxygen" type="button">Oxygenation</button>
+<button class="tab" data-tab="labs" type="button">Labs</button>
+</div>
+<div class="tab-panel active" id="tab-vitals" role="tabpanel">
+<div class="grid-3">
+<div>
+<label for="tempF">Temperature (°F)*</label>
+<input class="input" id="tempF" required="" step="0.1" type="number"/>
+</div>
+<div>
+<label for="map">Mean Arterial Pressure (mmHg)*</label>
+<input class="input" id="map" required="" step="1" type="number"/>
+</div>
+<div>
+<label for="hr">Heart Rate (bpm)*</label>
+<input class="input" id="hr" required="" step="1" type="number"/>
+</div>
+</div>
+<div class="grid-2">
+<div>
+<label for="rr">Respiratory Rate (breaths/min)*</label>
+<input class="input" id="rr" required="" step="1" type="number"/>
+</div>
+</div>
+</div>
+<div class="tab-panel" id="tab-oxygen" role="tabpanel">
+<div>
+<label>FiO₂ category*</label>
+<div class="chip-row" id="fio2Grp">
+<label class="chip"><input checked="" name="fio2" type="radio" value="&lt;50%"/> &lt; 50% (or non-intubated)</label>
+<label class="chip"><input name="fio2" type="radio" value="&gt;=50%"/> ≥ 50%</label>
+</div>
+</div>
+<div id="po2Wrap">
+<label for="pao2">PaO₂ (mmHg)*</label>
+<input autocomplete="off" class="input" id="pao2" placeholder="e.g., 80" required="" step="1" type="number"/>
+<p class="hint">If FiO₂ &lt; 50% → provide PaO₂.</p>
+</div>
+<div id="aagradWrap" style="display:none">
+<label for="aagrad">A–a gradient (mmHg)*</label>
+<input autocomplete="off" class="input" id="aagrad" placeholder="e.g., 220" step="1" type="number"/>
+<p class="hint">If FiO₂ ≥ 50% → provide A–a gradient.</p>
+</div>
+</div>
+<div class="tab-panel" id="tab-labs" role="tabpanel">
+<div class="grid-3">
+<div>
+<label for="ph">pH (arterial)</label>
+<input class="input" id="ph" max="7.8" min="6.8" step="0.01" type="number"/>
+</div>
+<div>
+<label for="hco3">HCO₃⁻ (mEq/L)</label>
+<input class="input" id="hco3" step="0.1" type="number"/>
+</div>
+<div>
+<label for="na">Na⁺ (mEq/L)*</label>
+<input class="input" id="na" required="" step="1" type="number"/>
+</div>
+</div>
+<div class="grid-3">
+<div>
+<label for="k">K⁺ (mEq/L)*</label>
+<input class="input" id="k" required="" step="0.1" type="number"/>
+</div>
+<div>
+<label for="cr">Creatinine (mg/dL)*</label>
+<input class="input" id="cr" required="" step="0.1" type="number"/>
+</div>
+<div>
+<label for="wbc">WBC (×10³/mm³)*</label>
+<input class="input" id="wbc" required="" step="0.1" type="number"/>
+</div>
+</div>
+<div class="grid-2">
+<div>
+<label for="hct">Hematocrit (%)*</label>
+<input class="input" id="hct" required="" step="0.1" type="number"/>
+</div>
+<div>
+<label>Acute Renal Failure</label>
+<div class="chip-row" id="arfGrp">
+<label class="chip"><input checked="" name="arf" type="radio" value="No"/> No</label>
+<label class="chip"><input name="arf" type="radio" value="Yes"/> Yes</label>
+</div>
+</div>
+</div>
+</div>
+</section></fieldset><fieldset data-calculator-stage="3"><legend>Review</legend><section aria-labelledby="outcome-h" class="clinical-section">
+<header><h2 id="outcome-h">Outcome</h2></header>
+<div>
+<label>Mortality (Y/N)*</label>
+<div aria-label="Mortality yes/no" class="chip-row" id="mortalityGrp" role="group">
+<label class="chip"><input name="mortality" required="" type="radio" value="Y"/> Y</label>
+<label class="chip"><input name="mortality" required="" type="radio" value="N"/> N</label>
+</div>
+</div>
+</section><aside aria-atomic="true" aria-live="polite" class="results-card" id="resultsCard">
+<h4 class="results-title">Computed Result</h4>
+<div class="results-grid">
+<div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
+<div class="metric"><small>Mortality (Non-op)</small><span id="resMortNon">—</span></div>
+<div class="metric"><small>Mortality (Post-op)</small><span id="resMortPost">—</span></div>
+</div>
+</aside></fieldset></div><div class="step-actions"><button id="calculatorBack" type="button">Back</button><span id="calculatorProgress" role="status"></span><button id="calculatorNext" type="button">Continue</button></div></section>
+<section aria-label="Sheet records" class="tool-workspace" id="panelControls" style="display:none"><header class="workspace-heading"><p class="eyebrow">Connected records</p><h1>Sheet records</h1><p>Review monthly entries and send explicit outcome updates.</p><button aria-expanded="false" aria-haspopup="dialog" id="devToggleControls" type="button">Connection &amp; tools</button></header><div class="sheet-workspace"><div aria-label="Controls shell" class="controls-shell">
+<!-- FULL PAGE “Quick Admin Console” -->
 
-      <section class="panel" aria-labelledby="demo-h">
-        <header>
-          <h2 id="demo-h">Demographics & Admission</h2>
-          <p class="hint">Age in years, sex, ICU admission date, diagnosis. GCS is required.</p>
-        </header>
-        <div class="grid-3">
-          <div>
-            <label for="age">Age (years)*</label>
-            <input id="age" class="input" type="number" min="0" max="120" step="1" required placeholder="Years">
-          </div>
-          <div>
-            <label for="sex">Sex*</label>
-            <select id="sex" class="input" required>
-              <option value="" selected disabled>Select</option>
-              <option>Male</option>
-              <option>Female</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div>
-            <label for="admitDate">Admission Date*</label>
-            <input id="admitDate" class="input" type="date" required>
-          </div>
-        </div>
-        <div>
-          <label for="diagnosis">Diagnosis*</label>
-          <input id="diagnosis" class="input" type="text" required placeholder="Primary diagnosis at ICU admission">
-        </div>
-        <div class="grid-2">
-          <div>
-            <label for="gcs">GCS (3–15)*</label>
-            <input id="gcs" class="input" type="number" min="3" max="15" step="1" required placeholder="e.g., 12">
-          </div>
-        </div>
-      </section>
-
-      <section class="panel" aria-labelledby="chronic-h">
-        <header>
-          <h2 id="chronic-h">Chronic health</h2>
-          <p class="hint">Mark severe chronic organ failure/immunocompromise. If present, specify surgical context.</p>
-        </header>
-        <div class="chip-row" id="chronicGrp">
-          <label class="chip"><input type="radio" name="chronic" value="No" checked> No</label>
-          <label class="chip"><input type="radio" name="chronic" value="Yes"> Yes – severe organ failure / immunocompromise</label>
-        </div>
-        <div id="surgTypeWrap" class="grid-2" style="display:none">
-          <div>
-            <label>Type of surgery (if chronic = Yes)</label>
-            <div class="chip-row">
-              <label class="chip"><input type="radio" name="surgtype" value="Emergency" checked> Emergency</label>
-              <label class="chip"><input type="radio" name="surgtype" value="Elective"> Elective</label>
-              <label class="chip"><input type="radio" name="surgtype" value="Nonoperative"> Non-operative</label>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel" data-span="full" aria-labelledby="inputs-h">
-        <header>
-          <h2 id="inputs-h">Clinical inputs</h2>
-          <p class="hint">Vitals, oxygenation branch (PaO₂ vs A–a gradient based on FiO₂), labs.</p>
-        </header>
-        <div class="tab-bar" role="tablist">
-          <button class="tab active" type="button" data-tab="vitals">Vitals</button>
-          <button class="tab" type="button" data-tab="oxygen">Oxygenation</button>
-          <button class="tab" type="button" data-tab="labs">Labs</button>
-        </div>
-
-        <div id="tab-vitals" class="tab-panel active" role="tabpanel">
-          <div class="grid-3">
-            <div>
-              <label for="tempF">Temperature (°F)*</label>
-              <input id="tempF" class="input" type="number" step="0.1" required>
-            </div>
-            <div>
-              <label for="map">Mean Arterial Pressure (mmHg)*</label>
-              <input id="map" class="input" type="number" step="1" required>
-            </div>
-            <div>
-              <label for="hr">Heart Rate (bpm)*</label>
-              <input id="hr" class="input" type="number" step="1" required>
-            </div>
-          </div>
-          <div class="grid-2">
-            <div>
-              <label for="rr">Respiratory Rate (breaths/min)*</label>
-              <input id="rr" class="input" type="number" step="1" required>
-            </div>
-          </div>
-        </div>
-
-        <div id="tab-oxygen" class="tab-panel" role="tabpanel">
-          <div>
-            <label>FiO₂ category*</label>
-            <div class="chip-row" id="fio2Grp">
-              <label class="chip"><input type="radio" name="fio2" value="<50%" checked> &lt; 50% (or non-intubated)</label>
-              <label class="chip"><input type="radio" name="fio2" value=">=50%"> ≥ 50%</label>
-            </div>
-          </div>
-
-          <div id="po2Wrap">
-            <label for="pao2">PaO₂ (mmHg)*</label>
-            <input id="pao2" class="input" type="number" step="1" placeholder="e.g., 80" autocomplete="off" required>
-            <p class="hint">If FiO₂ &lt; 50% → provide PaO₂.</p>
-          </div>
-
-          <div id="aagradWrap" style="display:none">
-            <label for="aagrad">A–a gradient (mmHg)*</label>
-            <input id="aagrad" class="input" type="number" step="1" placeholder="e.g., 220" autocomplete="off">
-            <p class="hint">If FiO₂ ≥ 50% → provide A–a gradient.</p>
-          </div>
-        </div>
-
-        <div id="tab-labs" class="tab-panel" role="tabpanel">
-          <div class="grid-3">
-            <div>
-              <label for="ph">pH (arterial)</label>
-              <input id="ph" class="input" type="number" step="0.01" min="6.8" max="7.8">
-            </div>
-            <div>
-              <label for="hco3">HCO₃⁻ (mEq/L)</label>
-              <input id="hco3" class="input" type="number" step="0.1">
-            </div>
-            <div>
-              <label for="na">Na⁺ (mEq/L)*</label>
-              <input id="na" class="input" type="number" step="1" required>
-            </div>
-          </div>
-          <div class="grid-3">
-            <div>
-              <label for="k">K⁺ (mEq/L)*</label>
-              <input id="k" class="input" type="number" step="0.1" required>
-            </div>
-            <div>
-              <label for="cr">Creatinine (mg/dL)*</label>
-              <input id="cr" class="input" type="number" step="0.1" required>
-            </div>
-            <div>
-              <label for="wbc">WBC (×10³/mm³)*</label>
-              <input id="wbc" class="input" type="number" step="0.1" required>
-            </div>
-          </div>
-          <div class="grid-2">
-            <div>
-              <label for="hct">Hematocrit (%)*</label>
-              <input id="hct" class="input" type="number" step="0.1" required>
-            </div>
-            <div>
-              <label>Acute Renal Failure</label>
-              <div class="chip-row" id="arfGrp">
-                <label class="chip"><input type="radio" name="arf" value="No" checked> No</label>
-                <label class="chip"><input type="radio" name="arf" value="Yes"> Yes</label>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel" aria-labelledby="outcome-h">
-        <header><h2 id="outcome-h">Outcome</h2></header>
-        <div>
-          <label>Mortality (Y/N)*</label>
-          <div class="chip-row" role="group" aria-label="Mortality yes/no" id="mortalityGrp">
-            <label class="chip"><input type="radio" name="mortality" value="Y" required> Y</label>
-            <label class="chip"><input type="radio" name="mortality" value="N" required> N</label>
-          </div>
-        </div>
-      </section>
-
-      <aside id="resultsCard" class="results-card" aria-live="polite" aria-atomic="true">
-        <h4 class="results-title">Computed Result</h4>
-        <div class="results-grid">
-          <div class="metric"><small>APACHE II</small><span id="resApache">—</span></div>
-          <div class="metric"><small>Mortality (Non-op)</small><span id="resMortNon">—</span></div>
-          <div class="metric"><small>Mortality (Post-op)</small><span id="resMortPost">—</span></div>
-        </div>
-      </aside>
-
-    </section>
-
-    <!-- ==========================================================
-         MAIN PANEL: CONTROLS TAB
-         ========================================================== -->
-    <section id="panelControls" class="cards-flow" aria-label="Controls tab content" style="display:none">
-
-      <section class="panel" aria-labelledby="controls-h">
-        <header style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
-          <div style="display:grid;gap:6px">
-            <h2 id="controls-h">Sheet Controls</h2>
-            <p class="hint">
-              View entries for a month, refresh manually, and update mortality (KP).
-              Uses local cache to avoid reloading when you switch tabs.
-            </p>
-          </div>
-
-          <!-- SETTINGS ICON (moved here) -->
-          <button id="devToggleControls" class="controls-gear" aria-label="Developer / Connection settings" aria-haspopup="dialog" aria-expanded="false">⚙️</button>
-        </header>
-
-        <div class="controls-shell" aria-label="Controls shell">
-
-          <!-- FULL PAGE “Quick Admin Console” -->
-          <div class="controls-topbar">
-            <div class="controls-titlewrap">
-              <h3 class="controls-title">Quick Admin Console</h3>
-              <p class="controls-sub">Patient entries table + Update Mortality (KP). Forced scrollbars. Manual refresh.</p>
-            </div>
-          </div>
-
-          <!-- ENTRIES TABLE -->
-          <div class="admin-card" aria-label="Entries list block">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-              <div style="display:grid;gap:4px">
-                <h4 style="margin:0">Entries</h4>
-                <p class="minihelp">
+<!-- ENTRIES TABLE -->
+<div aria-label="Entries list block" class="admin-card">
+<div style="display:flex">
+<div style="display:grid">
+<h4>Entries</h4>
+<p class="minihelp">
                   Select month → table shows stored cache if available.
                   Refresh fetches from server and overwrites cache.
                 </p>
-              </div>
-
-              <div class="admin-actions">
-                <label for="controlsMonth" style="margin:0;color:rgba(226,232,240,.85);font-weight:900;font-size:12px">Month</label>
-                <input id="controlsMonth" class="input" type="month" style="max-width:170px;padding:10px 12px">
-
-                <span id="controlsMonthPill" class="pill">Month: —</span>
-
-                <span id="controlsLoadSpinner" class="pill" style="display:none">
-                  <span class="spinner" aria-hidden="true"></span> Loading…
+</div>
+<div class="admin-actions">
+<label for="controlsMonth">Month</label>
+<input class="input" id="controlsMonth" style="max-width:170px" type="month"/>
+<span class="pill" id="controlsMonthPill">Month: —</span>
+<span class="pill" id="controlsLoadSpinner" style="display:none">
+<span aria-hidden="true" class="spinner"></span> Loading…
                 </span>
-
-                <button id="btnControlsRefresh" class="btn ghost" type="button" style="padding:10px 12px">Refresh</button>
-              </div>
-            </div>
-
-            <div class="table-wrap" aria-label="Entries table container">
-              <table class="admin-table" aria-label="Entries table">
-              <thead>
-  <tr>
-    <th style="width:180px">UHID</th>
-    <th style="min-width:260px">Patient Name</th>
-    <th style="width:80px">Age</th>
-    <th style="width:90px">Sex</th>
-    <th style="width:140px">Admission</th>
-    <th style="min-width:320px">Diagnosis</th>
-    <th style="width:120px">APACHE II</th>
-    <th style="width:160px">Pred Mortality</th>
-    <th style="width:110px">Mortality Y/N</th>
-  </tr>
+<button class="btn ghost" id="btnControlsRefresh" type="button">Refresh</button>
+</div>
+</div>
+<div aria-label="Entries table container" class="table-wrap" role="region" tabindex="0">
+<table aria-label="Entries table" class="admin-table">
+<thead>
+<tr>
+<th style="width:180px">UHID</th>
+<th style="min-width:260px">Patient Name</th>
+<th style="width:80px">Age</th>
+<th style="width:90px">Sex</th>
+<th style="width:140px">Admission</th>
+<th style="min-width:320px">Diagnosis</th>
+<th style="width:120px">APACHE II</th>
+<th style="width:160px">Pred Mortality</th>
+<th style="width:110px">Mortality Y/N</th>
+</tr>
 </thead>
+<tbody id="controlsEntriesTbody">
+<tr><td colspan="9">Loading…</td></tr>
+</tbody>
+</table>
+</div>
+<div style="display:flex">
+<span class="pill" id="controlsCountPill">Rows: —</span>
+<span class="pill" id="controlsCachePill">Cache: —</span>
+</div>
+</div>
+<!-- UPDATE MORTALITY (KP) -->
+<div aria-label="Update mortality block" class="admin-card">
+<div style="display:flex">
+<div style="display:grid">
+<h4>Update Mortality</h4>
+<p class="minihelp">Queue UHID + Y/N. Update sends KP in two batches (Y then N) if mixed.</p>
+</div>
+<span class="pill" id="adminQueuePill">Queued: 0</span>
+</div>
+<div class="admin-inputs">
+<div>
+<label for="kpUhid">UHID</label>
+<input autocomplete="off" class="input" id="kpUhid" placeholder="Enter UHID" type="text"/>
+</div>
+<div>
+<label for="kpYN">Y/N</label>
+<select class="input" id="kpYN">
+<option selected="" value="Y">Y</option>
+<option value="N">N</option>
+</select>
+</div>
+<div>
+<button class="btn secondary" id="btnKpAdd" type="button">Add</button>
+</div>
+</div>
+<div aria-label="KP queue table container" class="table-wrap" style="max-height:240px" role="region" tabindex="0">
+<table aria-label="KP queue table" class="admin-table">
+<thead>
+<tr>
+<th style="width:200px">UHID</th>
+<th style="width:90px">Y/N</th>
+<th style="min-width:220px">Action</th>
+</tr>
+</thead>
+<tbody id="kpQueueTbody">
+<tr><td colspan="3">No entries yet.</td></tr>
+</tbody>
+</table>
+</div>
+<div class="admin-actions">
+<button class="btn ghost" id="btnKpClear" type="button">Clear</button>
+<button class="btn primary" disabled="" id="btnKpUpdate" type="button">Update</button>
+</div>
+</div>
+</div></div></section>
+<section aria-label="Methods and help" class="tool-workspace" id="panelHelp" style="display:none"><header class="workspace-heading"><p class="eyebrow">Reference</p><h1>Methods &amp; help</h1></header><details><summary>Method of Apache Calculation</summary><div class="help-section">
 
-                <tbody id="controlsEntriesTbody">
-                  <tr><td colspan="9" style="color:rgba(226,232,240,.75);font-weight:900">Loading…</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-              <span id="controlsCountPill" class="pill">Rows: —</span>
-              <span class="pill" id="controlsCachePill">Cache: —</span>
-            </div>
-          </div>
-
-          <!-- UPDATE MORTALITY (KP) -->
-          <div class="admin-card" aria-label="Update mortality block">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-              <div style="display:grid;gap:4px">
-                <h4 style="margin:0">Update Mortality</h4>
-                <p class="minihelp">Queue UHID + Y/N. Update sends KP in two batches (Y then N) if mixed.</p>
-              </div>
-              <span class="pill" id="adminQueuePill">Queued: 0</span>
-            </div>
-
-            <div class="admin-inputs">
-              <div>
-                <label for="kpUhid">UHID</label>
-                <input id="kpUhid" class="input" type="text" placeholder="Enter UHID" autocomplete="off">
-              </div>
-              <div>
-                <label for="kpYN">Y/N</label>
-                <select id="kpYN" class="input">
-                  <option value="Y" selected>Y</option>
-                  <option value="N">N</option>
-                </select>
-              </div>
-              <div>
-                <button id="btnKpAdd" class="btn secondary" type="button" style="padding:12px 14px">Add</button>
-              </div>
-            </div>
-
-            <div class="table-wrap" aria-label="KP queue table container" style="max-height:240px">
-              <table class="admin-table" aria-label="KP queue table">
-                <thead>
-                  <tr>
-                    <th style="width:200px">UHID</th>
-                    <th style="width:90px">Y/N</th>
-                    <th style="min-width:220px">Action</th>
-                  </tr>
-                </thead>
-                <tbody id="kpQueueTbody">
-                  <tr><td colspan="3" style="color:rgba(226,232,240,.75);font-weight:900">No entries yet.</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="admin-actions" style="justify-content:space-between">
-              <button id="btnKpClear" class="btn ghost" type="button" style="padding:10px 12px">Clear</button>
-              <button id="btnKpUpdate" class="btn primary" type="button" disabled style="padding:12px 14px">Update</button>
-            </div>
-          </div>
-
-        </div>
-      </section>
-    </section>
-
-    <!-- ==========================================================
-         MAIN PANEL: AI DOC TAB
-         ========================================================== -->
-    <section id="panelAiDoc" class="cards-flow" aria-label="AI Doc tab content" style="display:none; grid-column:1 / -1; grid-template-columns:minmax(0,1fr); width:100%; max-width:none; height:1px; min-height:0; overflow:hidden;">
-      <iframe allow="microphone" src="https://web-production-09bf5.up.railway.app/?ui=mic-permission-20261009-v1" style="width: 100%; height: 100%; border: 1px solid rgba(148,163,184,.35); border-radius: var(--radius-lg); background: var(--surface);"></iframe>
-    </section>
-
-    <!-- ==========================================================
-         MAIN PANEL: HELP TAB
-         ========================================================== -->
-    <section id="panelHelp" class="cards-flow" aria-label="Help tab content" style="display:none">
-
-      <section class="panel" aria-labelledby="help-h">
-        <header>
-          <h2 id="help-h">Help</h2>
-          <p class="hint">Method, instructions, and contact developer.</p>
-        </header>
-
-        <!-- SECTION 1: METHOD -->
-        <div class="help-section">
-          <h3>Method of Apache Calculation</h3>
-          <div class="help-note">
+<div class="help-note">
             This app uses a standard APACHE II point binning approach.
             Oxygenation uses <strong>PaO₂ when FiO₂ &lt; 50%</strong> and <strong>A–a gradient when FiO₂ ≥ 50%</strong>.
             For acid–base: <strong>pH is preferred if present</strong>, else HCO₃⁻ is used.
           </div>
-
-          <div class="help-tablewrap" aria-label="APACHE scoring table container">
-            <table class="help-table" aria-label="APACHE scoring table">
-              <thead>
-                <tr>
-                  <th>Parameter</th>
-                  <th>Ranges → Points</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>Temperature (°C)</td><td>
+<div aria-label="APACHE scoring table container" class="help-tablewrap" role="region" tabindex="0">
+<table aria-label="APACHE scoring table" class="help-table">
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Ranges → Points</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>Temperature (°C)</td><td>
                   ≥41 → 4 • 39–40.9 → 3 • 38.5–38.9 → 1 • 36–38.4 → 0 • 34–35.9 → 1 • 32–33.9 → 2 • 30–31.9 → 3 • &lt;30 → 4
                 </td></tr>
-                <tr><td>MAP (mmHg)</td><td>
+<tr><td>MAP (mmHg)</td><td>
                   ≥160 → 4 • 130–159 → 3 • 110–129 → 2 • 70–109 → 0 • 50–69 → 2 • &lt;50 → 4
                 </td></tr>
-                <tr><td>Heart Rate (bpm)</td><td>
+<tr><td>Heart Rate (bpm)</td><td>
                   ≥180 → 4 • 140–179 → 3 • 110–139 → 2 • 70–109 → 0 • 55–69 → 2 • 40–54 → 3 • &lt;40 → 4
                 </td></tr>
-                <tr><td>Respiratory Rate (/min)</td><td>
+<tr><td>Respiratory Rate (/min)</td><td>
                   ≥50 → 4 • 35–49 → 3 • 25–34 → 1 • 12–24 → 0 • 10–11 → 1 • 6–9 → 2 • &lt;6 → 4
                 </td></tr>
-                <tr><td>Oxygenation</td><td>
-                  If FiO₂ ≥ 50%: A–a ≥500 → 4 • 350–499 → 3 • 200–349 → 2 • &lt;200 → 0<br>
+<tr><td>Oxygenation</td><td>
+                  If FiO₂ ≥ 50%: A–a ≥500 → 4 • 350–499 → 3 • 200–349 → 2 • &lt;200 → 0<br/>
                   If FiO₂ &lt; 50%: PaO₂ &gt;70 → 0 • 61–70 → 1 • 55–60 → 3 • &lt;55 → 4
                 </td></tr>
-                <tr><td>pH</td><td>
+<tr><td>pH</td><td>
                   ≥7.70 → 4 • 7.60–7.69 → 3 • 7.50–7.59 → 1 • 7.33–7.49 → 0 • 7.25–7.32 → 2 • 7.15–7.24 → 3 • &lt;7.15 → 4
                 </td></tr>
-                <tr><td>HCO₃⁻ (mEq/L) (used only if pH missing)</td><td>
+<tr><td>HCO₃⁻ (mEq/L) (used only if pH missing)</td><td>
                   ≥52 → 4 • 41–51.9 → 3 • 32–40.9 → 1 • 22–31.9 → 0 • 18–21.9 → 2 • 15–17.9 → 3 • &lt;15 → 4
                 </td></tr>
-                <tr><td>Na⁺ (mEq/L)</td><td>
+<tr><td>Na⁺ (mEq/L)</td><td>
                   ≥180 → 4 • 160–179 → 3 • 155–159 → 2 • 150–154 → 1 • 130–149 → 0 • 120–129 → 2 • 111–119 → 3 • &lt;111 → 4
                 </td></tr>
-                <tr><td>K⁺ (mEq/L)</td><td>
+<tr><td>K⁺ (mEq/L)</td><td>
                   ≥7.0 → 4 • 6.0–6.9 → 3 • 5.5–5.9 → 1 • 3.5–5.4 → 0 • 3.0–3.4 → 1 • 2.5–2.9 → 2 • &lt;2.5 → 4
                 </td></tr>
-                <tr><td>Creatinine (mg/dL)</td><td>
-                  ≥3.5 → 4 • 2.0–3.4 → 3 • 1.5–1.9 → 2 • 0.6–1.4 → 0 • &lt;0.6 → 2<br>
+<tr><td>Creatinine (mg/dL)</td><td>
+                  ≥3.5 → 4 • 2.0–3.4 → 3 • 1.5–1.9 → 2 • 0.6–1.4 → 0 • &lt;0.6 → 2<br/>
                   Acute renal failure = Yes → points are doubled
                 </td></tr>
-                <tr><td>Hematocrit (%)</td><td>
+<tr><td>Hematocrit (%)</td><td>
                   ≥60 → 4 • 50–59.9 → 2 • 46–49.9 → 1 • 30–45.9 → 0 • 20–29.9 → 2 • &lt;20 → 4
                 </td></tr>
-                <tr><td>WBC (×10³/mm³)</td><td>
+<tr><td>WBC (×10³/mm³)</td><td>
                   ≥40 → 4 • 20–39.9 → 2 • 15–19.9 → 1 • 3–14.9 → 0 • 1–2.9 → 2 • &lt;1 → 4
                 </td></tr>
-                <tr><td>GCS</td><td>Points = 15 − GCS</td></tr>
-                <tr><td>Age points</td><td>
+<tr><td>GCS</td><td>Points = 15 − GCS</td></tr>
+<tr><td>Age points</td><td>
                   ≤44 → 0 • 45–54 → 2 • 55–64 → 3 • 65–74 → 5 • ≥75 → 6
                 </td></tr>
-                <tr><td>Chronic health points</td><td>
-                  If chronic = No → 0<br>
-                  If chronic = Yes and surgery = Elective → 2<br>
+<tr><td>Chronic health points</td><td>
+                  If chronic = No → 0<br/>
+                  If chronic = Yes and surgery = Elective → 2<br/>
                   If chronic = Yes and surgery = Emergency / Non-operative → 5
                 </td></tr>
-                <tr><td>Mortality bands (display)</td><td>
+<tr><td>Mortality bands (display)</td><td>
                   0–4 → 4% / 1% • 5–9 → 8% / 3% • 10–14 → 15% / 7% • 15–19 → 25% / 12% •
                   20–24 → 40% / 30% • 25–29 → 55% / 35% • 30–34 → 73% / 73% • ≥35 → 85% / 88%
                 </td></tr>
-              </tbody>
-            </table>
+</tbody>
+</table>
+</div>
+</div></details><details><summary>How to Fill the Form</summary><div class="help-section">
+
+<ul class="help-bullets">
+<li>Open <strong>Form</strong> tab.</li>
+<li>Fill Patient details (Name, UHID, Age, Sex, Admission Date, Diagnosis, GCS).</li>
+<li>Enter Clinical inputs (Vitals, Oxygenation, Labs).</li>
+<li>Choose Mortality Y/N.</li>
+<li>Scroll down and click <strong>Submit to Google Sheets</strong>.</li>
+</ul>
+<div class="help-note">
+<strong>Important:</strong> On clicking submit, the data is just sent to the server — it does NOT guarantee an Excel entry yet.
           </div>
-        </div>
+<ul class="help-bullets">
+<li>If the server actually inserts the row into the monthly sheet, you will see: <strong>Successfully submitted to Google Sheets ✅</strong></li>
+<li>If something fails (network, secret, script error), you will see an error message.</li>
+</ul>
+</div></details><details><summary>Controls</summary><div class="help-section">
 
-        <!-- SECTION 2: HOW TO FILL -->
-        <div class="help-section">
-          <h3>How to Fill the Form</h3>
-          <ul class="help-bullets">
-            <li>Open <strong>Form</strong> tab.</li>
-            <li>Fill Patient details (Name, UHID, Age, Sex, Admission Date, Diagnosis, GCS).</li>
-            <li>Enter Clinical inputs (Vitals, Oxygenation, Labs).</li>
-            <li>Choose Mortality Y/N.</li>
-            <li>Scroll down and click <strong>Submit to Google Sheets</strong>.</li>
-          </ul>
-          <div class="help-note">
-            <strong>Important:</strong> On clicking submit, the data is just sent to the server — it does NOT guarantee an Excel entry yet.
-          </div>
-          <ul class="help-bullets">
-            <li>If the server actually inserts the row into the monthly sheet, you will see: <strong>Successfully submitted to Google Sheets ✅</strong></li>
-            <li>If something fails (network, secret, script error), you will see an error message.</li>
-          </ul>
-        </div>
-
-        <!-- SECTION 3: CONTROLS -->
-        <div class="help-section">
-          <h3>Controls</h3>
-          <ul class="help-bullets">
-            <li>Open <strong>Controls</strong> tab to view the month’s entries.</li>
-            <li>Use the <strong>Month selector</strong> to switch months.</li>
-            <li><strong>Refresh</strong> is manual — if you want the Excel to refresh here, you must click <strong>Refresh</strong>.</li>
-          </ul>
-
-          <div class="help-note">
+<ul class="help-bullets">
+<li>Open <strong>Controls</strong> tab to view the month’s entries.</li>
+<li>Use the <strong>Month selector</strong> to switch months.</li>
+<li><strong>Refresh</strong> is manual — if you want the Excel to refresh here, you must click <strong>Refresh</strong>.</li>
+</ul>
+<div class="help-note">
             Mortality Update (KP) steps:
-            <br>➤ Enter UHID
-            <br>➤ Select Y or N
-            <br>➤ Click <strong>Add</strong> (it goes to the queue)
-            <br>➤ Repeat for multiple UHIDs
-            <br>➤ Click <strong>Update</strong> and <strong>WAIT</strong>
-          </div>
+            <br/>➤ Enter UHID
+            <br/>➤ Select Y or N
+            <br/>➤ Click <strong>Add</strong> (it goes to the queue)
+            <br/>➤ Repeat for multiple UHIDs
+            <br/>➤ Click <strong>Update</strong> and <strong>WAIT</strong>
+</div>
+<ul class="help-bullets">
+<li>If you switch tabs and come back, the entries table will show cached data (fast).</li>
+<li>Only <strong>Refresh</strong> forces reloading from the server.</li>
+</ul>
+</div></details><details><summary>Contact Developer</summary><div class="help-section">
 
-          <ul class="help-bullets">
-            <li>If you switch tabs and come back, the entries table will show cached data (fast).</li>
-            <li>Only <strong>Refresh</strong> forces reloading from the server.</li>
-          </ul>
-        </div>
-
-        <!-- SECTION 4: CONTACT DEVELOPER -->
-        <div class="help-section">
-          <h3>Contact Developer</h3>
-          <p class="hint" style="margin:0">
+<p class="hint">
             If you have a suggestion or an issue, write down your query below and click submit.
           </p>
-
-          <div class="grid-2">
-            <div>
-              <label for="contactName">Your Name</label>
-              <input id="contactName" class="input" type="text" placeholder="e.g., Dr. X">
-            </div>
-            <div>
-              <label for="contactClientId">Client ID (optional)</label>
-              <input id="contactClientId" class="input" type="text" placeholder="Defaults to device Client ID">
-            </div>
-          </div>
-
-          <div>
-            <label for="contactMsg">Your Message</label>
-            <textarea id="contactMsg" class="input" rows="6" style="resize:vertical" placeholder="Type your issue / suggestion here..."></textarea>
-          </div>
-
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <button id="btnContactSubmit" class="btn primary" type="button" style="padding:12px 14px">Submit</button>
-            <span id="contactStatus" class="hint" style="margin:0"></span>
-          </div>
-
-          <div class="help-note" style="background:rgba(148,163,184,.10);border-color:rgba(148,163,184,.30)">
+<div class="grid-2">
+<div>
+<label for="contactName">Your Name</label>
+<input class="input" id="contactName" placeholder="e.g., Dr. X" type="text"/>
+</div>
+<div>
+<label for="contactClientId">Client ID (optional)</label>
+<input class="input" id="contactClientId" placeholder="Defaults to device Client ID" type="text"/>
+</div>
+</div>
+<div>
+<label for="contactMsg">Your Message</label>
+<textarea class="input" id="contactMsg" placeholder="Type your issue / suggestion here..." rows="6"></textarea>
+</div>
+<div style="display:flex">
+<button class="btn primary" id="btnContactSubmit" type="button">Submit</button>
+<span class="hint" id="contactStatus"></span>
+</div>
+<div class="help-note">
             Note: Contact Developer requires a script update (tag=CONTACT). If the script is not updated yet, you may see an error.
           </div>
-        </div>
-
-      </section>
-    </section>
-
-  </main>
+</div></details></section><noscript>Enable JavaScript to use the calculator. <a href="https://web-production-09bf5.up.railway.app/home">Open SiliconDoctor directly</a>.</noscript></main>
+<div class="action-dock" id="actionDock" role="contentinfo">
+<div class="action-dock__inner">
+<div aria-live="polite" class="incomplete-note" id="incompleteNote">Form incomplete: please fill all required items.</div>
+<button class="btn ghost" id="btnDownload" type="button">Download current month</button>
+<button class="btn primary" disabled="" id="btnSubmit" type="button">Submit to Google Sheets</button>
 </div>
-
-<!-- ACTION DOCK (FORM ONLY) -->
-<div id="actionDock" class="action-dock" role="contentinfo">
-  <div class="action-dock__inner">
-    <div id="incompleteNote" class="incomplete-note" aria-live="polite">Form incomplete: please fill all required items.</div>
-    <button id="btnDownload" class="btn ghost" type="button">Download current month</button>
-    <button id="btnSubmit" class="btn primary" type="button" disabled>Submit to Google Sheets</button>
-  </div>
+</div><div aria-live="polite" class="toast" id="toast" role="status"></div><div aria-live="assertive" class="toast center warn" id="toastCenter" role="status"></div><div aria-hidden="true" class="dev-backdrop" id="devBackdrop"></div><div aria-hidden="true" aria-labelledby="devTitle" aria-modal="true" class="dev-panel" id="devPanel" role="dialog">
+<div class="dev-sheet">
+<div style="display:flex">
+<h3 id="devTitle">Connection &amp; tools</h3>
+<button class="close" id="devClose" type="button">Close</button>
 </div>
-
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-<div id="toastCenter" class="toast center warn" role="status" aria-live="assertive"></div>
-
-<!-- DEV MODAL (UNCHANGED) -->
-<div id="devBackdrop" class="dev-backdrop" aria-hidden="true"></div>
-<div id="devPanel" class="dev-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="devTitle">
-  <div class="dev-sheet">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
-      <h3 id="devTitle">Developer / Connection</h3>
-      <button id="devClose" class="close" type="button">Close</button>
-    </div>
-    <p class="dev-tip">Values persist per device. Leave blank to fall back to defaults (hardcoded in this HTML).</p>
-    <div>
-      <label for="onlineUrl">Online Webhook URL</label>
-      <input id="onlineUrl" class="input" type="url" placeholder="https://script.google.com/.../exec">
-    </div>
-    <div>
-      <label for="onlineSecret">Online Secret</label>
-      <input id="onlineSecret" class="input" type="text" placeholder="Shared secret for Sheets webhook">
-    </div>
-    <div>
-      <label for="clientId">Client ID</label>
-      <input id="clientId" class="input" type="text" value="NURSING-STATION-01">
-    </div>
-
-    <div style="border-top:1px solid rgba(148,163,184,.35);padding-top:12px">
-      <h3 style="margin:0 0 8px 0;font-size:16px">Debug &amp; Tools</h3>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button id="btnBuildPreview" class="btn secondary" type="button">Build &amp; show payload</button>
-        <button id="btnCopyPreview" class="btn ghost" type="button">Copy JSON</button>
-        <button id="btnCopyExcelRow" class="btn ghost" type="button" disabled>Copy APACHE row (Excel)</button>
-        <button id="btnDummyFill" class="btn secondary" type="button">Dummy fill</button>
-      </div>
-      <pre id="debugPreview" style="margin-top:10px;max-height:260px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">No payload yet</pre>
-
-      <h3 style="margin:8px 0;font-size:16px">Last server response</h3>
-      <pre id="lastResp" style="max-height:180px;overflow:auto;border-radius:8px;border:1px solid rgba(148,163,184,.35);padding:12px;background:#081225;color:#e2e8f0;font:13px ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">None</pre>
-    </div>
-    <div class="dev-tip">The app is locked to Online (Google Sheets) mode.</div>
-  </div>
+<p class="dev-tip">Values persist per device. Leave blank to fall back to defaults (hardcoded in this HTML).</p>
+<div>
+<label for="onlineUrl">Online Webhook URL</label>
+<input class="input" id="onlineUrl" placeholder="https://script.google.com/.../exec" type="url"/>
 </div>
-
-<div class="tiny-footer">© @ JSFDev</div>
-
+<div>
+<label for="onlineSecret">Online Secret</label>
+<input autocomplete="off" class="input" id="onlineSecret" placeholder="Shared secret for Sheets webhook" type="password"/>
+</div>
+<div>
+<label for="clientId">Client ID</label>
+<input class="input" id="clientId" type="text" value="NURSING-STATION-01"/>
+</div>
+<div>
+<h3>Debug &amp; Tools</h3>
+<div style="display:flex">
+<button class="btn secondary" id="btnBuildPreview" type="button">Build &amp; show payload</button>
+<button class="btn ghost" id="btnCopyPreview" type="button">Copy JSON</button>
+<button class="btn ghost" disabled="" id="btnCopyExcelRow" type="button">Copy APACHE row (Excel)</button>
+<button class="btn secondary" id="btnDummyFill" type="button">Dummy fill</button>
+</div>
+<pre id="debugPreview" style="max-height:260px">No payload yet</pre>
+<h3>Last server response</h3>
+<pre id="lastResp" style="max-height:180px">None</pre>
+</div>
+<div class="dev-tip">The app is locked to Online (Google Sheets) mode.</div>
+</div>
+</div>
 <script>
 /* =============================================================================
    DOM helpers
@@ -1275,31 +688,8 @@ const MAIN_TABS = [
 
 let CURRENT_MAIN_TAB = 'form';
 
-const AI_DOC_USERNAME = 'admin';
-const AI_DOC_PASSWORD = 'admin@123';
-let AI_DOC_UNLOCKED = false;
-
-function unlockAiDoc(){
-  if(AI_DOC_UNLOCKED) return true;
-
-  const username = window.prompt('AI Doc username:');
-  if(username === null) return false;
-
-  const password = window.prompt('AI Doc password:');
-  if(password === null) return false;
-
-  if(username === AI_DOC_USERNAME && password === AI_DOC_PASSWORD){
-    AI_DOC_UNLOCKED = true;
-    return true;
-  }
-
-  window.alert('Invalid username or password.');
-  return false;
-}
-
 function setMainTab(key){
   const next = String(key||'form');
-  if(next === 'aidoc' && !unlockAiDoc()) return;
   CURRENT_MAIN_TAB = next;
   document.body.classList.toggle('aidoc-active', next === 'aidoc');
 
@@ -2926,12 +2316,10 @@ function init(){
   renderControlsHeader();
 
   // Start in Form tab
-  setMainTab('form');
+  setMainTab('aidoc');
 }
 init();
 </script>
-
-<!-- SILICONDOCTOR_AIDOC_VIEWPORT_FIT -->
 <script>
 (() => {
   const panel = document.getElementById('panelAiDoc');
@@ -3066,7 +2454,6 @@ init();
   setTimeout(scheduleAiDocFit, 120);
 })();
 </script>
-
 <script src="/client-release.js?ui=interview-continuity-20261004-v2"></script>
-</body>
-</html>
+<script src="host-workspace.js" defer></script>
+</body></html>

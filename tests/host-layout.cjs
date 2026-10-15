@@ -15,9 +15,11 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
  const source=(await fs.readFile('index.html','utf8')).replaceAll('https://web-production-09bf5.up.railway.app',childOrigin);
  const releaseScript=(await fs.readFile('client-release.js','utf8')).replaceAll('https://web-production-09bf5.up.railway.app',childOrigin);
  let currentRelease=JSON.parse(await fs.readFile('ui-release.json','utf8')).release;
- const server=http.createServer((q,r)=>{
+ const server=http.createServer(async(q,r)=>{
   if(q.url.startsWith('/client-release.js')){r.setHeader('Content-Type','text/javascript');r.end(releaseScript);return}
   if(q.url.startsWith('/ui-release.json')){r.setHeader('Content-Type','application/json');r.end(JSON.stringify({release:currentRelease}));return}
+  const asset=q.url.split('?')[0];
+  if(['/host-workspace.css','/host-workspace.js'].includes(asset)){r.setHeader('Content-Type',asset.endsWith('.css')?'text/css':'text/javascript');r.end(await fs.readFile('.'+asset));return}
   r.setHeader('Content-Type','text/html');r.end(source)
  });
  const base=await listen(server);
@@ -30,29 +32,61 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
   assert(port,'Chrome did not start: '+log);
   const page=(await fetch('http://127.0.0.1:'+port+'/json/list').then(r=>r.json())).find(p=>p.type==='page');
   socket=new WebSocket(page.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true})});
-  let id=0;const pending=new Map(),contexts=new Map();
-  socket.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.executionContextCreated'&&m.params.context.auxData?.isDefault)contexts.set(m.params.context.auxData.frameId,m.params.context.id);if(m.method==='Runtime.executionContextsCleared')contexts.clear();const p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(Error(m.error.message)):p.resolve(m.result)}});
+  let id=0;const pending=new Map(),contexts=new Map(),uncaught=[];
+  socket.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')uncaught.push(m.params.exceptionDetails.exception?.description||m.params.exceptionDetails.text);if(m.method==='Runtime.executionContextCreated'&&m.params.context.auxData?.isDefault)contexts.set(m.params.context.auxData.frameId,m.params.context.id);if(m.method==='Runtime.executionContextsCleared')contexts.clear();const p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(Error(m.error.message)):p.resolve(m.result)}});
   const call=(method,params={})=>new Promise((resolve,reject)=>{const k=++id;pending.set(k,{resolve,reject});socket.send(JSON.stringify({id:k,method,params}))});
   const evaluate=async(expression,contextId)=>{const r=await call('Runtime.evaluate',{expression,contextId,returnByValue:true,awaitPromise:true});assert(!r.exceptionDetails,'Browser evaluation: '+JSON.stringify(r.exceptionDetails));return r.result.value};
   await call('Page.enable');await call('Runtime.enable');
   const viewport=async(w,h)=>{await call('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile:false});await pause(200)};
-  const navigate=async(url)=>{await call('Page.navigate',{url});for(let i=0;i<100;i++){await pause(100);if(await evaluate('document.readyState==="complete"'))break}await pause(600)};
+  const navigate=async(url)=>{
+   await call('Page.navigate',{url});let ready=false;
+   for(let i=0;i<100;i++){
+    await pause(100);
+    try{if(await evaluate('document.readyState==="complete" && !!document.querySelector("#mainTabAiDoc")')){ready=true;break}}
+    catch(error){if(!/navigated or closed|Execution context was destroyed|Cannot find context/.test(error.message))throw error;}
+   }
+   assert(ready,'Host did not finish its existing version-recovery navigation');await pause(600);
+  };
   const shot=async(name)=>{const r=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(out,name+'.png'),Buffer.from(r.data,'base64'))};
   const geometry=async(expression,context)=>evaluate(`(()=>{const rect=s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,b:r.bottom}};return {width:innerWidth,height:innerHeight,scroll:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth),${expression}}})()`,context);
 
   await call('Network.enable');await call('Network.setBlockedURLs',{urls:['https://*']});
   await viewport(369,906);await navigate(base);
-  await evaluate('document.querySelector("#age").value="57";AI_DOC_UNLOCKED=true;document.querySelector("#mainTabAiDoc").click()');await pause(600);
+  assert(!uncaught.length,"Host runtime errors: "+uncaught.join("; "));
+  await evaluate('document.querySelector("#age").value="57";document.querySelector("#mainTabAiDoc").click()');await pause(600);
   for(const [w,h] of [[320,568],[369,906],[390,844],[844,390],[1280,820],[1920,1080]]){
    await viewport(w,h);await pause(300);
    const g=await geometry('header:rect(".masthead"),frame:rect("#panelAiDoc iframe"),tab:rect("#mainTabAiDoc")');
-   assert(g.header.h<=46,'Host masthead oversized '+JSON.stringify(g));assert(await evaluate('getComputedStyle(document.querySelector(".tiny-footer")).display==="none"'),'Host footer consumes clinical viewport');
+   assert(g.header.h<=46,'Host masthead oversized '+JSON.stringify(g));assert(await evaluate('(!document.querySelector(".tiny-footer")?"none":getComputedStyle(document.querySelector(".tiny-footer")).display)==="none"'),'Host footer consumes clinical viewport');
    assert(Math.abs(g.frame.w-w)<=1&&Math.abs(g.frame.b-h)<=2,'Host does not fill remaining viewport '+JSON.stringify(g));
    receipt.push({viewport:[w,h],...g});await shot('host-'+w+'x'+h);
   }
   await evaluate('setMainTab("help")');assert(await evaluate('getComputedStyle(document.querySelector("#panelHelp")).display!=="none"'),'Help tab failed');
   await evaluate('setMainTab("form")');assert(await evaluate('document.querySelector("#age").value==="57"'),'Tab switch lost calculator draft');
+  await evaluate('document.querySelectorAll("[data-calculator-step]")[2].click()');
+  assert(await evaluate('!document.querySelectorAll("[data-calculator-stage]")[2].hidden && document.querySelector("#age").value==="57"'),'Guided steps lost observations or identity');
   assert(await evaluate('ptsNa(140)===0 && ptsNa(180)===4 && ptsK(4)===0 && ptsK(7)===4'),'Calculator scoring smoke failed');
+  await evaluate('window.hostDraftMarker="same-document"');
+  const brand=await evaluate('(()=>{const r=document.querySelector(".host-brand").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
+  await call('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...brand});await call('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...brand});await pause(100);
+  assert(await evaluate('window.hostDraftMarker==="same-document" && document.querySelector("#age").value==="57" && CURRENT_MAIN_TAB==="aidoc"'),'Brand navigation reloaded or lost the calculator draft');
+
+  if(process.env.AXE_PATH){
+   await evaluate(await fs.readFile(process.env.AXE_PATH,'utf8'));
+   for(const width of [390,1280]){
+    await viewport(width,844);
+    for(const tab of ['form','controls','help']){
+     await evaluate(`setMainTab(${JSON.stringify(tab)})`);
+     for(const stage of (tab==='form'?[0,1,2,3]:[null])){
+      if(stage!==null)await evaluate(`document.querySelectorAll('[data-calculator-step]')[${stage}].click()`);
+      await pause(150);
+      const issues=await evaluate(`axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}}).then(r=>r.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>n.target)})))`);
+      assert(!issues.length,'Host accessibility '+JSON.stringify({width,tab,stage,issues}));
+      receipt.push({view:'accessibility',width,tab,stage,result:'PASS'});
+     }
+    }
+   }
+  }
   await viewport(369,906);await evaluate('setMainTab("aidoc")');await pause(300);
   await evaluate('Object.defineProperty(visualViewport,"height",{configurable:true,get:()=>446});visualViewport.dispatchEvent(new Event("resize"))');await pause(300);
   const k=await geometry('frame:rect("#panelAiDoc iframe"),overlay:document.body.classList.contains("aidoc-keyboard-overlay")');
