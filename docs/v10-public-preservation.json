@@ -1,0 +1,60 @@
+{
+  "baseline": "0e65bde6dfd530ae1db4c4bda0e0809bc08ed1e3",
+  "originalControls": 49,
+  "preservedIds": 47,
+  "mergedRedundantInputs": {
+    "patientNameMini": "patientName",
+    "uhidMini": "uhid"
+  },
+  "removedDecorativeControls": [],
+  "workflows": [
+    {
+      "feature": "Clinical interviews, cases, administration",
+      "destination": "Clinical workspace iframe",
+      "serverContract": "Existing Railway application APIs and backend authorization",
+      "qualification": "Rebuilt backend; public iframe viewport tested on isolated origins; exact production acceptance pending"
+    },
+    {
+      "feature": "APACHE II, oxygen branch, chronic context, renal doubling, GCS and mortality estimates",
+      "destination": "Calculator \u2192 Patient / History / Observations / Review",
+      "serverContract": "Original calculation functions retained",
+      "qualification": "Score boundaries and step/draft/browser/accessibility checks executed; no changed clinical formula"
+    },
+    {
+      "feature": "Monthly records, filters and refresh",
+      "destination": "Tools \u2192 Sheet records",
+      "serverContract": "Original Apps Script endpoint, cache and payloads retained",
+      "qualification": "Transport unchanged; production patient reads/writes not used for migration tests"
+    },
+    {
+      "feature": "Outcome update queue and submit",
+      "destination": "Tools \u2192 Sheet records",
+      "serverContract": "Original explicit Y/N batches and validation retained",
+      "qualification": "Original dispatch code retained; no real patient updates used for tests"
+    },
+    {
+      "feature": "Submission and monthly download",
+      "destination": "Calculator action dock",
+      "serverContract": "Original Apps Script submit/download protocol retained",
+      "qualification": "Buttons and authority retained; no real submissions made"
+    },
+    {
+      "feature": "Connection settings and payload/export tools",
+      "destination": "Sheet records \u2192 Connection & tools",
+      "serverContract": "Original device settings and Sheet connection retained",
+      "qualification": "Accessible dialog, keyboard focus and saved configuration contract retained"
+    },
+    {
+      "feature": "Scoring method and contact",
+      "destination": "Tools \u2192 Methods & help",
+      "serverContract": "Original method content and contact submission retained",
+      "qualification": "Content moved to direct disclosures; contact transport unchanged"
+    },
+    {
+      "feature": "Release guard and interrupted iframe sizing",
+      "destination": "Shared host shell",
+      "serverContract": "Existing UI_STATUS and HOST_VIEWPORT messages",
+      "qualification": "Cross-origin viewport, keyboard shrink, draft preservation and busy-update block executed"
+    }
+  ]
+}

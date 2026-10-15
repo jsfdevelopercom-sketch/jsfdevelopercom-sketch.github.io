@@ -15,7 +15,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: npm install --prefix /tmp/host-a11y axe-core@4.10.3
       - name: Real Chromium viewport, tabs, keyboard and draft checks
+        env:
+          AXE_PATH: /tmp/host-a11y/node_modules/axe-core/axe.min.js
         run: node tests/host-layout.cjs "$(command -v google-chrome || command -v chromium)"
       - uses: actions/upload-artifact@v4
         if: always()
