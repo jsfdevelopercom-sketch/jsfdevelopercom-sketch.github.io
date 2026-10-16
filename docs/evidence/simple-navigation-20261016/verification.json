@@ -1,0 +1,295 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "viewport": [
+        320,
+        568
+      ],
+      "width": 320,
+      "height": 568,
+      "scroll": 320,
+      "header": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      },
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 320,
+        "h": 568,
+        "b": 568
+      },
+      "tab": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      }
+    },
+    {
+      "viewport": [
+        369,
+        906
+      ],
+      "width": 369,
+      "height": 906,
+      "scroll": 369,
+      "header": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      },
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 369,
+        "h": 906,
+        "b": 906
+      },
+      "tab": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      }
+    },
+    {
+      "viewport": [
+        390,
+        844
+      ],
+      "width": 390,
+      "height": 844,
+      "scroll": 390,
+      "header": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      },
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 390,
+        "h": 844,
+        "b": 844
+      },
+      "tab": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      }
+    },
+    {
+      "viewport": [
+        844,
+        390
+      ],
+      "width": 844,
+      "height": 390,
+      "scroll": 844,
+      "header": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      },
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 844,
+        "h": 390,
+        "b": 390
+      },
+      "tab": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      }
+    },
+    {
+      "viewport": [
+        1280,
+        820
+      ],
+      "width": 1280,
+      "height": 820,
+      "scroll": 1280,
+      "header": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      },
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 820,
+        "b": 820
+      },
+      "tab": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      }
+    },
+    {
+      "viewport": [
+        1920,
+        1080
+      ],
+      "width": 1920,
+      "height": 1080,
+      "scroll": 1920,
+      "header": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      },
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1920,
+        "h": 1080,
+        "b": 1080
+      },
+      "tab": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0,
+        "b": 0
+      }
+    },
+    {
+      "view": "accessibility",
+      "width": 390,
+      "tab": "form",
+      "stage": 0,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 390,
+      "tab": "form",
+      "stage": 1,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 390,
+      "tab": "form",
+      "stage": 2,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 390,
+      "tab": "form",
+      "stage": 3,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 390,
+      "tab": "controls",
+      "stage": null,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 390,
+      "tab": "help",
+      "stage": null,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 1280,
+      "tab": "form",
+      "stage": 0,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 1280,
+      "tab": "form",
+      "stage": 1,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 1280,
+      "tab": "form",
+      "stage": 2,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 1280,
+      "tab": "form",
+      "stage": 3,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 1280,
+      "tab": "controls",
+      "stage": null,
+      "result": "PASS"
+    },
+    {
+      "view": "accessibility",
+      "width": 1280,
+      "tab": "help",
+      "stage": null,
+      "result": "PASS"
+    },
+    {
+      "view": "keyboard",
+      "width": 369,
+      "height": 906,
+      "scroll": 369,
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 369,
+        "h": 446,
+        "b": 446
+      },
+      "overlay": true
+    },
+    {
+      "view": "trusted-immersive-resume",
+      "untrustedMessage": "ignored",
+      "iframe": "preserved",
+      "focus": "forwarded"
+    },
+    {
+      "view": "release-coherence",
+      "newReleaseDetected": true,
+      "busyUpdateBlocked": true,
+      "calculatorDraft": "preserved"
+    }
+  ]
+}

@@ -5,3 +5,12 @@
 @media(max-width:600px){.host-brand span{display:none}.masthead{padding:0 8px;gap:4px}.main-tabs{gap:0}.tool-workspace{padding:28px 16px 200px}.grid-2,.grid-3{grid-template-columns:1fr}.calculator-steps{gap:4px}.calculator-steps button{font-size:.8125rem;padding:8px}.action-dock{padding:12px 16px}.action-dock button{flex:1;font-size:.8125rem}.incomplete-note{width:100%}.dev-panel{padding:20px}.admin-inputs{align-items:stretch}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}@media print{.masthead,.action-dock,.calculator-steps,.step-actions{display:none}.calculator-stage fieldset[hidden]{display:block!important}.tool-workspace{padding:0}}
 
 .aidoc-immersive .masthead{display:none}.aidoc-immersive #panelAiDoc{height:100dvh}
+
+/* The embedded app owns navigation; its brand must not be duplicated by its host. */
+.aidoc-active .masthead{display:none}.aidoc-active #panelAiDoc{height:100dvh}
+.masthead{height:auto;min-height:64px;display:grid;grid-template-columns:auto 1fr auto;padding:8px 16px;gap:16px}
+.host-brand{font-size:1.15rem}.main-tabs{justify-self:end}.main-tabs>button{min-height:44px;font-size:.875rem}
+.host-tools>summary{min-height:44px;display:flex;align-items:center}.host-tools>div{top:100%}
+@media(max-width:767px){.masthead{grid-template-columns:minmax(0,1fr) auto;padding:0 16px;gap:0 8px}.host-brand{grid-row:1;grid-column:1;min-height:44px;display:flex;align-items:center}.host-tools{grid-row:1;grid-column:2}.main-tabs{grid-row:2;grid-column:1/-1;justify-self:stretch;display:flex}.main-tabs>button{flex:1}}
+.host-tools>div{max-height:calc(100dvh - 96px);overflow-y:auto;overscroll-behavior:contain}
+@media print{.masthead{display:none!important}}

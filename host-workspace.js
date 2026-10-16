@@ -51,6 +51,18 @@ function resumeDoctor(){
  clinicalFrame.contentWindow?.postMessage({type:'SILICONDOCTOR_HOST_RESUME_V1'},clinicalOrigin);
 }
 function handshake(){clinicalFrame.contentWindow?.postMessage({type:'SILICONDOCTOR_HOST_READY_V1'},clinicalOrigin);resumeDoctor();}
+for(const button of document.querySelectorAll('[data-clinical-route]'))button.addEventListener('click',()=>{
+ const path=button.dataset.clinicalRoute;
+ const url=new URL(clinicalFrame.src);url.pathname=path;url.search='';clinicalFrame.src=url.href;
+ if(button.id!=='mainTabAiDoc')setMainTab('aidoc');
+ syncImmersion();handshake();
+});
+window.addEventListener('message',event=>{
+ if(event.source!==clinicalFrame.contentWindow||event.origin!==clinicalOrigin||event.data?.type!=='SILICONDOCTOR_HOST_PANEL_V1'||!['form','controls','help'].includes(event.data.panel))return;
+ document.getElementById({form:'mainTabForm',controls:'mainTabControls',help:'mainTabHelp'}[event.data.panel]).click();
+});
+const requestedPanel=new URLSearchParams(location.search).get('panel');
+if(['form','controls','help'].includes(requestedPanel))document.getElementById({form:'mainTabForm',controls:'mainTabControls',help:'mainTabHelp'}[requestedPanel]).click();
 window.addEventListener('message',event=>{
  if(event.source!==clinicalFrame.contentWindow||event.origin!==clinicalOrigin||event.data?.type!=='SILICONDOCTOR_IMMERSIVE_V1'||typeof event.data.immersive!=='boolean')return;
  immersive=event.data.immersive;syncImmersion();
