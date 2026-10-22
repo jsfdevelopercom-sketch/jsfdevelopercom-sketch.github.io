@@ -4,7 +4,7 @@ const release=document.querySelector('meta[name="silicondoctor-ui-release"]')?.c
 const frame=document.querySelector('#panelAiDoc iframe');
 let childStatus=null,banner,checking=false;
 addEventListener('message',event=>{
-  if(event.source!==frame?.contentWindow||event.origin!=='https://web-production-09bf5.up.railway.app'||event.data?.type!=='SILICONDOCTOR_UI_STATUS_V1')return;
+  if(event.source!==frame?.contentWindow||event.origin!=='https://p01--web-preview--mc8f4fqj6c2m.code.run'||event.data?.type!=='SILICONDOCTOR_UI_STATUS_V1')return;
   childStatus={busy:event.data.busy===true,unsaved:event.data.unsavedEdits===true,time:Date.now()};
 });
 async function check(){

@@ -12,8 +12,8 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
  const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',()=>resolve('http://127.0.0.1:'+server.address().port)));
  const childServer=http.createServer((q,r)=>{r.setHeader('Content-Type','text/html');r.end('<!doctype html><meta name="viewport" content="width=device-width"><style>html,body{margin:0;background:#121d28;color:#fff}</style><p>Isolated host layout surface</p>')});
  const childOrigin=await listen(childServer);
- const source=(await fs.readFile('index.html','utf8')).replaceAll('https://web-production-09bf5.up.railway.app',childOrigin);
- const releaseScript=(await fs.readFile('client-release.js','utf8')).replaceAll('https://web-production-09bf5.up.railway.app',childOrigin);
+ const source=(await fs.readFile('index.html','utf8')).replaceAll('https://p01--web-preview--mc8f4fqj6c2m.code.run',childOrigin);
+ const releaseScript=(await fs.readFile('client-release.js','utf8')).replaceAll('https://p01--web-preview--mc8f4fqj6c2m.code.run',childOrigin);
  let currentRelease=JSON.parse(await fs.readFile('ui-release.json','utf8')).release;
  const server=http.createServer(async(q,r)=>{
   if(q.url.startsWith('/client-release.js')){r.setHeader('Content-Type','text/javascript');r.end(releaseScript);return}
