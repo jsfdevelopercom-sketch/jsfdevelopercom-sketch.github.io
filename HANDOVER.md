@@ -1,3 +1,7 @@
+## Colleague Chat — 23 October 2026
+
+Host navigation now offers Home/Tools/Interviews/Chat. Chat opens signed-in Northflank /chat. Parent retains exact-origin/source-window checks for immersive mode; tools stay in the child. The child owns public session, encrypted outbox, microphone/gallery permissions, ticks and frozen case snapshots. No provider credentials enter this host. Nine local host viewport checks PASS; shared real local Spring/PostgreSQL Chat15 checks PASS. Paid interview completion remains blocked by unreconciled provider usage; mail also needs verified Resend credentials. See backend ChatAndAdmissionReport20261023.md/pdf and latest handover for final deployment receipts. Host release chat-20261023.
+
 ## Northflank production routing — 22 October 2026
 
 The clinical iframe, trusted child-message origin, direct fallback link and bot lab now use https://p01--web-preview--mc8f4fqj6c2m.code.run. The shared backend restored the final owner-fenced original snapshot: all26 table hashes/1549 rows and1371 regular-file hashes match. Original Google audiences and record encryption key are retained. Runtime READY and original cumulative daily106.408234425 INR are verified; daily cap210.21237485, monthly original unlimited. Clinical provider acceptance is being tested; READY alone does not prove a finished interview.
