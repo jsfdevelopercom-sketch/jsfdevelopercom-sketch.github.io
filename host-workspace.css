@@ -14,3 +14,9 @@
 @media(max-width:767px){.masthead{grid-template-columns:minmax(0,1fr) auto;padding:0 16px;gap:0 8px}.host-brand{grid-row:1;grid-column:1;min-height:44px;display:flex;align-items:center}.host-tools{grid-row:1;grid-column:2}.main-tabs{grid-row:2;grid-column:1/-1;justify-self:stretch;display:flex}.main-tabs>button{flex:1}}
 .host-tools>div{max-height:calc(100dvh - 96px);overflow-y:auto;overscroll-behavior:contain}
 @media print{.masthead{display:none!important}}
+
+/* Secondary groups stay inside Menu; release notices cannot cover a clinical screen. */
+.host-menu-group{min-width:0;padding:4px}.host-menu-group+section{border-top:1px solid var(--line)}
+.host-menu-group h2{font-size:.72rem;color:var(--muted);margin:8px;text-transform:uppercase;letter-spacing:.06em}
+.host-menu-group button{display:block;width:100%}.ui-update-notice{border-top:1px solid var(--line);padding:12px 8px;display:flex;gap:8px;flex-wrap:wrap}
+.ui-update-notice span{width:100%;font-size:.85rem}.host-tools>div{width:min(420px,calc(100vw - 24px));grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}

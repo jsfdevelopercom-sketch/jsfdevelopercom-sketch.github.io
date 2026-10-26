@@ -1,3 +1,7 @@
+# 26 October 2026 — coherent optional updates and grouped Menu
+
+HTML and ui-release.json now agree on navigation-20261026. The stale HTML/manifest mismatch caused Update to recur forever. client-release.js offers Update/Later inside Menu rather than an overlay. Exact-origin child messages retain busy/unsaved protection and draft preservation before refresh. Menu secondary tools are grouped Clinical tools and Support. Existing visible Home/Tools/Interviews/Chat and route bridge remain. Host Chromium gate: 10 journeys PASS including protected operations, new release reload, notice disappears afterward, calculator draft/scoring preserved. No clinical model or authentication credential changed. Backend companion owns actual archived deletion and shared UI. Fresh deployed verification pending this push.
+
 ## Colleague Chat — 23 October 2026
 
 Host navigation now offers Home/Tools/Interviews/Chat. Chat opens signed-in Northflank /chat. Parent retains exact-origin/source-window checks for immersive mode; tools stay in the child. The child owns public session, encrypted outbox, microphone/gallery permissions, ticks and frozen case snapshots. No provider credentials enter this host. Nine local host viewport checks PASS; shared real local Spring/PostgreSQL Chat15 checks PASS. Paid interview completion remains blocked by unreconciled provider usage; mail also needs verified Resend credentials. See backend ChatAndAdmissionReport20261023.md/pdf and latest handover for final deployment receipts. Host release chat-20261023.

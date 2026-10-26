@@ -14,13 +14,14 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
  const childOrigin=await listen(childServer);
  const source=(await fs.readFile('index.html','utf8')).replaceAll('https://p01--web-preview--mc8f4fqj6c2m.code.run',childOrigin);
  const releaseScript=(await fs.readFile('client-release.js','utf8')).replaceAll('https://p01--web-preview--mc8f4fqj6c2m.code.run',childOrigin);
+ let publishNewHtml=false;
  let currentRelease=JSON.parse(await fs.readFile('ui-release.json','utf8')).release;
  const server=http.createServer(async(q,r)=>{
   if(q.url.startsWith('/client-release.js')){r.setHeader('Content-Type','text/javascript');r.end(releaseScript);return}
   if(q.url.startsWith('/ui-release.json')){r.setHeader('Content-Type','application/json');r.end(JSON.stringify({release:currentRelease}));return}
   const asset=q.url.split('?')[0];
   if(['/host-workspace.css','/host-workspace.js'].includes(asset)){r.setHeader('Content-Type',asset.endsWith('.css')?'text/css':'text/javascript');r.end(await fs.readFile('.'+asset));return}
-  r.setHeader('Content-Type','text/html');r.end(source)
+  r.setHeader('Content-Type','text/html');r.end(publishNewHtml?source.replace(/(<meta[^>]*name="silicondoctor-ui-release"[^>]*content=")[^"]*(")|(<meta[^>]*content=")[^"]*("[^>]*name="silicondoctor-ui-release")/g,(m,a,b,c,d)=>(a||c)+currentRelease+(b||d)):source)
  });
  const base=await listen(server);
  const profile=await fs.mkdtemp(path.join(os.tmpdir(),'sd-layout-'));
@@ -124,6 +125,16 @@ const assert=(ok,m)=>{if(!ok)throw Error(m)};
   assert(await evaluate('document.querySelector("#website-release-notice").textContent.includes("Finish the current operation")'),'Website update interrupted an active child request');
   assert(await evaluate('document.querySelector("#age").value==="57"'),'Release detection lost calculator draft');
   receipt.push({view:'release-coherence',newReleaseDetected:true,busyUpdateBlocked:true,calculatorDraft:'preserved'});
+  assert(await evaluate('getComputedStyle(document.querySelector("#website-release-notice")).position!=="fixed"'),'Update must be inside Menu, not a fixed overlay');
+  await evaluate(`parent.postMessage({type:'SILICONDOCTOR_UI_STATUS_V1',busy:false,unsavedEdits:true},${JSON.stringify(base)})`,context);await pause(100);
+  await evaluate('document.querySelector("#website-release-notice button").click()');
+  assert(await evaluate('document.querySelector("#website-release-notice").textContent.includes("save edits")'),'Unsaved edits were not protected');
+  await evaluate(`parent.postMessage({type:'SILICONDOCTOR_UI_STATUS_V1',busy:false,unsavedEdits:false},${JSON.stringify(base)})`,context);await pause(100);
+  publishNewHtml=true;
+  await evaluate('setTimeout(()=>document.querySelector("#website-release-notice button").click(),0)');await pause(900);
+  assert(await evaluate(`document.querySelector('meta[name="silicondoctor-ui-release"]').content==="synthetic-next-release"`),'Update did not load new HTML');
+  assert(await evaluate('!document.querySelector("#website-release-notice")'),'Update notice survived successful update');
+  receipt.push({view:'update-applied',noOverlay:true,noRepeatNotice:true,unsavedEditsProtected:true});
   await fs.writeFile(path.join(out,'host-layout.json'),JSON.stringify({status:'PASS',checks:receipt},null,2)+'\n');
   console.log(JSON.stringify({status:'PASS',viewports:receipt.length,calculatorDraft:'preserved',calculatorScoring:'PASS'}));
  }finally{socket?.close();child.kill('SIGTERM');await pause(300);if(child.exitCode===null)child.kill('SIGKILL');await fs.rm(profile,{recursive:true,force:true});server.close();childServer.close()}
