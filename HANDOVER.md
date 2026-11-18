@@ -1,3 +1,9 @@
+# Verified public deployment — 18 November 2026
+
+Application1da9404f1f6c18d7f2458d2f2183089007939a9c. GitHub Pages44397054369 and host-layout44397054718 PASS. Public APACHE family, II, III, IV and qSOFA addresses return200 after trailing-slash redirect. Backend application90f601c05b9b1d568341117f34babd242c00c7c8 is live: health204, case-evidence-tools-20261118.1, SHA25676e775b63f8c5a4e8517754e2d8766a5c09e7a80e3aec361249352be14875fed. Actual public-frame APACHE II/III submissions pass at390/1280px (synthetic normal physiology/age50:2/5points); archived original IV form loads45 inputs. Zero paid calls. Original IV remains externally hosted/adult non-CABG, not a new local or clinically qualified implementation. Backend full CI is still running; focused checks and deployment are verified. See backend running handover PDF and docs/evidence/case-evidence-tools-deployed-20261118.json for sanitized receipts. This subsequent handover-only commit does not change application assets.
+
+---
+
 # Individual clinical tool addresses — 18 November 2026
 
 Release tool-addresses-20261118. 848 backend catalogue entries now have their own static public address. The Tools root, four category pages and APACHE family add up to854 generated entry pages. tool-page.js embeds the existing Northflank owner with exact-origin/window message validation and no copied clinical scoring code. The shared original host updates the public address without reloading the active calculator. Scripts/generate_tool_pages.py and tool-pages.json reproduce/verify these pages. Unknown paths are not generated.
