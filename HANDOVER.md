@@ -1,3 +1,13 @@
+# Individual clinical tool addresses — 18 November 2026
+
+Release tool-addresses-20261118. 848 backend catalogue entries now have their own static public address. The Tools root, four category pages and APACHE family add up to854 generated entry pages. tool-page.js embeds the existing Northflank owner with exact-origin/window message validation and no copied clinical scoring code. The shared original host updates the public address without reloading the active calculator. Scripts/generate_tool_pages.py and tool-pages.json reproduce/verify these pages. Unknown paths are not generated.
+
+Use /tools/apache, /tools/apache-ii, /tools/apache-iii and /tools/apache-iv. APACHE II/III are local deterministic range-selection calculators on the backend; IV uses the archived original author calculator in a sandboxed iframe (adult non-CABG, dependent on Internet Archive). Review its prefilled values. Other discovery-only tools remain discovery-only; unique addresses do not claim executable formula coverage. Ten host viewport/draft/scoring checks pass and854 generated pages verify. Public deployment readback is pending this push. No credential, patient data, spending setting or third-party calculator source was added.
+
+Backend running Markdown/PDF: https://github.com/jsfdevelopercom-sketch/silicondoctor-aidoc-backend/blob/main/docs/handover/latest.pdf . Full source/check details: docs/CaseEvidenceTools20261118.md in the backend. Regenerate with python scripts/generate_tool_pages.py; verify with --check. GitHub Pages serves the generated directories and redirects unsuffixed paths to their trailing-slash addresses.
+
+---
+
 # 26 October 2026 — coherent optional updates and grouped Menu
 
 HTML and ui-release.json now agree on navigation-20261026. The stale HTML/manifest mismatch caused Update to recur forever. client-release.js offers Update/Later inside Menu rather than an overlay. Exact-origin child messages retain busy/unsaved protection and draft preservation before refresh. Menu secondary tools are grouped Clinical tools and Support. Existing visible Home/Tools/Interviews/Chat and route bridge remain. Host Chromium gate: 10 journeys PASS including protected operations, new release reload, notice disappears afterward, calculator draft/scoring preserved. No clinical model or authentication credential changed. Backend companion owns actual archived deletion and shared UI. Fresh deployed verification pending this push.

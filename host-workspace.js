@@ -74,4 +74,12 @@ new MutationObserver(syncImmersion).observe(document.getElementById('panelAiDoc'
 for(const button of document.querySelectorAll('[data-maintab]'))button.addEventListener('click',()=>{syncImmersion();if(button.id==='mainTabAiDoc')handshake();});
 handshake();
 show(0);
+
+// #codeflow# Keep a selected tool shareable on the public host without reloading
+// its live iframe or disturbing unsaved calculator input.
+window.addEventListener('message',event=>{
+ if(event.source!==clinicalFrame.contentWindow||event.origin!==clinicalOrigin||event.data?.type!=='SILICONDOCTOR_TOOL_ROUTE_V1'||!/^\/tools(?:\/[a-z0-9-]+)?$/.test(event.data.path))return;
+ history.replaceState(null,'',event.data.path);
+});
+
 })();
